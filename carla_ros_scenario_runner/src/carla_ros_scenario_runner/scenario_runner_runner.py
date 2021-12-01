@@ -34,7 +34,7 @@ class ScenarioRunnerRunner(ApplicationRunner):
         Executes scenario
         """
         if ROS_VERSION == 1:
-            python_path = "/usr/bin/python"
+            python_path = "/usr/bin/python3"
         elif ROS_VERSION == 2:
             python_path = "/usr/bin/python3"
         cmdline = [python_path, "{}/scenario_runner.py".format(self._path),
