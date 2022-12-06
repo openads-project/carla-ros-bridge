@@ -149,7 +149,7 @@ class TestClock(unittest.TestCase):
             msg = node.wait_for_message(
                 "/carla/ego_vehicle/vehicle_status", CarlaEgoVehicleStatus)
             self.assertNotEqual(msg.header, Header())
-            self.assertEqual(msg.header.frame_id, 'map')
+            self.assertEqual(msg.header.frame_id, 'carla_map')
             self.assertNotEqual(msg.orientation, Quaternion())
         finally:
             if node is not None:
@@ -198,7 +198,7 @@ class TestClock(unittest.TestCase):
             node = CompatibleNode('test_node')
             msg = node.wait_for_message(
                 "/carla/ego_vehicle/odometry", Odometry, timeout=TIMEOUT)
-            self.assertEqual(msg.header.frame_id, "map")
+            self.assertEqual(msg.header.frame_id, "carla_map")
             self.assertEqual(msg.child_frame_id, "ego_vehicle")
             self.assertNotEqual(msg.pose, Pose())
         finally:
@@ -392,7 +392,7 @@ class TestClock(unittest.TestCase):
             node = CompatibleNode('test_node')
             msg = node.wait_for_message(
                 "/carla/ego_vehicle/objects", ObjectArray, timeout=15)
-            self.assertEqual(msg.header.frame_id, "map")
+            self.assertEqual(msg.header.frame_id, "carla_map")
             self.assertEqual(len(msg.objects), 0)
         finally:
             if node is not None:
@@ -408,7 +408,7 @@ class TestClock(unittest.TestCase):
             roscomp.init("test_node")
             node = CompatibleNode('test_node')
             msg = node.wait_for_message("/carla/objects", ObjectArray, timeout=TIMEOUT)
-            self.assertEqual(msg.header.frame_id, "map")
+            self.assertEqual(msg.header.frame_id, "carla_map")
             self.assertEqual(len(msg.objects), 1)  # only ego vehicle exists
         finally:
             if node is not None:
@@ -427,7 +427,7 @@ class TestClock(unittest.TestCase):
             self.assertEqual(len(msg.markers), 1)  # only ego vehicle exists
 
             ego_marker = msg.markers[0]
-            self.assertEqual(ego_marker.header.frame_id, "map")
+            self.assertEqual(ego_marker.header.frame_id, "carla_map")
             self.assertNotEqual(ego_marker.id, 0)
             self.assertEqual(ego_marker.type, 1)
             self.assertNotEqual(ego_marker.pose, Pose())
