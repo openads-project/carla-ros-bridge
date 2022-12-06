@@ -118,7 +118,7 @@ class LocalPlanner(CompatibleNode):
     def pose_to_marker_msg(self, pose):
         marker_msg = Marker()
         marker_msg.type = 0
-        marker_msg.header.frame_id = "carla_map"
+        marker_msg.header.frame_id = "map"
         marker_msg.pose = pose
         marker_msg.scale.x = 1.0
         marker_msg.scale.y = 0.2

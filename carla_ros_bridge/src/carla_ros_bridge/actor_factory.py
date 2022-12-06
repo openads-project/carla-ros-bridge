@@ -228,7 +228,7 @@ class ActorFactory(object):
         Creates also the object for its parent, if not yet existing
         """
         parent = None
-        # the transform relative to the carla_map
+        # the transform relative to the map
         relative_transform = trans.carla_transform_to_ros_pose(carla_actor.get_transform())
         if carla_actor.parent:
             if carla_actor.parent.id in self.actors:

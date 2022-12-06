@@ -51,7 +51,7 @@ class TestClock(unittest.TestCase):
         msg = rospy.wait_for_message(
             "/carla/ego_vehicle/vehicle_status", CarlaEgoVehicleStatus, timeout=TIMEOUT)
         self.assertNotEqual(msg.header, Header())
-        self.assertEqual(msg.header.frame_id, 'carla_map')
+        self.assertEqual(msg.header.frame_id, 'map')
         self.assertNotEqual(msg.orientation, Quaternion())
 
     def test_vehicle_info(self):
@@ -85,7 +85,7 @@ class TestClock(unittest.TestCase):
         rospy.init_node('test_node', anonymous=True)
         msg = rospy.wait_for_message(
             "/carla/ego_vehicle/odometry", Odometry, timeout=TIMEOUT)
-        self.assertEqual(msg.header.frame_id, "carla_map")
+        self.assertEqual(msg.header.frame_id, "map")
         self.assertEqual(msg.child_frame_id, "ego_vehicle")
         self.assertNotEqual(msg.pose, Pose())
 
@@ -201,7 +201,7 @@ class TestClock(unittest.TestCase):
         rospy.init_node('test_node', anonymous=True)
         msg = rospy.wait_for_message(
             "/carla/ego_vehicle/objects", ObjectArray, timeout=15)
-        self.assertEqual(msg.header.frame_id, "carla_map")
+        self.assertEqual(msg.header.frame_id, "map")
         self.assertEqual(len(msg.objects), 0)
 
     def test_objects(self):
@@ -210,7 +210,7 @@ class TestClock(unittest.TestCase):
         """
         rospy.init_node('test_node', anonymous=True)
         msg = rospy.wait_for_message("/carla/objects", ObjectArray, timeout=TIMEOUT)
-        self.assertEqual(msg.header.frame_id, "carla_map")
+        self.assertEqual(msg.header.frame_id, "map")
         self.assertEqual(len(msg.objects), 1)  # only ego vehicle exists
 
     def test_marker(self):
@@ -222,7 +222,7 @@ class TestClock(unittest.TestCase):
         self.assertEqual(len(msg.markers), 1)  # only ego vehicle exists
 
         ego_marker = msg.markers[0]
-        self.assertEqual(ego_marker.header.frame_id, "carla_map")
+        self.assertEqual(ego_marker.header.frame_id, "map")
         self.assertNotEqual(ego_marker.id, 0)
         self.assertEqual(ego_marker.type, 1)
         self.assertNotEqual(ego_marker.pose, Pose())

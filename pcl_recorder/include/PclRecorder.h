@@ -25,6 +25,6 @@ private:
   ros::Subscriber sub;
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener *tfListener;
-  static constexpr const char* fixed_frame_ = "carla_map";
+  static constexpr const char* fixed_frame_ = "map";
 
 };

@@ -19,7 +19,7 @@
         },
         {
             "type": "sensor.pseudo.opendrive_map",
-            "id": "carla_map"
+            "id": "map"
         },
         {
             "type": "vehicle.tesla.model3",

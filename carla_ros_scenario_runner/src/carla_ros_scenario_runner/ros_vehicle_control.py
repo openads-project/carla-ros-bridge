@@ -117,7 +117,7 @@ class RosVehicleControl(BasicControl):
         self.node.loginfo("{}: Waypoints changed.".format(self._role_name))
         path = Path()
         path.header.stamp = roscomp.ros_timestamp(sec=self.node.get_time(), from_sec=True)
-        path.header.frame_id = "carla_map"
+        path.header.frame_id = "map"
         for wpt in waypoints:
             print(wpt)
             path.poses.append(PoseStamped(pose=trans.carla_transform_to_ros_pose(wpt)))

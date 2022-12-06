@@ -67,12 +67,12 @@ class ObjectSensor(PseudoActor):
     def update(self, frame, timestamp):
         """
         Function (override) to update this object.
-        On update carla_map sends:
+        On update map sends:
         - tf global frame
         :return:
         """
         ros_objects = ObjectArray()
-        ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
+        ros_objects.header = self.get_msg_header(frame_id="map", timestamp=timestamp)
         for actor_id in self.actor_list.keys():
             # currently only Vehicles and Walkers are added to the object array
             if self.parent is None or self.parent.uid != actor_id:

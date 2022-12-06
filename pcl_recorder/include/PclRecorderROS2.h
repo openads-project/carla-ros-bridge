@@ -25,6 +25,6 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_ = nullptr;
   tf2_ros::TransformListener *tfListener;
-  static constexpr const char* fixed_frame_ = "carla_map";
+  static constexpr const char* fixed_frame_ = "map";
 
 };
