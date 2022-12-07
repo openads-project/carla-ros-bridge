@@ -10,10 +10,15 @@
 Class to handle the carla map
 """
 
+import tf2_ros
+import geometry_msgs.msg
+import ros_compatibility as roscomp
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 
 from carla_msgs.msg import CarlaWorldInfo
 
+import xml.etree.ElementTree as ET
+from pyproj import Proj
 
 class WorldInfo(object):
 
@@ -40,6 +45,9 @@ class WorldInfo(object):
             "/carla/world_info",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
+
+        self._tf_broadcaster = tf2_ros.TransformBroadcaster()
+
     def destroy(self):
         """
         Function (override) to destroy this object.
@@ -64,3 +72,28 @@ class WorldInfo(object):
             open_drive_msg.opendrive = self.carla_map.to_opendrive()
             self.world_info_publisher.publish(open_drive_msg)
             self.map_published = True
+
+            # extract transform 
+            root = ET.fromstring(open_drive_msg.opendrive)
+
+            for header in root.findall('header'):
+                for geo in header.findall('geoReference'):
+                    proj = geo.text
+
+                    p = Proj(proj='utm',zone=10,ellps='WGS84', preserve_units=False)
+
+                    self.world_x, self.world_y = p(0,0)
+        
+        # publish transform 
+        if self.world_x and self.world_y:
+
+            t = geometry_msgs.msg.TransformStamped()
+            t.header.stamp = roscomp.ros_timestamp(sec=timestamp, from_sec=True)
+            t.header.frame_id = "world"
+            t.child_frame_id = "carla_map"
+
+            t.transform.translation.x = self.world_x
+            t.transform.translation.y = self.world_y
+            t.transform.rotation.w = 1
+
+            self._tf_broadcaster.sendTransform(t)

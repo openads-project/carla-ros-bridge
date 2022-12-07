@@ -7,3 +7,4 @@ pygame
 pexpect
 simple-pid
 networkx
+pyproj
