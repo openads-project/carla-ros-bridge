@@ -20,7 +20,7 @@ from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 
 from carla_ros_scenario_runner.application_runner import ApplicationRunner
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PointStamped
 from nav_msgs.msg import Path
 from std_msgs.msg import Float64
 
@@ -48,6 +48,7 @@ class RosVehicleControl(BasicControl):
         self._current_target_speed = None
         self._current_path = None
         self.controller_launch = None
+        self._destination_point = None
 
         self._target_speed_publisher = self.node.new_publisher(
             Float64,
@@ -60,6 +61,12 @@ class RosVehicleControl(BasicControl):
             "/carla/{}/{}".format(self._role_name, self._path_topic_name),
             QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.node.loginfo("Publishing path on /carla/{}/{}".format(self._role_name, self._path_topic_name))
+
+        self._destination_publisher = self.node.new_publisher(
+            PointStamped,
+            "/carla/{}/destination".format(self._role_name),
+            QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        self.node.loginfo("Publishing destination on /carla/{}/destination".format(self._role_name))
 
         if "launch" in args and "launch-package" in args:
 
@@ -122,6 +129,8 @@ class RosVehicleControl(BasicControl):
             print(wpt)
             path.poses.append(PoseStamped(pose=trans.carla_transform_to_ros_pose(wpt)))
         self._path_publisher.publish(path)
+          
+        self._destination_point = waypoints[-1]
 
     def reset(self):
         # set target speed to zero before closing as the controller can take time to shutdown
@@ -137,5 +146,11 @@ class RosVehicleControl(BasicControl):
             self.node.destroy_subscription(self._path_publisher)
             self._path_publisher = None
 
-    def run_step(self):
-        pass
+    def run_step(self):    
+        if self._destination_point:
+            destination_point = PointStamped()
+            destination_point.header.stamp = roscomp.ros_timestamp(sec=self.node.get_time(), from_sec=True)
+            destination_point.header.frame_id = "map"
+            destination_point.point = trans.carla_location_to_ros_point(self._destination_point.location) 
+            
+            self._destination_publisher.publish(destination_point) 
