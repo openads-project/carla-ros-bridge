@@ -216,7 +216,7 @@ class CarlaToRosWaypointConverter(CompatibleNode):
         Publish the ROS message containing the waypoints
         """
         msg = Path()
-        msg.header.frame_id = "map"
+        msg.header.frame_id = "carla_map"
         msg.header.stamp = roscomp.ros_timestamp(self.get_time(), from_sec=True)
         if self.current_route is not None:
             for wp in self.current_route:

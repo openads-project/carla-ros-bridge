@@ -242,7 +242,7 @@ class CarlaAckermannControl(CompatibleNode):
         :rtype: std_msgs.msg.Header
         """
         header = Header()
-        header.frame_id = "map"
+        header.frame_id = "carla_map"
         header.stamp = roscomp.ros_timestamp(sec=self.get_time(), from_sec=True)
         return header
 

@@ -116,7 +116,7 @@ class MarkerSensor(PseudoActor):
         return "sensor.pseudo.markers"
 
     def _get_marker_from_environment_object(self, environment_object):
-        marker = Marker(header=self.get_msg_header(frame_id="map"))
+        marker = Marker(header=self.get_msg_header(frame_id="carla_map"))
         marker.ns = str(environment_object.type)
         marker.id = next(self.static_id_gen)
 
@@ -144,7 +144,7 @@ class MarkerSensor(PseudoActor):
     def update(self, frame, timestamp):
         """
         Function (override) to update this object.
-        On update map sends:
+        On update carla_map sends:
         - tf global frame
         :return:
         """
