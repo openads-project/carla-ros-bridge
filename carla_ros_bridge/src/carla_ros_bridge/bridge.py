@@ -37,6 +37,8 @@ from carla_msgs.msg import CarlaControl, CarlaWeatherParameters
 from carla_msgs.srv import SpawnObject, DestroyObject, GetBlueprints
 from rosgraph_msgs.msg import Clock
 
+import time
+
 
 class CarlaRosBridge(CompatibleNode):
 
@@ -264,6 +266,7 @@ class CarlaRosBridge(CompatibleNode):
 
             self.actor_factory.update_available_objects()
             frame = self.carla_world.tick()
+            last_tick=time.time()
 
             world_snapshot = self.carla_world.get_snapshot()
 
@@ -282,6 +285,13 @@ class CarlaRosBridge(CompatibleNode):
                                      "Missing command from actor ids {}".format(CarlaRosBridge.VEHICLE_CONTROL_TIMEOUT,
                                                                                 self._expected_ego_vehicle_control_command_ids))
                     self._all_vehicle_control_commands_received.clear()
+            
+            # wait for realtime
+            factor = 1.0
+            self.logdebug("OS Time at last tick: {}".format(last_tick))
+            self.logdebug("Current OS Time: {}".format(time.time()))
+            while(world_snapshot.timestamp.delta_seconds > (time.time()-last_tick)*factor):
+                self.loginfo("Waiting to reach desired realtime-factor!")
 
     def _carla_time_tick(self, carla_snapshot):
         """
