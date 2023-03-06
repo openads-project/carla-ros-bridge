@@ -17,6 +17,7 @@
   <!-- set the fixed timestep length -->
   <arg name='fixed_delta_seconds' default='0.05'/>
   <arg name='town' default='Town01'/>
+  <arg name='rt_factor' default='inf'/>
   <!-- enable/disable the registration of all sensors. If disabled, only sensors
   spawned by the bridge are registered -->
   <arg name='register_all_sensors' default='True'/>
@@ -38,5 +39,6 @@
     <param name="register_all_sensors" value="$(arg register_all_sensors)"/>
     <param name="town" value="$(arg town)"/>
     <param name="ego_vehicle_role_name" value="$(arg ego_vehicle_role_name)"/>
+    <param name="rt_factor" value="$(arg rt_factor)"/>
   </node>
 </launch>
