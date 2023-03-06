@@ -286,11 +286,11 @@ class CarlaRosBridge(CompatibleNode):
                                                                                 self._expected_ego_vehicle_control_command_ids))
                     self._all_vehicle_control_commands_received.clear()
             
-            # wait for realtime
-            factor = self.parameters["rt_factor"]
+            # realt-time factor while loop
+            factor = self.parameters['rt_factor']
             if isinstance(factor, (float, int)):
-                self.logdebug("OS Time at last tick: {}".format(last_tick))
-                self.logdebug("Current OS Time: {}".format(time.time()))
+                self.logdebug("Time at last tick: {}".format(last_tick))
+                self.logdebug("Current Time: {}".format(time.time()))
                 while(world_snapshot.timestamp.delta_seconds > (time.time()-last_tick)*factor):
                     self.loginfo("Waiting to reach desired realtime-factor!")
 
@@ -409,7 +409,7 @@ def main(args=None):
                                                                0.05)
     parameters['register_all_sensors'] = carla_bridge.get_param('register_all_sensors', True)
     parameters['town'] = carla_bridge.get_param('town', 'Town01')
-    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 'inf')
+    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 1)
     role_name = carla_bridge.get_param('ego_vehicle_role_name',
                                        ["hero", "ego_vehicle", "hero1", "hero2", "hero3"])
     parameters["ego_vehicle"] = {"role_name": role_name}
