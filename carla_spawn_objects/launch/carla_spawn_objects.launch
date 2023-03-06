@@ -10,7 +10,7 @@
 
   <node pkg="carla_spawn_objects" type="carla_spawn_objects.py" name="$(anon carla_spawn_objects)" output="screen">
     <param name="objects_definition_file" value="$(arg objects_definition_file)" />
-    <param name="spawn_point_hero" value="$(arg spawn_point_ego_vehicle)" />
+    <param name="spawn_point_ego_vehicle" value="$(arg spawn_point_ego_vehicle)" />
     <param name="spawn_point_challenger_vehicle" value="$(arg spawn_point_challenger_vehicle)" />
     <param name="spawn_sensors_only" value="$(arg spawn_sensors_only)" />
   </node>
