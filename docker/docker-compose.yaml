@@ -1,0 +1,27 @@
+x-base-image: &base-image gitlab.ika.rwth-aachen.de:5050/automated-driving/docker/ros1:noetic
+x-dev-image:  &dev-image  gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/ros-bridge:latest-dev
+x-run-image:  &run-image  gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/ros-bridge:latest
+x-command:    &command    roslaunch carla_ros_bridge carla_ros_bridge.launch
+
+# ==============================================================================
+
+x-build: &build
+  dockerfile: ./docker/docker-ros/Dockerfile
+  context: ../
+  args:
+    BASE_IMAGE: *base-image
+    COMMAND: *command
+    GIT_HTTPS_USER: $GIT_HTTPS_USER
+    GIT_HTTPS_PASSWORD: $GIT_HTTPS_PASSWORD
+
+services:
+  dev:
+    image: *dev-image
+    build:
+      target: dev
+      <<: *build
+  run:
+    image: *run-image
+    build:
+      target: run
+      <<: *build
