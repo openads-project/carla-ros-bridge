@@ -162,7 +162,7 @@ class CarlaRosBridge(CompatibleNode):
             self.new_subscription(CarlaWeatherParameters, "/carla/weather_control",
                                   self.on_weather_changed, qos_profile=10, callback_group=self.callback_group)
         
-        self.last_check = time.time()
+        self.last_loginfo = time.time()
 
     def spawn_object(self, req, response=None):
         response = roscomp.get_service_response(SpawnObject)
@@ -290,17 +290,13 @@ class CarlaRosBridge(CompatibleNode):
             
             # real-time factor while loop
             factor = self.parameters['rt_factor']
-            self.logdebug("Factor: {}".format(factor))
             if isinstance(factor, (float, int)):
-                self.logdebug("Time at last tick: {}".format(last_tick))
-                self.logdebug("Current Time: {}".format(time.time()))
-                print("Current RT: {}".format(world_snapshot.timestamp.delta_seconds / (time.time()-last_tick)))
                 while(world_snapshot.timestamp.delta_seconds > (time.time()-last_tick)*factor):
                     self.loginfo("Waiting to reach desired realtime-factor!")
-                    self.last_check = time.time()
-                print(time.time() -self.last_check)
-                if time.time() - self.last_check > 2:
-                    print("Could not reach desired realtime-factor")
+                
+                if time.time() - self.last_loginfo > 1:
+                    self.loginfo("\nActual  realtime-factor: {:.2f}\nDesired realtime-factor: {}".format(world_snapshot.timestamp.delta_seconds / (time.time()-last_tick), factor))
+                    self.last_loginfo = time.time()
 
     def _carla_time_tick(self, carla_snapshot):
         """
