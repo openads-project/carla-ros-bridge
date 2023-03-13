@@ -295,7 +295,7 @@ class CarlaRosBridge(CompatibleNode):
                     self.loginfo("Waiting to reach desired realtime-factor!")
                 
                 if time.time() - self.last_loginfo > 1:
-                    self.loginfo("\nActual  realtime-factor: {:.2f}\nDesired realtime-factor: {}".format(world_snapshot.timestamp.delta_seconds / (time.time()-last_tick), factor))
+                    self.loginfo("Actual realtime-factor: {:.2f} / Desired realtime-factor: {}".format(world_snapshot.timestamp.delta_seconds / (time.time()-last_tick), factor))
                     self.last_loginfo = time.time()
 
     def _carla_time_tick(self, carla_snapshot):
