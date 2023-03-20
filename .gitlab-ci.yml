@@ -1,7 +1,7 @@
 include:
   - project: fb-fi/ops/docker-ros
     ref: main
-    file: .gitlab-ci.template.yml
+    file: templates/.gitlab-ci.template.yml
 variables:
   DISABLE_ARCH_ARM64: 'true'
   GIT_HTTPS_PASSWORD: $CI_JOB_TOKEN
