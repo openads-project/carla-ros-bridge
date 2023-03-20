@@ -6,7 +6,7 @@ if [ -d "$DOCKER_ROS_FILES_PATH/carla" ]; then
     mv $DOCKER_ROS_FILES_PATH/carla /opt/carla/PythonAPI
 else
     mkdir -p /opt/carla/PythonAPI/carla
-     curl --location --output artifacts.zip --header "PRIVATE-TOKEN: $GIT_HTTPS_PASSWORD" "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/develop/download?job=carla:extract_artifacts"
+     curl --location --output artifacts.zip "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/develop/download?job=carla:extract_artifacts&job_token=$GIT_HTTPS_PASSWORD"
     unzip artifacts.zip -d /opt/carla/PythonAPI/carla/
 fi
 echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla/dist/$(ls /opt/carla/PythonAPI/carla/dist | grep py$ROS_PYTHON_VERSION.)" >> /opt/carla/setup.bash
