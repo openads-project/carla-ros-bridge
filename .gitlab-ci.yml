@@ -4,4 +4,3 @@ include:
     file: templates/.gitlab-ci.template.yml
 variables:
   DISABLE_ARCH_ARM64: 'true'
-  GIT_HTTPS_PASSWORD: $CI_JOB_TOKEN
