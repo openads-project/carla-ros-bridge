@@ -7,6 +7,8 @@
 
  This ROS package is a bridge that enables two-way communication between ROS and CARLA. The information from the CARLA server is translated to ROS topics. In the same way, the messages sent between nodes in ROS get translated to commands to be applied in CARLA.
 
+ This repository is a fork of the [official repository](https://github.com/carla-simulator/ros-bridge). The ROS API and additional documentation, as well as parts specific to building standalone images of this project can be found in the [docker directory](https://gitlab.ika.rwth-aachen.de/fb-fi/simulation/carla/ros-bridge/-/tree/develop/docker).
+
 ![rviz setup](./docs/images/ad_demo.png "AD Demo")
 
 **This version requires CARLA 0.9.14**
