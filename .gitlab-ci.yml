@@ -4,3 +4,6 @@ include:
     file: templates/.gitlab-ci.template.yml
 variables:
   DISABLE_ARCH_ARM64: 'true'
+.test:
+  variables:
+    DOCKER_RUN_OPTS: -u root:root -e SCENARIO_RUNNER_PATH='.'
