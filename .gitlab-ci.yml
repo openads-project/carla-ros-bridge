@@ -6,4 +6,4 @@ variables:
   DISABLE_ARCH_ARM64: 'true'
 .test:
   variables:
-    DOCKER_RUN_OPTS: -u root:root -e SCENARIO_RUNNER_PATH='.'
+    DOCKER_RUN_OPTS: -u root:root -e SCENARIO_RUNNER_PATH='.' # industrial_ci tests launch files which require this env var to at least be set
