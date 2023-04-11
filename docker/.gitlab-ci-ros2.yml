@@ -1,6 +1,6 @@
 include:
   - project: fb-fi/ops/docker-ros
-    ref: main
+    ref: feature/docker-compose-variable
     file: templates/.gitlab-ci.template.yml
 
 variables:
