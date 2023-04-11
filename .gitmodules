@@ -2,3 +2,6 @@
 	path = carla_msgs
 	url = https://github.com/carla-simulator/ros-carla-msgs
 	branch = master
+[submodule "docker/docker-ros"]
+	path = docker/docker-ros
+	url = ../../ops/docker-ros.git
