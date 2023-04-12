@@ -1,4 +1,4 @@
-x-base-image: &base-image gitlab.ika.rwth-aachen.de:5050/automated-driving/docker/ros2:noetic
+x-base-image: &base-image gitlab.ika.rwth-aachen.de:5050/fb-fi/ops/docker-base/ros2:rolling
 x-dev-image:  &dev-image  gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/ros-bridge-ros2:latest-dev
 x-run-image:  &run-image  gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/ros-bridge-ros2:latest
 x-command:    &command    bash -ic "ros2 launch carla_ros_bridge carla_ros_bridge.launch.py"
