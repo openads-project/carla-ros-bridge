@@ -7,7 +7,9 @@ variables:
   DISABLE_INDUSTRIAL_CI: 'true' # ONLY TEMPORARY! Remove as soon as issue relating to Flake8 is fixed
   DISABLE_ARCH_ARM64: 'true'
   DOCKER_COMPOSE_FILE: docker-compose-ros2.yml
-  CI_REGISTRY_IMAGE: gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/ros-bridge/ros2
+  IMAGE_DEV_TARGET: gitlab.ika.rwth-aachen.de:5050/${CI_PROJECT_PATH}:ros2-dev
+  IMAGE_RUN_TARGET: gitlab.ika.rwth-aachen.de:5050/${CI_PROJECT_PATH}:ros2
+  PUSH_AS_LATEST: 'true'
 
 .test:
   variables:
