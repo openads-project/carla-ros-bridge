@@ -46,7 +46,7 @@ class WorldInfo(object):
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
 
-        self._tf_broadcaster = tf2_ros.TransformBroadcaster(self)
+        self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
 
     def destroy(self):
         """
@@ -94,6 +94,6 @@ class WorldInfo(object):
 
             t.transform.translation.x = self.world_x
             t.transform.translation.y = self.world_y
-            t.transform.rotation.w = 1
+            t.transform.rotation.w = 1.0
 
             self._tf_broadcaster.sendTransform(t)
