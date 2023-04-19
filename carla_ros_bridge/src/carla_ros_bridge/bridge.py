@@ -433,12 +433,8 @@ def main(args=None):
             carla_bridge.logfatal("CARLA python module version {} required. Found: {}".format(
                 CarlaRosBridge.CARLA_VERSION, dist.version))
             sys.exit(1)
-
-        print(dist.version)
-        print(CarlaRosBridge.CARLA_VERSION)
-        print(carla_client.get_server_version())
-        print(carla_client.get_client_version())
-
+        
+        # TODO: check uncomment section in dedicated issue
         #if LooseVersion(carla_client.get_server_version()) != \
         #   LooseVersion(carla_client.get_client_version()):
         #    carla_bridge.logwarn(
