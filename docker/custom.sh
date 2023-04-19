@@ -1,4 +1,18 @@
 export DOCKER_ROS_FILES_PATH=/docker-ros/files
+# Install ROS version dependent apt packages
+if [ "$ROS_DISTRO" = "noetic" ]; then
+    ADDITIONAL_PACKAGES="ros-$ROS_DISTRO-rviz
+                         ros-$ROS_DISTRO-opencv-apps
+                         ros-$ROS_DISTRO-rospy
+                         ros-$ROS_DISTRO-rospy-message-converter
+                         ros-$ROS_DISTRO-pcl-ros
+                         python3-catkin-tools
+                         python3-catkin-pkg
+                         python3-catkin-pkg-modules"
+else
+    ADDITIONAL_PACKAGES="ros-$ROS_DISTRO-rviz2"
+fi
+apt-get install --no-install-recommends -y $ADDITIONAL_PACKAGES
 # Install Python dependencies
 pip$PYTHON_SUFFIX install --upgrade pip$PYTHON_SUFFIX
 pip$PYTHON_SUFFIX install -r $DOCKER_ROS_FILES_PATH/requirements.txt

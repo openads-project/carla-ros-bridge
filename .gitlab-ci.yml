@@ -1,9 +1,14 @@
-include:
-  - project: fb-fi/ops/docker-ros
-    ref: main
-    file: templates/.gitlab-ci.template.yml
-variables:
-  DISABLE_ARCH_ARM64: 'true'
-.test:
-  variables:
-    DOCKER_RUN_OPTS: -u root:root -e SCENARIO_RUNNER_PATH='.' # industrial_ci tests launch files which require this env var to at least be set
+stages:
+  - Build
+
+ros-bridge-ros1:
+  stage: Build
+  trigger:
+    include: docker/.gitlab-ci-ros1.yml
+    strategy: depend
+
+ros-bridge-ros2:
+  stage: Build
+  trigger:
+    include: docker/.gitlab-ci-ros2.yml
+    strategy: depend

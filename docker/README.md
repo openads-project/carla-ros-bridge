@@ -104,7 +104,7 @@ carla
 1) Clone repository
 2) Meet requirements mentioned above
 3) Navigate to `docker` directory of cloned repository
-4) Make changes to `docker-compose.yaml` if necessary
+4) Make changes to `docker-compose.yml` if necessary
 5) Run `docker compose build dev run` and wait for completion
 6) Start image (e.g. `docker run gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/ros-bridge:latest`)
 

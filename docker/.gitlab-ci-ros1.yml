@@ -1,0 +1,14 @@
+include:
+  - project: fb-fi/ops/docker-ros
+    ref: main
+    file: templates/.gitlab-ci.template.yml
+
+variables:
+  DISABLE_ARCH_ARM64: 'true'
+  DOCKER_COMPOSE_FILE: docker-compose-ros1.yml
+  IMAGE_DEV_TARGET: ${CI_REGISTRY_IMAGE}:ros1-dev
+  IMAGE_RUN_TARGET: ${CI_REGISTRY_IMAGE}:ros1
+
+.test:
+  variables:
+    DOCKER_RUN_OPTS: -u root:root -e SCENARIO_RUNNER_PATH='.' # industrial_ci tests launch files which require this env var to at least be set

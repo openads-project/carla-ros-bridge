@@ -433,13 +433,14 @@ def main(args=None):
             carla_bridge.logfatal("CARLA python module version {} required. Found: {}".format(
                 CarlaRosBridge.CARLA_VERSION, dist.version))
             sys.exit(1)
-
-        if LooseVersion(carla_client.get_server_version()) != \
-           LooseVersion(carla_client.get_client_version()):
-            carla_bridge.logwarn(
-                "Version mismatch detected: You are trying to connect to a simulator that might be incompatible with this API. Client API version: {}. Simulator API version: {}"
-                .format(carla_client.get_client_version(),
-                        carla_client.get_server_version()))
+        
+        # TODO: check uncomment section in dedicated issue
+        #if LooseVersion(carla_client.get_server_version()) != \
+        #   LooseVersion(carla_client.get_client_version()):
+        #    carla_bridge.logwarn(
+        #        "Version mismatch detected: You are trying to connect to a simulator that might be incompatible with this API. Client API version: {}. Simulator API version: {}"
+        #        .format(carla_client.get_client_version(),
+        #                carla_client.get_server_version()))
 
         carla_world = carla_client.get_world()
 

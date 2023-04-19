@@ -13,12 +13,16 @@ Class to handle the carla map
 import tf2_ros
 import geometry_msgs.msg
 import ros_compatibility as roscomp
+from ros_compatibility.core import get_ros_version
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 
 from carla_msgs.msg import CarlaWorldInfo
 
 import xml.etree.ElementTree as ET
 from pyproj import Proj
+
+ROS_VERSION = get_ros_version()
+
 
 class WorldInfo(object):
 
@@ -45,8 +49,11 @@ class WorldInfo(object):
             "/carla/world_info",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
+        if ROS_VERSION == 1:
+            self._tf_broadcaster = tf2_ros.TransformBroadcaster()       # ROS 1
+        elif ROS_VERSION == 2:
+            self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)   # ROS 2
 
-        self._tf_broadcaster = tf2_ros.TransformBroadcaster()
 
     def destroy(self):
         """
@@ -94,6 +101,6 @@ class WorldInfo(object):
 
             t.transform.translation.x = self.world_x
             t.transform.translation.y = self.world_y
-            t.transform.rotation.w = 1
+            t.transform.rotation.w = 1.0
 
             self._tf_broadcaster.sendTransform(t)
