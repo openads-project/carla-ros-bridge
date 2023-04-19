@@ -13,6 +13,8 @@
   <!-- scenario parameter -->
   <arg name="scenario"/><!-- name of the .xosc scenario file -->
 
+  <arg name="wait_for_ego" default="True"/> <!-- wait for ego vehicle -->
+
   <!-- ===================================================== -->
 
   <!-- Scenario Runner and an example scenario-->
@@ -31,7 +33,7 @@
     <arg name='port' value='$(arg port)'/>
     <arg name="role_name" value="$(arg role_name)"/>
     <arg name="scenario_runner_path" value="$(arg scenario_runner_path)"/>
-    <arg name="wait_for_ego" value="True"/>
+    <arg name="wait_for_ego" value="$(arg wait_for_ego)"/>
   </include>
 
   <!-- Scenario Startup -->
