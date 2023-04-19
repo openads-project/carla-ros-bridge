@@ -5,7 +5,7 @@
   <arg name='port' default='2000'/> <!-- port of the carla server -->
 
   <!-- scenario runner parameter -->
-  <arg name='scenario_runner_path' default='$(env SCENARIO_RUNNER_ROOT)'/><!-- path to scenario runner -->
+  <arg name='scenario_runner_path'/><!-- path to scenario runner -->
 
   <!-- ego vehicle parameter -->
   <arg name="role_name" default="ego_vehicle"/> <!-- role name of the ego vehicle (used for identification in many nodes) -->
