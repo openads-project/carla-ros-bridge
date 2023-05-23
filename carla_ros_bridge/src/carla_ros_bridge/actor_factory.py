@@ -327,6 +327,7 @@ class ActorFactory(object):
                 parent=parent,
                 node=self.node,
                 actor_list=self.actors,
+                world=self.world
             )
 
         elif type_id == TrafficLightsSensor.get_blueprint_name():
