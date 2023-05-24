@@ -145,7 +145,7 @@ class ObjectSensor(PseudoActor):
                 elif isinstance(actor, Walker):
                     ros_objects.objects.append(actor.get_object_info())
         
-        if(self.node.parameters['publish_objects_with_static_vehicles']):
+        if(self.node.parameters['publish_static_vehicles']):
             # add also static vehicles to ros_objects.object array
             ros_objects = self._get_static_vehicles(ros_objects)
 
