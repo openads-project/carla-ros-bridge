@@ -55,6 +55,10 @@ def generate_launch_description():
                            "hero3", "hero4", "hero5", "hero6", "hero7", "hero8", "hero9"],
             description='Role names to identify ego vehicles. '
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='publish_static_vehicles',
+            default_value='False'
+        )
         launch_ros.actions.Node(
             package='carla_ros_bridge',
             executable='bridge',
@@ -95,6 +99,9 @@ def generate_launch_description():
                 },
                 {
                     'ego_vehicle_role_name': launch.substitutions.LaunchConfiguration('ego_vehicle_role_name')
+                },
+                {
+                    'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
                 }
             ]
         )
