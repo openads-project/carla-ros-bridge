@@ -10,6 +10,7 @@ handle a object sensor
 """
 
 import carla
+import carla_common.transforms as trans
 import ctypes
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
@@ -81,16 +82,7 @@ class ObjectSensor(PseudoActor):
     def _get_vehicle_from_environment_objects(self, environment_object, object_classification):
         obj = Object(header=self.get_msg_header("carla_map"))
         obj.id = ctypes.c_uint32(environment_object.id).value
-        obj.pose.position.x = environment_object.transform.location.x
-        obj.pose.position.y = environment_object.transform.location.y
-        obj.pose.position.z = environment_object.transform.location.z
-        rotation = environment_object.transform.rotation
-        quat = euler2quat(rotation.roll, rotation.pitch, rotation.yaw)
-        obj.pose.orientation.x = quat[1]
-        obj.pose.orientation.y = quat[2]
-        obj.pose.orientation.z = quat[3]
-        obj.pose.orientation.w = quat[0]
-
+        obj.pose = trans.carla_transform_to_ros_pose(environment_object.transform)
         # only static obj
         obj.twist.linear.x = 0
         obj.twist.linear.y = 0
