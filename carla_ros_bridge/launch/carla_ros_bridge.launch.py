@@ -58,7 +58,7 @@ def generate_launch_description():
         launch.actions.DeclareLaunchArgument(
             name='publish_static_vehicles',
             default_value='False'
-        )
+        ),
         launch_ros.actions.Node(
             package='carla_ros_bridge',
             executable='bridge',
