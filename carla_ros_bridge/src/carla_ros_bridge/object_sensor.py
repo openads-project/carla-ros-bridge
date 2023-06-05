@@ -26,7 +26,8 @@ OBJECT_LABELS = {
     carla.CityObjectLabel.Truck: Object.CLASSIFICATION_TRUCK,
     carla.CityObjectLabel.Bus: Object.CLASSIFICATION_OTHER_VEHICLE,
     carla.CityObjectLabel.Motorcycle:Object.CLASSIFICATION_MOTORCYCLE,
-    carla.CityObjectLabel.Bicycle: Object.CLASSIFICATION_BIKE
+    carla.CityObjectLabel.Bicycle: Object.CLASSIFICATION_BIKE,
+    carla.CityObjectLabel.Pedestrians: Object.CLASSIFICATION_PEDESTRIAN
 }
 
 class ObjectSensor(PseudoActor):
@@ -84,18 +85,8 @@ class ObjectSensor(PseudoActor):
         obj.id = ctypes.c_uint32(environment_object.id).value
         obj.pose = trans.carla_transform_to_ros_pose(environment_object.transform)
         # only static obj
-        obj.twist.linear.x = 0.0
-        obj.twist.linear.y = 0.0
-        obj.twist.linear.z = 0.0
-        obj.twist.angular.x = 0.0
-        obj.twist.angular.y = 0.0
-        obj.twist.angular.z = 0.0
-        obj.accel.linear.x = 0.0
-        obj.accel.linear.y = 0.0
-        obj.accel.linear.z = 0.0
-        obj.accel.angular.x = 0.0
-        obj.accel.angular.y = 0.0
-        obj.accel.angular.z = 0.0
+        obj.twist = trans.carla_velocity_to_ros_twist(carla.Vector3D(0.0, 0.0, 0.0), carla.Vector3D(0.0, 0.0, 0.0))
+        obj.accel = trans.carla_acceleration_to_ros_accel(carla.Vector3D(0.0, 0.0, 0.0))
         obj.shape.type = SolidPrimitive.BOX
         obj.shape.dimensions.extend([
             environment_object.bounding_box.extent.x * 2.0,
