@@ -416,7 +416,8 @@ def main(args=None):
     parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 'inf')
     role_name = carla_bridge.get_param('ego_vehicle_role_name',
                                        ["hero", "ego_vehicle", "hero1", "hero2", "hero3"])
-    parameters["ego_vehicle"] = {"role_name": role_name}
+    parameters['ego_vehicle'] = {'role_name': role_name}
+    parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
 
     carla_bridge.loginfo("Trying to connect to {host}:{port}".format(
         host=parameters['host'], port=parameters['port']))
