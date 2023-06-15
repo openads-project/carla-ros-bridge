@@ -2,7 +2,7 @@ include:
   - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml'
 
 variables:
-  BASE_IMAGE: rwthika/ros2:foxy
+  BASE_IMAGE: rwthika/ros2:humble
   COMMAND: ros2 launch carla_ros_bridge carla_ros_bridge.launch.py
   TARGET: dev,run
   PLATFORM: amd64
