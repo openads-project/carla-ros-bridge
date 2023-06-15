@@ -1,3 +1,4 @@
+export DOCKER_ROS_FILES_PATH=/docker-ros/additional-files
 # Install ROS version dependent apt packages
 if [ "$ROS_DISTRO" = "noetic" ]; then
     ADDITIONAL_PACKAGES="ros-$ROS_DISTRO-rviz
@@ -12,7 +13,6 @@ else
     ADDITIONAL_PACKAGES="ros-$ROS_DISTRO-rviz2"
 fi
 apt-get install --no-install-recommends -y $ADDITIONAL_PACKAGES
-export DOCKER_ROS_FILES_PATH=/docker-ros/files
 # Install Python dependencies
 pip$PYTHON_SUFFIX install --upgrade pip$PYTHON_SUFFIX
 pip$PYTHON_SUFFIX install -r $DOCKER_ROS_FILES_PATH/requirements.txt

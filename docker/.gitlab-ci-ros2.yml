@@ -1,14 +1,13 @@
 include:
-  - project: fb-fi/ops/docker-ros
-    ref: main
-    file: templates/.gitlab-ci.template.yml
+  - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml'
 
 variables:
-  DISABLE_INDUSTRIAL_CI: 'true' # ONLY TEMPORARY! Remove as soon as issue relating to Flake8 is fixed
-  DISABLE_ARCH_ARM64: 'true'
-  DOCKER_COMPOSE_FILE: docker-compose-ros2.yml
-  IMAGE_DEV_TARGET: ${CI_REGISTRY_IMAGE}:ros2-dev
-  IMAGE_RUN_TARGET: ${CI_REGISTRY_IMAGE}:ros2
+  BASE_IMAGE: rwthika/ros2:foxy
+  COMMAND: ros2 launch carla_ros_bridge carla_ros_bridge.launch.py
+  TARGET: dev,run
+  PLATFORM: amd64
+  IMAGE_TAG: ros2
+  ENABLE_INDUSTRIAL_CI: 'false' # ONLY TEMPORARY! Remove as soon as issue relating to Flake8 is fixed
   PUSH_AS_LATEST: 'true'
 
 .test:
