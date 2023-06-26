@@ -57,7 +57,8 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='publish_static_vehicles',
-            default_value='False'
+            default_value='True',
+            description='Enable/disable object list with static vehicles'
         ),
         launch_ros.actions.Node(
             package='carla_ros_bridge',
