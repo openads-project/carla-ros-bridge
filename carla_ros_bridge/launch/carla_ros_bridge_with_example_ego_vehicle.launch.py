@@ -46,6 +46,10 @@ def generate_launch_description():
             name='fixed_delta_seconds',
             default_value='0.05'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='publish_static_vehicles',
+            default_value='True'
+        ),
         launch.actions.IncludeLaunchDescription(
             launch.launch_description_sources.PythonLaunchDescriptionSource(
                 os.path.join(get_package_share_directory(
@@ -58,7 +62,8 @@ def generate_launch_description():
                 'timeout': launch.substitutions.LaunchConfiguration('timeout'),
                 'passive': launch.substitutions.LaunchConfiguration('passive'),
                 'synchronous_mode_wait_for_vehicle_control_command': launch.substitutions.LaunchConfiguration('synchronous_mode_wait_for_vehicle_control_command'),
-                'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds')
+                'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds'),
+                'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
             }.items()
         ),
         launch.actions.IncludeLaunchDescription(
