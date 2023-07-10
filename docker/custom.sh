@@ -22,7 +22,7 @@ if [ -d "$DOCKER_ROS_FILES_PATH/PythonAPI" ]; then
     mv $DOCKER_ROS_FILES_PATH/PythonAPI /opt/carla/PythonAPI
 else
     mkdir -p /opt/carla
-     curl --location --output artifacts.zip "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/main/download?job=carla:extract_artifacts&job_token=$GIT_HTTPS_PASSWORD"
+    curl --location --output artifacts.zip "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/update/ubuntu20_python3.10/download?job=carla:extract_artifacts&job_token=$GIT_HTTPS_PASSWORD"
     unzip artifacts.zip
     mv artifacts_ci/PythonAPI /opt/carla
     rm -rf artifacts_ci
