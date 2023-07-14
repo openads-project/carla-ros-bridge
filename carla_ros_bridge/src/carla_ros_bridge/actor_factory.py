@@ -250,13 +250,9 @@ class ActorFactory(object):
         if parent is not None:
             parent_id = parent.uid
 
-        if not carla_actor.attributes.get("role_name", ""):
+        name = carla_actor.attributes.get("role_name", "")
+        if not name:
             name = str(carla_actor.id)
-        else:
-            # construct unique name
-            actor_type = carla_actor.type_id.replace(".", "_")
-            actor_id = carla_actor.id
-            name = f"{actor_type}_{actor_id}"
 
         obj = self._create_object(carla_actor.id, carla_actor.type_id, name,
                                   parent_id, relative_transform, carla_actor)
