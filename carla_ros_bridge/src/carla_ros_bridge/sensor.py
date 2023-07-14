@@ -96,10 +96,6 @@ class Sensor(Actor):
         self.is_event_sensor = is_event_sensor
         self._callback_active = Lock()
 
-        sensor_type = self.carla_actor.type_id.replace(".", "_")
-        actor_id = self.carla_actor.id
-        self.name = f"{sensor_type}_{actor_id}"
-
         try:
             self.sensor_tick_time = float(carla_actor.attributes["sensor_tick"])
             node.logdebug("Sensor tick time is {}".format(self.sensor_tick_time))
