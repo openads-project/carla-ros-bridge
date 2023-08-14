@@ -96,6 +96,13 @@ class Sensor(Actor):
         self.is_event_sensor = is_event_sensor
         self._callback_active = Lock()
 
+        # prevent similar names and thus doupled topics
+        sensor_type = carla_actor.type_id.split(".")[-1]
+        sensor_role_name = carla_actor.attributes.get("role_name", None)
+        self.name = sensor_type
+        if sensor_role_name:
+            self.name += "_" + sensor_role_name
+
         try:
             self.sensor_tick_time = float(carla_actor.attributes["sensor_tick"])
             node.logdebug("Sensor tick time is {}".format(self.sensor_tick_time))
