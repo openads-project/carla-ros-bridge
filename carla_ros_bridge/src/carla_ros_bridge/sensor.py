@@ -103,7 +103,7 @@ class Sensor(Actor):
         sensor_role_name = carla_actor.attributes.get("role_name", None)
         
         if sensor_role_name in recommended_role_names:
-            self.name = sensor_type "_" + sensor_role_name
+            self.name = sensor_type + "_" + sensor_role_name
         else:
             self.name = sensor_role_name
 
