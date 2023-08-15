@@ -97,11 +97,15 @@ class Sensor(Actor):
         self._callback_active = Lock()
 
         # prevent similar names and thus doupled topics
+        recommended_role_names = ["front", "back", "left", "right", "front_left", "front_right", "back_left", "back_right"]
+        
         sensor_type = carla_actor.type_id.split(".")[-1]
         sensor_role_name = carla_actor.attributes.get("role_name", None)
-        self.name = sensor_type
-        if sensor_role_name:
-            self.name += "_" + sensor_role_name
+        
+        if sensor_role_name in recommended_role_names:
+            self.name = sensor_type "_" + sensor_role_name
+        else:
+            self.name = sensor_role_name
 
         try:
             self.sensor_tick_time = float(carla_actor.attributes["sensor_tick"])
