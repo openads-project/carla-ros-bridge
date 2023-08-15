@@ -97,7 +97,7 @@ class Sensor(Actor):
         self._callback_active = Lock()
 
         # prevent similar names and thus doupled topics
-        recommended_role_names = ["front", "back", "left", "right", "front_left", "front_right", "back_left", "back_right"]
+        recommended_role_names = ["default", "front", "back", "left", "right", "front_left", "front_right", "back_left", "back_right"]
         
         sensor_type = carla_actor.type_id.split(".")[-1]
         sensor_role_name = carla_actor.attributes.get("role_name", None)
