@@ -253,6 +253,7 @@ class ActorFactory(object):
         name = carla_actor.attributes.get("role_name", "")
         if not name:
             name = str(carla_actor.id)
+
         obj = self._create_object(carla_actor.id, carla_actor.type_id, name,
                                   parent_id, relative_transform, carla_actor)
         return obj
