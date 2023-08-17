@@ -16,7 +16,7 @@ else
 fi
 apt-get install --no-install-recommends -y $ADDITIONAL_PACKAGES
 # Install Python dependencies
-pip$CARLA_PYTHON_VERSION install --upgrade pip$CARLA_PYTHON_VERSION
+pip$CARLA_PYTHON_VERSION install --upgrade pip
 pip$CARLA_PYTHON_VERSION install -r $DOCKER_ROS_FILES_PATH/requirements.txt
 # Check if user provided CARLA PythonAPI. If not, download it as artifact from CARLA CI pipeline
 mkdir -p /opt/carla
