@@ -9,15 +9,14 @@ if [ "$ROS_DISTRO" = "noetic" ]; then
                          python3-catkin-tools
                          python3-catkin-pkg
                          python3-catkin-pkg-modules"
-    CARLA_PYTHON_VERSION="3.8"
 else
     ADDITIONAL_PACKAGES="ros-$ROS_DISTRO-rviz2"
-    CARLA_PYTHON_VERSION="3.10"
 fi
 apt-get install --no-install-recommends -y $ADDITIONAL_PACKAGES
 # Install Python dependencies
-pip$CARLA_PYTHON_VERSION install --upgrade pip
-pip$CARLA_PYTHON_VERSION install -r $DOCKER_ROS_FILES_PATH/requirements.txt
+export PYTHON_VERSION_SHORT=$(python --version | awk -F'[ .]' '{print $2"."$3}')
+pip$PYTHON_VERSION_SHORT install --upgrade pip
+pip$PYTHON_VERSION_SHORT install -r $DOCKER_ROS_FILES_PATH/requirements.txt
 # Check if user provided CARLA PythonAPI. If not, download it as artifact from CARLA CI pipeline
 mkdir -p /opt/carla
 if [ -d "$DOCKER_ROS_FILES_PATH/PythonAPI" ]; then
@@ -30,6 +29,6 @@ else
     rm -rf artifacts_ci
 fi
 # Create a script to append necessary paths to PYTHONPATH and make .bashrc source it
-echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla/dist/$(ls /opt/carla/PythonAPI/carla/dist | grep py$CARLA_PYTHON_VERSION.)" >> /opt/carla/setup.bash
+echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla/dist/$(ls /opt/carla/PythonAPI/carla/dist | grep py$PYTHON_VERSION_SHORT.)" >> /opt/carla/setup.bash
 echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla" >> /opt/carla/setup.bash
 echo "source /opt/carla/setup.bash" >> /root/.bashrc
