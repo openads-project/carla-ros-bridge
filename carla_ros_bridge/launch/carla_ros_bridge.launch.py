@@ -45,6 +45,11 @@ def generate_launch_description():
             description='Either use an available CARLA town (eg. "Town01") or an OpenDRIVE file (ending in .xodr)'
         ),
         launch.actions.DeclareLaunchArgument(
+            name='rt_factor',
+            default_value='inf',
+            description='Desired Realtime-Factor of the simulation'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='register_all_sensors',
             default_value='True',
             description='Enable/disable the registration of all sensors. If disabled, only sensors spawned by the bridge are registered'
@@ -94,6 +99,9 @@ def generate_launch_description():
                 },
                 {
                     'town': launch.substitutions.LaunchConfiguration('town')
+                },
+                {
+                    'rt_factor': launch.substitutions.LaunchConfiguration('rt_factor')
                 },
                 {
                     'register_all_sensors': launch.substitutions.LaunchConfiguration('register_all_sensors')
