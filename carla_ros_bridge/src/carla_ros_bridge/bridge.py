@@ -292,7 +292,9 @@ class CarlaRosBridge(CompatibleNode):
             factor = self.parameters['rt_factor']
             if isinstance(factor, (float, int)):
                 while(world_snapshot.timestamp.delta_seconds > (time.time()-last_tick)*factor):
-                    self.loginfo("Waiting to reach desired realtime-factor!")
+                    if time.time() - self.last_loginfo > 1
+                        self.loginfo("Waiting to reach desired realtime-factor!")
+                        self.last_loginfo = time.time()
                 
                 if time.time() - self.last_loginfo > 1:
                     self.loginfo("Actual realtime-factor: {:.2f} / Desired realtime-factor: {}".format(world_snapshot.timestamp.delta_seconds / (time.time()-last_tick), factor))
