@@ -9,6 +9,11 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     ld = launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
+            name='use_sim_time',
+            default_value='True',
+            description='use_sim_time'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='role_name',
             default_value='ego_vehicle'
         ),
@@ -23,6 +28,9 @@ def generate_launch_description():
             output='screen',
             emulate_tty=True,
             parameters=[
+                {
+                    'use_sim_time': launch.substitutions.LaunchConfiguration('use_sim_time')
+                },
                 {
                     'role_name': launch.substitutions.LaunchConfiguration('role_name')
                 },
