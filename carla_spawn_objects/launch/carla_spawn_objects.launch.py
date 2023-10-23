@@ -9,6 +9,11 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     ld = launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
+            name='use_sim_time',
+            default_value='True',
+            description='use_sim_time'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
             default_value=os.path.join(get_package_share_directory(
                 'carla_spawn_objects'), 'config', 'objects.json')
@@ -29,6 +34,9 @@ def generate_launch_description():
             output='screen',
             emulate_tty=True,
             parameters=[
+                {
+                    'use_sim_time': launch.substitutions.LaunchConfiguration('use_sim_time')
+                },
                 {
                     'objects_definition_file': launch.substitutions.LaunchConfiguration('objects_definition_file')
                 },

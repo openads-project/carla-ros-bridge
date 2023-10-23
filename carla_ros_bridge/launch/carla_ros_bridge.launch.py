@@ -5,6 +5,11 @@ import launch_ros.actions
 def generate_launch_description():
     ld = launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
+            name='use_sim_time',
+            default_value='True',
+            description='use_sim_time'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='host',
             default_value='localhost',
             description='IP of the CARLA server'
@@ -74,7 +79,7 @@ def generate_launch_description():
             on_exit=launch.actions.Shutdown(),
             parameters=[
                 {
-                    'use_sim_time': True
+                    'use_sim_time': launch.substitutions.LaunchConfiguration('use_sim_time')
                 },
                 {
                     'host': launch.substitutions.LaunchConfiguration('host')
