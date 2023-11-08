@@ -72,7 +72,7 @@ class CarlaRosBridge(CompatibleNode):
         self.parameters = params
         self.carla_world = carla_world
 
-        self.ros_timestamp = roscomp.ros_timestamp()
+        self.ros_timestamp = roscomp.ros_timestamp(self.parameters["start_unix_time_stamp"], from_sec=True)
         self.callback_group = roscomp.callback_groups.ReentrantCallbackGroup()
 
         self.synchronous_mode_update_thread = None
@@ -353,7 +353,7 @@ class CarlaRosBridge(CompatibleNode):
         :return:
         """
         if roscomp.ok():
-            self.ros_timestamp = roscomp.ros_timestamp(carla_timestamp.elapsed_seconds, from_sec=True)
+            self.ros_timestamp = roscomp.ros_timestamp(self.parameters["start_unix_time_stamp"] + carla_timestamp.elapsed_seconds, from_sec=True)
             self.clock_publisher.publish(Clock(clock=self.ros_timestamp))
 
     def destroy(self):
@@ -411,8 +411,8 @@ def main(args=None):
     parameters['synchronous_mode'] = carla_bridge.get_param('synchronous_mode', True)
     parameters['synchronous_mode_wait_for_vehicle_control_command'] = carla_bridge.get_param(
         'synchronous_mode_wait_for_vehicle_control_command', False)
-    parameters['fixed_delta_seconds'] = carla_bridge.get_param('fixed_delta_seconds',
-                                                               0.05)
+    parameters['fixed_delta_seconds'] = carla_bridge.get_param('fixed_delta_seconds', 0.05)
+    parameters['start_unix_time_stamp'] = carla_bridge.get_param('start_unix_time_stamp', 0)
     parameters['register_all_sensors'] = carla_bridge.get_param('register_all_sensors', True)
     parameters['town'] = carla_bridge.get_param('town', 'Town01')
     parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 'inf')
