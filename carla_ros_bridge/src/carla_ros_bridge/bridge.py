@@ -72,6 +72,12 @@ class CarlaRosBridge(CompatibleNode):
         self.parameters = params
         self.carla_world = carla_world
 
+        if self.parameters["start_unix_time_stamp"] < 0:
+            self.parameters["start_unix_time_stamp"] = time.time()
+        
+        if self.parameters["start_unix_time_stamp"] > 0:
+            self.loginfo("ROS Time starts with offset: {}".format(self.parameters["start_unix_time_stamp"]))
+
         self.ros_timestamp = roscomp.ros_timestamp(self.parameters["start_unix_time_stamp"], from_sec=True)
         self.callback_group = roscomp.callback_groups.ReentrantCallbackGroup()
 
