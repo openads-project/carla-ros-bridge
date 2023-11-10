@@ -162,7 +162,7 @@ class Camera(Sensor):
             carla_camera_data)
         img_msg = Camera.cv_bridge.cv2_to_imgmsg(image_data_array, encoding=encoding)
         # the camera data is in respect to the camera's own frame
-        img_msg.header = self.get_msg_header(timestamp=carla_camera_data.timestamp)
+        img_msg.header = self.get_msg_header(timestamp=carla_camera_data.timestamp + self.node.parameters["start_unix_time_stamp"])
 
         return img_msg
 
@@ -423,7 +423,7 @@ class DVSCamera(Camera):
         """
         super(DVSCamera, self).sensor_data_updated(carla_dvs_event_array)
 
-        header = self.get_msg_header(timestamp=carla_dvs_event_array.timestamp)
+        header = self.get_msg_header(timestamp=carla_dvs_event_array.timestamp + self.node.parameters["start_unix_time_stamp"])
         fields = [
             PointField(name='x', offset=0, datatype=PointField.UINT16, count=1),
             PointField(name='y', offset=2, datatype=PointField.UINT16, count=1),

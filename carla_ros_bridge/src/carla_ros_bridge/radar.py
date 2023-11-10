@@ -79,6 +79,7 @@ class Radar(Sensor):
                            np.cos(detection.altitude),
                            detection.depth * np.sin(detection.altitude),
                            detection.depth, detection.velocity, detection.azimuth, detection.altitude])
-        radar_msg = create_cloud(self.get_msg_header(
-            timestamp=carla_radar_measurement.timestamp), fields, points)
+        radar_msg = create_cloud(self.get_msg_header(timestamp=carla_radar_measurement.timestamp + self.node.parameters["start_unix_time_stamp"]),
+                                 fields,
+                                 points)
         self.radar_publisher.publish(radar_msg)
