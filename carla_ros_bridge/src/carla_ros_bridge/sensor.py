@@ -183,9 +183,6 @@ class Sensor(Actor):
         :type carla_sensor_data: carla.SensorData
         """
 
-        # Current Problem: carla_sensor_data.timestamp can not be set
-        #carla_sensor_data.timestamp + self.node.parameters["start_unix_time_stamp"]
-
         if not self._callback_active.acquire(False):
             # if acquire fails, sensor is currently getting destroyed
             return

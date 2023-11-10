@@ -95,7 +95,7 @@ class WorldInfo(object):
         if self.world_x and self.world_y:
 
             t = geometry_msgs.msg.TransformStamped()
-            t.header.stamp = roscomp.ros_timestamp(sec=timestamp, from_sec=True)
+            t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
             t.header.frame_id = "world"
             t.child_frame_id = "carla_map"
 

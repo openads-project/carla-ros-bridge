@@ -130,7 +130,7 @@ class TrafficParticipant(Actor):
         :return:
         visualization_msgs.msg.Marker
         """
-        marker = Marker(header=self.get_msg_header(frame_id="carla_map", timestamp=timestamp))
+        marker = Marker(header=self.get_msg_header(frame_id="carla_map", timestamp=timestamp + self.node.parameters["start_unix_time_stamp"])))
         marker.color = self.get_marker_color()
         marker.color.a = 0.3
         marker.id = self.get_id()
