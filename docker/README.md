@@ -2,19 +2,20 @@
 
 This repository aims to provide standalone images of the [CARLA ROS Bridge](https://gitlab.ika.rwth-aachen.de/fb-fi/simulation/carla/ros-bridge) fork by **ika** for usage in CI pipelines, cluster deployments etc. by utilizing [docker-ros](https://gitlab.ika.rwth-aachen.de/fb-fi/ops/docker-ros).
 
-- [Nodes](#nodes)
-  - [carla_ros_bridge/bridge.py](#carla_ros_bridgebridgepy)
-- [Usage of docker-ros Images](#usage-of-docker-ros-images)
-  - [Available Images](#available-images)
-  - [Default Command](#default-command)
-  - [Environment Variables](#environment-variables)
-  - [Launch Files](#launch-files)
-  - [Configuration Files](#configuration-files)
-  - [Additional Remarks](#additional-remarks)
-- [Building Locally](#building-locally)
-  - [Requirements](#requirements)
-  - [Steps](#steps)
-- [Official Documentation](#official-documentation)
+- [ROS-Bridge](#ros-bridge)
+  - [Nodes](#nodes)
+    - [carla\_ros\_bridge/bridge.py](#carla_ros_bridgebridgepy)
+      - [Subscribed Topics](#subscribed-topics)
+      - [Published Topics](#published-topics)
+      - [Services](#services)
+  - [Usage of docker-ros Images](#usage-of-docker-ros-images)
+    - [Available Images](#available-images)
+    - [Default Command](#default-command)
+    - [Launch Files](#launch-files)
+  - [Building Locally](#building-locally)
+    - [Requirements](#requirements)
+    - [Steps](#steps)
+  - [Official Documentation](#official-documentation)
 
 
 ## Nodes
@@ -95,8 +96,8 @@ carla
 │   │   ├── ...
 │   ├── __init__.py
 └── dist
-    ├── carla-0.9.14-cp36-cp36m-linux_x86_64.whl 
-    ├── carla-0.9.14-py3.6-linux-x86_64.egg 
+    ├── carla-0.9.15-cp310-cp310m-linux_x86_64.whl 
+    ├── carla-0.9.15-py3.10-linux-x86_64.egg 
 ```
 
 ### Steps
