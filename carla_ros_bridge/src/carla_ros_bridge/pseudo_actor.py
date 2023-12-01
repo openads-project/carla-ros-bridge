@@ -78,7 +78,8 @@ class PseudoActor(object):
 
         if not timestamp:
             timestamp = self.node.get_time()
-        header.stamp = roscomp.ros_timestamp(sec=timestamp, from_sec=True)
+
+        header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
         return header
 
     def get_prefix(self):

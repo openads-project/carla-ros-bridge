@@ -66,7 +66,7 @@ class Gnss(Sensor):
         :type carla_gnss_measurement: carla.GnssMeasurement
         """
         navsatfix_msg = NavSatFix()
-        navsatfix_msg.header = self.get_msg_header(timestamp=carla_gnss_measurement.timestamp + self.node.parameters["start_unix_time_stamp"])
+        navsatfix_msg.header = self.get_msg_header(timestamp=carla_gnss_measurement.timestamp)
         navsatfix_msg.latitude = carla_gnss_measurement.latitude
         navsatfix_msg.longitude = carla_gnss_measurement.longitude
         navsatfix_msg.altitude = carla_gnss_measurement.altitude

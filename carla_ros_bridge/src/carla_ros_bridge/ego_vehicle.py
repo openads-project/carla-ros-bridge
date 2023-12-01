@@ -116,7 +116,7 @@ class EgoVehicle(Vehicle):
         :return:
         """
         vehicle_status = CarlaEgoVehicleStatus(
-            header=self.get_msg_header("carla_map", timestamp=timestamp + self.node.parameters["start_unix_time_stamp"]))
+            header=self.get_msg_header("carla_map", timestamp=timestamp))
         vehicle_status.velocity = self.get_vehicle_speed_abs(self.carla_actor)
         vehicle_status.acceleration.linear = self.get_current_ros_accel().linear
         vehicle_status.orientation = self.get_current_ros_pose().orientation
