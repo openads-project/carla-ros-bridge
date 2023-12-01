@@ -135,7 +135,7 @@ class Sensor(Actor):
             frame_id = "carla_map"
 
         transform = tf2_ros.TransformStamped()
-        transform.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
+        transform.header.stamp = roscomp.ros_timestamp(sec=timestamp, from_sec=True)
         transform.header.frame_id = frame_id
         transform.child_frame_id = child_frame_id
 
@@ -244,7 +244,7 @@ class Sensor(Actor):
                         self.node.logdebug("{}({}): process {}".format(self.__class__.__name__,
                                                                        self.get_id(), frame))
                         self.publish_tf(trans.carla_transform_to_ros_pose(
-                            carla_sensor_data.transform), timestamp)
+                            carla_sensor_data.transform), timestamp + self.node.parameters["start_unix_time_stamp"])
                         self.sensor_data_updated(carla_sensor_data)
                         return
                     elif carla_sensor_data.frame < frame:
