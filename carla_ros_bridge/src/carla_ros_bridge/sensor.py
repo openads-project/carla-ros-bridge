@@ -154,7 +154,6 @@ class Sensor(Actor):
         transform = self.get_ros_transform(pose, timestamp)
         try:
             self._tf_broadcaster.sendTransform(transform)
-
         except roscomp.exceptions.ROSException:
             if roscomp.ok():
                 self.node.logwarn("Sensor {} failed to send transform.".format(self.uid))
@@ -183,7 +182,6 @@ class Sensor(Actor):
         :param carla_sensor_data: carla sensor data object
         :type carla_sensor_data: carla.SensorData
         """
-
         if not self._callback_active.acquire(False):
             # if acquire fails, sensor is currently getting destroyed
             return
@@ -244,7 +242,7 @@ class Sensor(Actor):
                         self.node.logdebug("{}({}): process {}".format(self.__class__.__name__,
                                                                        self.get_id(), frame))
                         self.publish_tf(trans.carla_transform_to_ros_pose(
-                            carla_sensor_data.transform), timestamp )
+                            carla_sensor_data.transform), timestamp)
                         self.sensor_data_updated(carla_sensor_data)
                         return
                     elif carla_sensor_data.frame < frame:

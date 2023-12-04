@@ -333,7 +333,6 @@ class CarlaRosBridge(CompatibleNode):
         update all actors
         :return:
         """
-        # modify time stamp by unix start offset
         self.world_info.update(frame_id, timestamp)
         self.actor_factory.update_actor_states(frame_id, timestamp)
 
@@ -359,7 +358,6 @@ class CarlaRosBridge(CompatibleNode):
         :type carla_timestamp: carla.Timestamp
         :return:
         """
-
         if roscomp.ok():
             self.ros_timestamp = roscomp.ros_timestamp(carla_timestamp.elapsed_seconds + self.parameters["start_unix_time_stamp"], from_sec=True)
             self.clock_publisher.publish(Clock(clock=self.ros_timestamp))
