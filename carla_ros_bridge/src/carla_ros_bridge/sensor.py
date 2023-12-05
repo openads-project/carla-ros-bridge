@@ -135,7 +135,7 @@ class Sensor(Actor):
             frame_id = "carla_map"
 
         transform = tf2_ros.TransformStamped()
-        transform.header.stamp = roscomp.ros_timestamp(sec=timestamp, from_sec=True)
+        transform.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
         transform.header.frame_id = frame_id
         transform.child_frame_id = child_frame_id
 

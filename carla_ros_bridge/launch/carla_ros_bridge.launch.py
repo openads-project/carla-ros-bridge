@@ -45,6 +45,11 @@ def generate_launch_description():
             description='Simulation time (delta seconds) between simulation steps'
         ),
         launch.actions.DeclareLaunchArgument(
+            name='start_unix_time_stamp',
+            default_value='0',
+            description='Start unix stamp of simulation time'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='town',
             default_value='Town01',
             description='Either use an available CARLA town (eg. "Town01") or an OpenDRIVE file (ending in .xodr)'
@@ -101,6 +106,9 @@ def generate_launch_description():
                 },
                 {
                     'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds')
+                },
+                {
+                    'start_unix_time_stamp': launch.substitutions.LaunchConfiguration('start_unix_time_stamp')
                 },
                 {
                     'town': launch.substitutions.LaunchConfiguration('town')

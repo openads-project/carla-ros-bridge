@@ -78,6 +78,10 @@ class PseudoActor(object):
 
         if not timestamp:
             timestamp = self.node.get_time()
+        # only shift if timestamp is set explictly
+        else: 
+            timestamp = timestamp + self.node.parameters["start_unix_time_stamp"]
+
         header.stamp = roscomp.ros_timestamp(sec=timestamp, from_sec=True)
         return header
 
