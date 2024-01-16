@@ -49,9 +49,17 @@ class CarlaSpawnObjects(CompatibleNode):
         self.objects_definition_file = self.get_param('objects_definition_file', '')
         self.spawn_sensors_only = self.get_param('spawn_sensors_only', False)
 
+        # Map object types to corresponding functions
+        self.object_type_map = {
+            'vehicle': self.process_vehicle,
+            'blueprint': self.process_blueprint,
+            'sensor': self.process_sensor
+        }
+
         self.players = []
         self.vehicles_sensors = []
         self.global_sensors = []
+        self.attached_vehicle_id = None
 
         self.spawn_object_service = self.new_client(SpawnObject, "/carla/spawn_object")
         self.destroy_object_service = self.new_client(DestroyObject, "/carla/destroy_object")
@@ -84,111 +92,105 @@ class CarlaSpawnObjects(CompatibleNode):
         with open(self.objects_definition_file) as handle:
             json_actors = json.loads(handle.read())
 
-        global_sensors = []
-        vehicles = []
-        found_sensor_actor_list = False
+        self.blueprints = json_actors.get('blueprints', [])  # Read blueprints and store them
 
-        for actor in json_actors["objects"]:
-            actor_type = actor["type"].split('.')[0]
-            if actor["type"] == "sensor.pseudo.actor_list" and self.spawn_sensors_only:
-                global_sensors.append(actor)
-                found_sensor_actor_list = True
-            elif actor_type == "sensor":
-                global_sensors.append(actor)
-            elif actor_type == "vehicle" or actor_type == "walker":
-                vehicles.append(actor)
-            else:
-                self.logwarn(
-                    "Object with type {} is not a vehicle, a walker or a sensor, ignoring".format(actor["type"]))
-        if self.spawn_sensors_only is True and found_sensor_actor_list is False:
-            raise RuntimeError("Parameter 'spawn_sensors_only' enabled, " +
-                               "but 'sensor.pseudo.actor_list' is not instantiated, add it to your config file.")
-
-        self.setup_sensors(global_sensors)
-
-        if self.spawn_sensors_only is True:
-            # get vehicle id from topic /carla/actor_list for all vehicles listed in config file
-            actor_info_list = self.wait_for_message("/carla/actor_list", CarlaActorList)
-            for vehicle in vehicles:
-                for actor_info in actor_info_list.actors:
-                    if actor_info.type == vehicle["type"] and actor_info.rolename == vehicle["id"]:
-                        vehicle["carla_id"] = actor_info.id
-
-        self.setup_vehicles(vehicles)
+        for obj in json_actors.get('objects', []):  # Iterate through all objects
+            self.process_object(obj)
         self.loginfo("All objects spawned.")
 
-    def setup_vehicles(self, vehicles):
-        for vehicle in vehicles:
-            if self.spawn_sensors_only is True:
-                # spawn sensors of already spawned vehicles
-                try:
-                    carla_id = vehicle["carla_id"]
-                except KeyError as e:
-                    self.logerr(
-                        "Could not spawn sensors of vehicle {}, its carla ID is not known.".format(vehicle["id"]))
-                    break
-                # spawn the vehicle's sensors
-                self.setup_sensors(vehicle["sensors"], carla_id)
-            else:
-                spawn_object_request = roscomp.get_service_request(SpawnObject)
-                spawn_object_request.type = vehicle["type"]
-                spawn_object_request.id = vehicle["id"]
-                spawn_object_request.attach_to = 0
-                spawn_object_request.random_pose = False
+    def process_object(self, obj):
+        # set obj_id and spawn point of possible parent
+        if obj["type"].split('.')[0] == 'blueprint':
+            self.parent_obj_id = obj["id"]
+            self.spawn_point_parent = obj["spawn_point"]
+        # Get the corresponding function and call it
+        func = self.object_type_map.get(obj["type"].split('.')[0], None)
+        if func:
+            func(obj)
 
-                spawn_point = None
+    def process_vehicle(self, vehicle):
+        # Spawn Vehicle
+        if self.spawn_sensors_only is True:
+            # spawn sensors of already spawned vehicles
+            try:
+                carla_id = vehicle["carla_id"]
+            except KeyError as e:
+                self.logerr(
+                    "Could not spawn sensors of vehicle {}, its carla ID is not known.".format(vehicle["id"]))
+            # spawn the vehicle's sensors
+            self.setup_sensors(vehicle["sensors"], carla_id)
+        else:
+            spawn_object_request = roscomp.get_service_request(SpawnObject)
+            spawn_object_request.type = vehicle["type"]
+            spawn_object_request.id = vehicle["id"]
+            spawn_object_request.attach_to = 0
+            spawn_object_request.random_pose = False
 
-                # check if there's a spawn_point corresponding to this vehicle
-                spawn_point_param = self.get_param("spawn_point_" + vehicle["id"], None)
-                spawn_param_used = False
-                if (spawn_point_param is not None):
-                    # try to use spawn_point from parameters
-                    spawn_point = self.check_spawn_point_param(spawn_point_param)
-                    if spawn_point is None:
-                        self.logwarn("{}: Could not use spawn point from parameters, ".format(vehicle["id"]) +
-                                     "the spawn point from config file will be used.")
-                    else:
-                        self.loginfo("Spawn point from ros parameters")
-                        spawn_param_used = True
+            spawn_point = None
 
-                if "spawn_point" in vehicle and spawn_param_used is False:
-                    # get spawn point from config file
-                    try:
-                        spawn_point = self.create_spawn_point(
-                            vehicle["spawn_point"]["x"],
-                            vehicle["spawn_point"]["y"],
-                            vehicle["spawn_point"]["z"],
-                            vehicle["spawn_point"]["roll"],
-                            vehicle["spawn_point"]["pitch"],
-                            vehicle["spawn_point"]["yaw"]
-                        )
-                        self.loginfo("Spawn point from configuration file")
-                    except KeyError as e:
-                        self.logerr("{}: Could not use the spawn point from config file, ".format(vehicle["id"]) +
-                                    "the mandatory attribute {} is missing, a random spawn point will be used".format(e))
-
+            # check if there's a spawn_point corresponding to this vehicle
+            spawn_point_param = self.get_param("spawn_point_" + vehicle["id"], None)
+            spawn_param_used = False
+            if (spawn_point_param is not None):
+                # try to use spawn_point from parameters
+                spawn_point = self.check_spawn_point_param(spawn_point_param)
                 if spawn_point is None:
-                    # pose not specified, ask for a random one in the service call
-                    self.loginfo("Spawn point selected at random")
-                    spawn_point = Pose()  # empty pose
-                    spawn_object_request.random_pose = True
+                    self.logwarn("{}: Could not use spawn point from parameters, ".format(vehicle["id"]) +
+                                    "the spawn point from config file will be used.")
+                else:
+                    self.loginfo("Spawn point from ros parameters")
+                    spawn_param_used = True
 
-                player_spawned = False
-                while not player_spawned and roscomp.ok():
-                    spawn_object_request.transform = spawn_point
+            if "spawn_point" in vehicle and spawn_param_used is False:
+                # get spawn point from config file
+                try:
+                    spawn_point = self.create_spawn_point(
+                        vehicle["spawn_point"]["x"],
+                        vehicle["spawn_point"]["y"],
+                        vehicle["spawn_point"]["z"],
+                        vehicle["spawn_point"]["roll"],
+                        vehicle["spawn_point"]["pitch"],
+                        vehicle["spawn_point"]["yaw"]
+                    )
+                    self.loginfo("Spawn point from configuration file")
+                except KeyError as e:
+                    self.logerr("{}: Could not use the spawn point from config file, ".format(vehicle["id"]) +
+                                "the mandatory attribute {} is missing, a random spawn point will be used".format(e))
 
-                    response_id = self.spawn_object(spawn_object_request)
-                    if response_id != -1:
-                        player_spawned = True
-                        self.players.append(response_id)
-                        # Set up the sensors
-                        try:
-                            self.setup_sensors(vehicle["sensors"], response_id)
-                        except KeyError:
-                            self.logwarn(
-                                "Object (type='{}', id='{}') has no 'sensors' field in his config file, none will be spawned.".format(spawn_object_request.type, spawn_object_request.id))
+            if spawn_point is None:
+                # pose not specified, ask for a random one in the service call
+                self.loginfo("Spawn point selected at random")
+                spawn_point = Pose()  # empty pose
+                spawn_object_request.random_pose = True
 
-    def setup_sensors(self, sensors, attached_vehicle_id=None):
+            player_spawned = False
+            while not player_spawned and roscomp.ok():
+                spawn_object_request.transform = spawn_point
+
+                response_id = self.spawn_object(spawn_object_request)
+                self.attached_vehicle_id = response_id
+                if response_id != -1:
+                    player_spawned = True
+                    self.players.append(response_id)
+                    # Set up the sensors
+                    try:
+                        # Recursively process child objects:
+                        for child in vehicle.get('children', []):
+                            self.process_object(child)
+                    except KeyError:
+                        self.logwarn(
+                            "Object (type='{}', id='{}') has no 'sensors' field in his config file, none will be spawned.".format(spawn_object_request.type, spawn_object_request.id))
+            self.attached_vehicle_id = None
+                
+    def process_blueprint(self, obj):
+        # Process blueprint object and its chrildren
+        for blueprint in self.blueprints:
+            if blueprint['id'] == obj['type'].split('.')[1]:
+                for child in blueprint['children']:
+                    self.process_object(child)
+        self.spawn_point_parent.clear()
+                
+    def process_sensor(self, sensor):
         """
         Create the sensors defined by the user and attach them to the vehicle
         (or not if global sensor)
@@ -197,85 +199,87 @@ class CarlaSpawnObjects(CompatibleNode):
         :return actors: list of ids of objects created
         """
         sensor_names = []
-        for sensor_spec in sensors:
-            if not roscomp.ok():
-                break
-            try:
-                sensor_type = str(sensor_spec.pop("type"))
-                sensor_id = str(sensor_spec.pop("id"))
+        try:
+            sensor_type = str(sensor.pop("type"))
+            sensor_id = str(sensor.pop("id"))
 
-                sensor_name = sensor_type + "/" + sensor_id
-                if sensor_name in sensor_names:
-                    raise NameError
-                sensor_names.append(sensor_name)
+            sensor_name = sensor_type + "/" + sensor_id
+            if sensor_name in sensor_names:
+                raise NameError
+            sensor_names.append(sensor_name)
 
-                if attached_vehicle_id is None and "pseudo" not in sensor_type:
-                    spawn_point = sensor_spec.pop("spawn_point")
+            if self.attached_vehicle_id is None and "pseudo" not in sensor_type:
+                spawn_point = sensor.pop("spawn_point")
+                sensor_transform = self.create_spawn_point(
+                    spawn_point.pop("x"),
+                    spawn_point.pop("y"),
+                    spawn_point.pop("z"),
+                    spawn_point.pop("roll", 0.0),
+                    spawn_point.pop("pitch", 0.0),
+                    spawn_point.pop("yaw", 0.0))
+            else:
+                # if sensor attached to a vehicle, or is a 'pseudo_actor', allow default pose
+                spawn_point = sensor.pop("spawn_point", 0)
+                if spawn_point == 0:
+                    sensor_transform = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                else:
                     sensor_transform = self.create_spawn_point(
-                        spawn_point.pop("x"),
-                        spawn_point.pop("y"),
-                        spawn_point.pop("z"),
-                        spawn_point.pop("roll", 0.0),
-                        spawn_point.pop("pitch", 0.0),
-                        spawn_point.pop("yaw", 0.0))
-                else:
-                    # if sensor attached to a vehicle, or is a 'pseudo_actor', allow default pose
-                    spawn_point = sensor_spec.pop("spawn_point", 0)
-                    if spawn_point == 0:
-                        sensor_transform = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-                    else:
-                        sensor_transform = self.create_spawn_point(
-                            spawn_point.pop("x", 0.0),
-                            spawn_point.pop("y", 0.0),
-                            spawn_point.pop("z", 0.0),
-                            spawn_point.pop("roll", 0.0),
-                            spawn_point.pop("pitch", 0.0),
-                            spawn_point.pop("yaw", 0.0))
+                    spawn_point.pop("x"),
+                    spawn_point.pop("y"),
+                    spawn_point.pop("z"),
+                    spawn_point.pop("roll", 0.0),
+                    spawn_point.pop("pitch", 0.0),
+                    spawn_point.pop("yaw", 0.0))
 
-                spawn_object_request = roscomp.get_service_request(SpawnObject)
-                spawn_object_request.type = sensor_type
-                spawn_object_request.id = sensor_id
-                spawn_object_request.attach_to = attached_vehicle_id if attached_vehicle_id is not None else 0
-                spawn_object_request.transform = sensor_transform
-                spawn_object_request.random_pose = False  # never set a random pose for a sensor
+                    if self.spawn_point_parent:
+                        sensor_transform.position.x += self.spawn_point_parent['x']
+                        sensor_transform.position.y += self.spawn_point_parent['y']
+                        sensor_transform.position.z += self.spawn_point_parent['z']
+                        sensor_transform.orientation.x += self.spawn_point_parent['roll']
+                        sensor_transform.orientation.y += self.spawn_point_parent['pitch']
+                        sensor_transform.orientation.z += self.spawn_point_parent['yaw']
 
-                attached_objects = []
-                for attribute, value in sensor_spec.items():
-                    if attribute == "attached_objects":
-                        for attached_object in sensor_spec["attached_objects"]:
-                            attached_objects.append(attached_object)
-                        continue
-                    spawn_object_request.attributes.append(
-                        KeyValue(key=str(attribute), value=str(value)))
+            spawn_object_request = roscomp.get_service_request(SpawnObject)
+            spawn_object_request.type = sensor_type
+            spawn_object_request.id = sensor_id
+            spawn_object_request.attach_to = self.attached_vehicle_id if self.attached_vehicle_id is not None else 0
+            spawn_object_request.transform = sensor_transform
+            spawn_object_request.random_pose = False  # never set a random pose for a sensor
 
-                response_id = self.spawn_object(spawn_object_request)
+            attached_objects = []
+            for attribute, value in sensor.items():
+                if attribute == "attached_objects":
+                    for attached_object in sensor["attached_objects"]:
+                        attached_objects.append(attached_object)
+                    continue
+                spawn_object_request.attributes.append(
+                    KeyValue(key=str(attribute), value=str(value)))
 
-                if response_id == -1:
-                    raise RuntimeError(response.error_string)
+            response_id = self.spawn_object(spawn_object_request)
 
-                if attached_objects:
-                    # spawn the attached objects
-                    self.setup_sensors(attached_objects, response_id)
+            if response_id == -1:
+                raise RuntimeError(response.error_string)
 
-                if attached_vehicle_id is None:
-                    self.global_sensors.append(response_id)
-                else:
-                    self.vehicles_sensors.append(response_id)
+            if attached_objects:
+                # spawn the attached objects
+                self.setup_sensors(attached_objects, response_id)
 
-            except KeyError as e:
-                self.logerr(
-                    "Sensor {} will not be spawned, the mandatory attribute {} is missing".format(sensor_name, e))
-                continue
+            if self.attached_vehicle_id is None:
+                self.global_sensors.append(response_id)
+            else:
+                self.vehicles_sensors.append(response_id)
 
-            except RuntimeError as e:
-                self.logerr(
-                    "Sensor {} will not be spawned: {}".format(sensor_name, e))
-                continue
+        except KeyError as e:
+            self.logerr(
+                "Sensor {} will not be spawned, the mandatory attribute {} is missing".format(sensor_name, e))
 
-            except NameError:
-                self.logerr("Sensor rolename '{}' is only allowed to be used once. The second one will be ignored.".format(
-                    sensor_id))
-                continue
+        except RuntimeError as e:
+            self.logerr(
+                "Sensor {} will not be spawned: {}".format(sensor_name, e))
+
+        except NameError:
+            self.logerr("Sensor rolename '{}' is only allowed to be used once. The second one will be ignored.".format(
+                sensor_id))
 
     def create_spawn_point(self, x, y, z, roll, pitch, yaw):
         spawn_point = Pose()
