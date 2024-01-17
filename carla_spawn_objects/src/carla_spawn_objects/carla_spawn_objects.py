@@ -22,6 +22,9 @@ import os
 from transforms3d.euler import euler2quat
 
 import ros_compatibility as roscomp
+ROS_VERSION = roscomp.get_ros_version()
+if ROS_VERSION == 1:
+    import rospy
 from ros_compatibility.exceptions import *
 from ros_compatibility.node import CompatibleNode
 
@@ -29,6 +32,8 @@ from carla_msgs.msg import CarlaActorList
 from carla_msgs.srv import SpawnObject, DestroyObject
 from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import Pose
+import geometry_msgs.msg
+import tf2_ros
 
 # ==============================================================================
 # -- CarlaSpawnObjects ------------------------------------------------------------
@@ -55,7 +60,7 @@ class CarlaSpawnObjects(CompatibleNode):
             'blueprint': self.process_blueprint,
             'sensor': self.process_sensor
         }
-
+        self.world_frame = "carla_map"
         self.players = []
         self.vehicles_sensors = []
         self.global_sensors = []
@@ -95,20 +100,20 @@ class CarlaSpawnObjects(CompatibleNode):
         self.blueprints = json_actors.get('blueprints', [])  # Read blueprints and store them
 
         for obj in json_actors.get('objects', []):  # Iterate through all objects
-            self.process_object(obj)
+            self.process_object(obj, True)
         self.loginfo("All objects spawned.")
 
-    def process_object(self, obj):
-        # set obj_id and spawn point of possible parent
-        if obj["type"].split('.')[0] == 'blueprint':
+    def process_object(self, obj, top_layer):
+        if top_layer:
             self.parent_obj_id = obj["id"]
-            self.spawn_point_parent = obj["spawn_point"]
+            if "spawn_point" in obj:
+                self.spawn_point_parent = obj["spawn_point"]
         # Get the corresponding function and call it
         func = self.object_type_map.get(obj["type"].split('.')[0], None)
         if func:
-            func(obj)
+            func(obj, top_layer)
 
-    def process_vehicle(self, vehicle):
+    def process_vehicle(self, vehicle, top_layer = True):
         # Spawn Vehicle
         if self.spawn_sensors_only is True:
             # spawn sensors of already spawned vehicles
@@ -176,21 +181,81 @@ class CarlaSpawnObjects(CompatibleNode):
                     try:
                         # Recursively process child objects:
                         for child in vehicle.get('children', []):
-                            self.process_object(child)
+                            self.process_object(child, False)
                     except KeyError:
                         self.logwarn(
                             "Object (type='{}', id='{}') has no 'sensors' field in his config file, none will be spawned.".format(spawn_object_request.type, spawn_object_request.id))
             self.attached_vehicle_id = None
                 
-    def process_blueprint(self, obj):
+    def process_blueprint(self, obj, top_layer):
         # Process blueprint object and its chrildren
         for blueprint in self.blueprints:
             if blueprint['id'] == obj['type'].split('.')[1]:
-                for child in blueprint['children']:
-                    self.process_object(child)
-        self.spawn_point_parent.clear()
+
+                # Get spwan point of blueprint from config file
+                spawn_point_blueprint = self.create_spawn_point(
+                        obj["spawn_point"]["x"],
+                        obj["spawn_point"]["y"],
+                        obj["spawn_point"]["z"],
+                        obj["spawn_point"]["roll"],
+                        obj["spawn_point"]["pitch"],
+                        obj["spawn_point"]["yaw"]
+                    )
                 
-    def process_sensor(self, sensor):
+                # initialize static transform between "carla_map" frame and spawn point of group
+                static_transform = geometry_msgs.msg.TransformStamped()
+                if ROS_VERSION == 1:
+                    broadcaster = tf2_ros.StaticTransformBroadcaster()
+                    static_transform.header.stamp = rospy.Time.now()
+                elif ROS_VERSION == 2:
+                    broadcaster = tf2_ros.StaticTransformBroadcaster(self)
+                    static_transform.header.stamp = self.get_clock().now().to_msg()
+                if top_layer:
+                    static_transform.header.frame_id = self.world_frame 
+                elif not top_layer:
+                    static_transform.header.frame_id = self.parent_obj_id
+                static_transform.child_frame_id = obj["id"]
+                static_transform.transform.translation.x = spawn_point_blueprint.position.x
+                static_transform.transform.translation.y = spawn_point_blueprint.position.y
+                static_transform.transform.translation.z = spawn_point_blueprint.position.z
+                static_transform.transform.rotation.x = spawn_point_blueprint.orientation.x
+                static_transform.transform.rotation.y = spawn_point_blueprint.orientation.y
+                static_transform.transform.rotation.z = spawn_point_blueprint.orientation.z
+                static_transform.transform.rotation.w = spawn_point_blueprint.orientation.w
+                broadcaster.sendTransform(static_transform) 
+
+                if "physical_object" in blueprint:
+                    # Spawn blueprint when it is a physical_object
+                    spawn_object_request = roscomp.get_service_request(SpawnObject)
+                    spawn_object_request.type = blueprint["physical_object"]     
+                    spawn_object_request.id = self.parent_obj_id
+                    spawn_object_request.attach_to = 0
+                    spawn_object_request.random_pose = False
+
+                    player_spawned = False
+                    while not player_spawned and roscomp.ok():
+                        spawn_object_request.transform = spawn_point_blueprint
+
+                        response_id = self.spawn_object(spawn_object_request)
+                        self.attached_vehicle_id = response_id
+                        if response_id != -1:
+                            player_spawned = True
+                            self.players.append(response_id)
+                            # Set up the sensors
+                            try:
+                                # Recursively process child objects:
+                                for child in blueprint.get('children', []):
+                                    self.process_object(child, False)
+                            except KeyError:
+                                self.logwarn(
+                                    "Object (type='{}', id='{}') has no 'sensors' field in his config file, none will be spawned.".format(spawn_object_request.type, spawn_object_request.id))
+                    self.attached_vehicle_id = None
+                else:
+                    for child in blueprint.get('children', []):
+                        self.process_object(child, False)
+            self.spawn_point_parent.clear()
+                
+    def process_sensor(self, sensor, top_layer):
         """
         Create the sensors defined by the user and attach them to the vehicle
         (or not if global sensor)
@@ -211,12 +276,12 @@ class CarlaSpawnObjects(CompatibleNode):
             if self.attached_vehicle_id is None and "pseudo" not in sensor_type:
                 spawn_point = sensor.pop("spawn_point")
                 sensor_transform = self.create_spawn_point(
-                    spawn_point.pop("x"),
-                    spawn_point.pop("y"),
-                    spawn_point.pop("z"),
-                    spawn_point.pop("roll", 0.0),
-                    spawn_point.pop("pitch", 0.0),
-                    spawn_point.pop("yaw", 0.0))
+                    spawn_point.pop("x") + self.spawn_point_parent["x"],
+                    spawn_point.pop("y") + self.spawn_point_parent["y"],
+                    spawn_point.pop("z") + self.spawn_point_parent["z"],
+                    spawn_point.pop("roll", 0.0) + self.spawn_point_parent["roll"],
+                    spawn_point.pop("pitch", 0.0) + self.spawn_point_parent["pitch"],
+                    spawn_point.pop("yaw", 0.0) + self.spawn_point_parent["yaw"])
             else:
                 # if sensor attached to a vehicle, or is a 'pseudo_actor', allow default pose
                 spawn_point = sensor.pop("spawn_point", 0)
@@ -230,14 +295,6 @@ class CarlaSpawnObjects(CompatibleNode):
                     spawn_point.pop("roll", 0.0),
                     spawn_point.pop("pitch", 0.0),
                     spawn_point.pop("yaw", 0.0))
-
-                    if self.spawn_point_parent:
-                        sensor_transform.position.x += self.spawn_point_parent['x']
-                        sensor_transform.position.y += self.spawn_point_parent['y']
-                        sensor_transform.position.z += self.spawn_point_parent['z']
-                        sensor_transform.orientation.x += self.spawn_point_parent['roll']
-                        sensor_transform.orientation.y += self.spawn_point_parent['pitch']
-                        sensor_transform.orientation.z += self.spawn_point_parent['yaw']
 
             spawn_object_request = roscomp.get_service_request(SpawnObject)
             spawn_object_request.type = sensor_type
@@ -262,7 +319,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
             if attached_objects:
                 # spawn the attached objects
-                self.setup_sensors(attached_objects, response_id)
+                self.process_object(attached_objects, response_id)
 
             if self.attached_vehicle_id is None:
                 self.global_sensors.append(response_id)
