@@ -63,7 +63,7 @@ def generate_launch_description():
                 'passive': launch.substitutions.LaunchConfiguration('passive'),
                 'synchronous_mode_wait_for_vehicle_control_command': launch.substitutions.LaunchConfiguration('synchronous_mode_wait_for_vehicle_control_command'),
                 'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds'),
-                'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
+                'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles'), 
             }.items()
         ),
         launch.actions.IncludeLaunchDescription(

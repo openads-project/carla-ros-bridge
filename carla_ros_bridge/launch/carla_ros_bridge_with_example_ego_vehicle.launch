@@ -21,7 +21,7 @@
   <arg name='fixed_delta_seconds' default='0.05'/>
 
   <!-- Enable/disable object list with static vehicles -->
-  <arg name='publish_static_vehicles' default='True'/>
+  <arg name='publish_static_vehicles' default='False'/>
 
   <include file="$(find carla_ros_bridge)/launch/carla_ros_bridge.launch">
     <arg name='host' value='$(arg host)'/>

@@ -72,7 +72,7 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='publish_static_vehicles',
-            default_value='True',
+            default_value='False',
             description='Enable/disable object list with static vehicles'
         ),
         launch_ros.actions.Node(
@@ -124,7 +124,7 @@ def generate_launch_description():
                 },
                 {
                     'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
-                }
+                },
             ]
         )
     ])
