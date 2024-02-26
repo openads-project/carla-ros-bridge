@@ -1,9 +1,36 @@
-{   
-    "objects": 
+{
+    "objects":
     [
-        {
-            "type": "sensor.pseudo.traffic_lights",
-            "id": "traffic_lights"
+      {
+        "type": "sensor.pseudo.traffic_lights",
+        "id": "traffic_lights"
+      },
+      {
+        "type": "sensor.pseudo.objects",
+        "id": "objects"
+      },
+      {
+          "type": "sensor.pseudo.actor_list",
+          "id": "actor_list"
+      },
+      {
+          "type": "sensor.pseudo.markers",
+          "id": "markers"
+      },
+      {
+          "type": "sensor.pseudo.opendrive_map",
+          "id": "carla_map"
+      },
+      {
+        "type": "vehicle.tesla.model3",
+        "id": "ego_vehicle",
+        "spawn_point": {
+          "x": 100.0,
+          "y": -277.0,
+          "z": 1.0,
+          "roll": 0.0,
+          "pitch": 0.0,
+          "yaw": -120.0
         },
         {
             "type": "sensor.pseudo.objects",
@@ -223,5 +250,83 @@
                 }
             ]
         }
+      }
+    ],
+    "blueprints":
+    [
+      {
+        "id": "sensor_station",
+        "type": "group",
+        "physical_object": "static.prop.dirtdebris01",
+        "children": [
+          {
+            "type": "sensor.camera.rgb",
+            "id": "station_camera",
+            "spawn_point": {
+              "x": 0.0,
+              "y": 0.1,
+              "z": 6.0,
+              "roll": 0.0,
+              "pitch": 17.189,
+              "yaw": 79.985
+            },
+            "image_size_x": 960,
+            "image_size_y": 540,
+            "fov": 48.0,
+            "sensor_tick": 0.1
+          },
+          {
+            "type": "sensor.lidar.ray_cast",
+            "id": "station_lidar",
+            "spawn_point": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 6.0,
+              "roll": 0.0,
+              "pitch": 67.494,
+              "yaw": 0.0
+            },
+            "range": 100,
+            "rotation_frequency": 10,
+            "sensor_tick": 1
+          }
+        ]
+      },
+      {
+        "id": "sensor_rack",
+        "type": "group",
+        "children": [
+          {
+            "type": "sensor.camera.rgb",
+            "id": "vehicle_rack_camera",
+            "spawn_point": {
+              "x": 1.0,
+              "y": 0.0,
+              "z": 0.0,
+              "roll": 0.0,
+              "pitch": 0.0,
+              "yaw": 0
+            },
+            "image_size_x": 800,
+            "image_size_y": 600,
+            "sensor_tick": 0.1
+          },
+          {
+            "type": "sensor.lidar.ray_cast",
+            "id": "vehicle_rack_lidar",
+            "spawn_point": {
+              "x": 2.0,
+              "y": 0.0,
+              "z": 0.0,
+              "roll": 0.0,
+              "pitch": 0.0,
+              "yaw": 0.0
+            },
+            "range": 100,
+            "rotation_frequency": 10,
+            "sensor_tick": 1
+          }
+        ]
+      }
     ]
-}
+  }
