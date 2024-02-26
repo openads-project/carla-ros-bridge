@@ -256,7 +256,7 @@ class ActorFactory(object):
             name = str(carla_actor.id)
 
         obj = self._create_object(carla_actor.id, carla_actor.type_id, name,
-                                  parent_id, relative_transform, None, carla_actor)
+                                  parent_id, relative_transform, carla_actor.attributes, carla_actor)
         return obj
 
     def _destroy_object(self, actor_id, delete_actor):
@@ -279,7 +279,7 @@ class ActorFactory(object):
                 pseudo_sensors.append(cls.get_blueprint_name())
         return pseudo_sensors
 
-    def _create_object(self, uid, type_id, name, attach_to, spawn_pose, attributes=None, carla_actor=None):
+    def _create_object(self, uid, type_id, name, attach_to, spawn_pose, attributes, carla_actor=None):
         # check that the actor is not already created.
         if carla_actor is not None and carla_actor.id in self.actors:
             return None
@@ -333,13 +333,6 @@ class ActorFactory(object):
             )
 
         elif type_id == IntelligentObjectSensor.get_blueprint_name():
-            if attributes is None and carla_actor is not None:
-                intelligent_object_sensor_attributes = carla_actor.attributes
-            elif attributes is not None:
-                intelligent_object_sensor_attributes = attributes
-            else:
-                raise TypeError("Tried to create object of type {} but neither attributes nor an actor is given".format(type_id))
-
             actor = IntelligentObjectSensor(
                 uid=uid,
                 name=name,
@@ -347,7 +340,7 @@ class ActorFactory(object):
                 node=self.node,
                 actor_list=self.actors,
                 world=self.world, 
-                attributes=intelligent_object_sensor_attributes
+                attributes=attributes
             )
 
         elif type_id == TrafficLightsSensor.get_blueprint_name():
