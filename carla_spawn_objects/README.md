@@ -33,3 +33,4 @@ Find the official documentation about the CARLA Spawn Objects package [__here__]
 
 - check available ros tf's
 - check correct spawnpoints
+- harmonize sensors and groups processing

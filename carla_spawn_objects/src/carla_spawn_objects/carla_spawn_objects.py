@@ -260,19 +260,22 @@ class CarlaSpawnObjects(CompatibleNode):
                     raise RuntimeError("Sensor {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(sensor["id"], parent['id']))
 
                 elif parent['type'].split('.')[0] == 'vehicle':
+                    sensor["name"] = parent['id'] + "/" + sensor["id"]
                     sensor['attached_vehicle_id'] = parent['response_id']
 
                 elif 'attached_vehicle_id' in parent:
                     sensor["id"] = parent['id'] + "/" + sensor["id"]
+                    sensor["name"] = parent['id'] + "/" + sensor["id"]
                     sensor['attached_vehicle_id'] = parent['attached_vehicle_id']
                     sensor['transform'] = self.combine_spawn_point(parent['transform'], sensor['transform'])
             else:
+                sensor["name"] = sensor["id"]
                 sensor['attached_vehicle_id'] = 0
 
             # check if sensor name already exists
-            if sensor["id"] in self.sensor_names:
+            if sensor["name"] in self.sensor_names:
                 raise NameError
-            self.sensor_names.append(sensor["id"])
+            self.sensor_names.append(sensor["name"])
 
             spawn_object_request = roscomp.get_service_request(SpawnObject)
             spawn_object_request.type = sensor["type"]
@@ -284,7 +287,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
             attached_objects = []
             for attribute, value in sensor.items():
-                if attribute in ["id", "type", "spawn_point", "transform", "attached_vehicle_id", "response_id"]:
+                if attribute in ["id", "type", "name", "spawn_point", "transform", "attached_vehicle_id", "response_id"]:
                     continue
                 if attribute == "attached_objects":
                     for attached_object in sensor["attached_objects"]:
@@ -362,24 +365,27 @@ class CarlaSpawnObjects(CompatibleNode):
                     raise RuntimeError("Group {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(group["id"], parent['id']))
 
                 elif parent['type'].split('.')[0] == 'vehicle':
+                    group["name"] = parent['id'] + "/" + group["id"]
                     group['attached_vehicle_id'] = parent['response_id']
 
                 elif 'attached_vehicle_id' in parent:
                     group["id"] = parent['id'] + "/" + group["id"]
+                    group["name"] = parent['id'] + "/" + group["id"]
                     group['attached_vehicle_id'] = parent['attached_vehicle_id']
                     group['transform'] = self.combine_spawn_point(parent['transform'], group['transform'])
             else:
+                group["name"] = group["id"]
                 group['attached_vehicle_id'] = 0
 
             # check if group name already exists
-            if group["id"] in self.group_names:
+            if group["name"] in self.group_names:
                 raise NameError
-            self.group_names.append(group["id"])
+            self.group_names.append(group["name"])
 
             # spawn the physical object
             if 'physical_object' in group:
                 spawn_object_request = roscomp.get_service_request(SpawnObject)
-                spawn_object_request.type = group["physical_object"]    
+                spawn_object_request.type = group["physical_object"]
                 spawn_object_request.id = group["id"]
                 spawn_object_request.attach_to = group['attached_vehicle_id']
                 spawn_object_request.transform = group['transform']
