@@ -269,7 +269,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
                 elif 'attached_vehicle_id' in parent:
                     sensor['attached_vehicle_id'] = parent['attached_vehicle_id']
-                    sensor['transform'] = sensor['transform'] + parent['transform']
+                    sensor['transform'] = self.combine_spawn_point(parent['transform'], sensor['transform'])
 
             spawn_object_request = roscomp.get_service_request(SpawnObject)
             spawn_object_request.type = sensor_type
@@ -365,7 +365,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
                 elif 'attached_vehicle_id' in parent:
                     group['attached_vehicle_id'] = parent['attached_vehicle_id']
-                    group['transform'] = group['transform'] + parent['transform']
+                    group['transform'] = self.combine_spawn_point(parent['transform'], group['transform'])
 
             if 'physical_object' in group:
                 spawn_object_request = roscomp.get_service_request(SpawnObject)
@@ -454,6 +454,35 @@ class CarlaSpawnObjects(CompatibleNode):
         spawn_point.orientation.y = quat[2]
         spawn_point.orientation.z = quat[3]
         return spawn_point
+
+    def combine_spawn_point(self, base, shift):
+
+        base.position.x += shift.position.x
+        base.position.y += shift.position.y
+        base.position.z += shift.position.z
+
+        base_orientation = quat2euler([base.orientation.w,
+                                base.orientation.x,
+                                base.orientation.y,
+                                base.orientation.z])
+
+        shift_orientation = quat2euler([shift.orientation.w,
+        shift.orientation.x,
+        shift.orientation.y,
+        shift.orientation.z])
+
+        base_orientation[0] += shift_orientation[0]
+        base_orientation[1] += shift_orientation[1]
+        base_orientation[2] += shift_orientation[2]
+
+        quat = euler2quat(base_orientation[0], base_orientation[1], base_orientation[2])
+
+        base.orientation.w = quat[0]
+        base.orientation.x = quat[1]
+        base.orientation.y = quat[2]
+        base.orientation.z = quat[3]
+        
+        return base
 
     def check_spawn_point_param(self, spawn_point_parameter):
         components = spawn_point_parameter.split(',')
