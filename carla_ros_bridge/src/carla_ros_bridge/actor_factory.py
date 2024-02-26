@@ -230,10 +230,13 @@ class ActorFactory(object):
         """
         parent = None
         # the transform relative to the carla_map
-        if req == None:
-            relative_transform = trans.carla_transform_to_ros_pose(carla_actor.get_transform())
-        else:
-            relative_transform = req.transform
+        relative_transform = trans.carla_transform_to_ros_pose(carla_actor.get_transform())
+        
+        # TODO: check if this is necessary
+        #if req == None:
+        #    relative_transform = trans.carla_transform_to_ros_pose(carla_actor.get_transform())
+        #else:
+        #    relative_transform = req.transform
 
 
         if carla_actor.parent:

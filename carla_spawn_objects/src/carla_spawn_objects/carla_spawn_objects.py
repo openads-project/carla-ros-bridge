@@ -19,7 +19,7 @@ import json
 import math
 import os
 
-from transforms3d.euler import euler2quat
+from transforms3d.euler import quat2euler, euler2quat
 
 import ros_compatibility as roscomp
 ROS_VERSION = roscomp.get_ros_version()
@@ -144,6 +144,11 @@ class CarlaSpawnObjects(CompatibleNode):
         :param vehicle: vehicle input dict
         :param parent: id of attached parent
         """
+
+        if parent is not None:
+            self.logerr(
+                    "Could not spawn vehicle {}, because parent exists for vehicle definition.".format(vehicle["id"]))
+
         if self.spawn_sensors_only is True:
             # spawn sensors of non-ros spawned vehicles
             try:
@@ -224,8 +229,8 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
         try:
-            sensor_type = str(sensor.pop("type"))
-            sensor_id = str(sensor.pop("id"))
+            sensor_type = sensor["type"]
+            sensor_id = sensor["id"]
 
             # check if sensor name already exists
             sensor_name = sensor_type + "/" + sensor_id 
@@ -234,42 +239,44 @@ class CarlaSpawnObjects(CompatibleNode):
             self.sensor_names.append(sensor_name)
 
             if parent is None and "pseudo" not in sensor_type:
-                spawn_point = sensor.pop("spawn_point")
+                spawn_point = sensor["spawn_point"]
                 sensor['transform'] = self.create_spawn_point(
-                    spawn_point.pop("x"),
-                    spawn_point.pop("y"),
-                    spawn_point.pop("z"),
-                    spawn_point.pop("roll", 0.0),
-                    spawn_point.pop("pitch", 0.0),
-                    spawn_point.pop("yaw", 0.0)
+                    spawn_point["x"],
+                    spawn_point["y"],
+                    spawn_point["z"],
+                    spawn_point["roll"],
+                    spawn_point["pitch"],
+                    spawn_point["yaw"]
                 )
             else:
                 # if sensor attached to a parent, or is a 'pseudo_actor', allow default pose
-                spawn_point = sensor.pop("spawn_point", 0)
-                if spawn_point == 0:
+                
+                if 'spawn_point' not in sensor:
                     sensor['transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
                 else:
+                    spawn_point = sensor["spawn_point"]
                     sensor['transform'] = self.create_spawn_point(
-                    spawn_point.pop("x"),
-                    spawn_point.pop("y"),
-                    spawn_point.pop("z"),
-                    spawn_point.pop("roll", 0.0),
-                    spawn_point.pop("pitch", 0.0),
-                    spawn_point.pop("yaw", 0.0))
+                    spawn_point["x"],
+                    spawn_point["y"],
+                    spawn_point["z"],
+                    spawn_point["roll"],
+                    spawn_point["pitch"],
+                    spawn_point["yaw"])
 
             # Consider parent object transformations
-            sensor['attached_vehicle_id'] = 0
             if parent is not None:
                 
                 if parent['type'] == 'vehicle' and 'attached_vehicle_id' in parent:
                     raise RuntimeError("Sensor {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(sensor_name, parent['id']))
 
-                elif parent['type'] == 'vehicle':
-                    sensor['attached_vehicle_id'] = parent['id']
+                elif parent['type'].split('.')[0] == 'vehicle':
+                    sensor['attached_vehicle_id'] = parent['response_id']
 
                 elif 'attached_vehicle_id' in parent:
                     sensor['attached_vehicle_id'] = parent['attached_vehicle_id']
                     sensor['transform'] = self.combine_spawn_point(parent['transform'], sensor['transform'])
+            else:
+                sensor['attached_vehicle_id'] = 0
 
             spawn_object_request = roscomp.get_service_request(SpawnObject)
             spawn_object_request.type = sensor_type
@@ -278,8 +285,11 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_object_request.transform = sensor['transform']
             spawn_object_request.random_pose = False  # never set a random pose for a sensor
 
+
             attached_objects = []
             for attribute, value in sensor.items():
+                if attribute in ["id", "type", "spawn_point", "transform", "attached_vehicle_id", "response_id"]:
+                    continue
                 if attribute == "attached_objects":
                     for attached_object in sensor["attached_objects"]:
                         attached_objects.append(attached_object)
@@ -322,7 +332,7 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
         try:
-            group_name = str(group.pop("id"))
+            group_name = group['id']
 
             # check if group name already exists
             if group_name in self.group_names:
@@ -330,42 +340,45 @@ class CarlaSpawnObjects(CompatibleNode):
             self.group_names.append(group_name)       # TODO: could be group with same id on different levels
 
             if parent is None:
-                spawn_point = group.pop("spawn_point")
+                spawn_point = group["spawn_point"]
                 group['transform'] = self.create_spawn_point(
-                    spawn_point.pop("x"),
-                    spawn_point.pop("y"),
-                    spawn_point.pop("z"),
-                    spawn_point.pop("roll", 0.0),
-                    spawn_point.pop("pitch", 0.0),
-                    spawn_point.pop("yaw", 0.0)
+                    spawn_point["x"],
+                    spawn_point["y"],
+                    spawn_point["z"],
+                    spawn_point["roll"],
+                    spawn_point["pitch"],
+                    spawn_point["yaw"]
                 )
             else:
                 # if group attached to a parent allow default pose
-                spawn_point = group.pop("spawn_point", 0)
-                if spawn_point == 0:
+               
+                if 'spawn_point' not in group:
                     group['transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
                 else:
+                    spawn_point = group["spawn_point"]
+
                     group['transform'] = self.create_spawn_point(
-                    spawn_point.pop("x"),
-                    spawn_point.pop("y"),
-                    spawn_point.pop("z"),
-                    spawn_point.pop("roll", 0.0),
-                    spawn_point.pop("pitch", 0.0),
-                    spawn_point.pop("yaw", 0.0))
+                    spawn_point["x"],
+                    spawn_point["y"],
+                    spawn_point["z"],
+                    spawn_point["roll"],
+                    spawn_point["pitch"],
+                    spawn_point["yaw"])
 
             # Consider parent object transformations
-            group['attached_vehicle_id'] = 0
             if parent is not None:
                 
                 if parent['type'] == 'vehicle' and 'attached_vehicle_id' in parent:
-                    raise RuntimeError("Sensor {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(sensor_name, parent['id']))
+                    raise RuntimeError("Group {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(sensor_name, parent['id']))
 
-                elif parent['type'] == 'vehicle':
-                    group['attached_vehicle_id'] = parent['id']
+                elif parent['type'].split('.')[0] == 'vehicle':
+                    group['attached_vehicle_id'] = parent['response_id']
 
                 elif 'attached_vehicle_id' in parent:
                     group['attached_vehicle_id'] = parent['attached_vehicle_id']
                     group['transform'] = self.combine_spawn_point(parent['transform'], group['transform'])
+            else:
+                group['attached_vehicle_id'] = 0
 
             if 'physical_object' in group:
                 spawn_object_request = roscomp.get_service_request(SpawnObject)
@@ -461,19 +474,19 @@ class CarlaSpawnObjects(CompatibleNode):
         base.position.y += shift.position.y
         base.position.z += shift.position.z
 
-        base_orientation = quat2euler([base.orientation.w,
+        base_orientation = list(quat2euler([base.orientation.w,
                                 base.orientation.x,
                                 base.orientation.y,
-                                base.orientation.z])
+                                base.orientation.z]))
 
-        shift_orientation = quat2euler([shift.orientation.w,
-        shift.orientation.x,
-        shift.orientation.y,
-        shift.orientation.z])
+        shift_orientation = list(quat2euler([shift.orientation.w,
+                                shift.orientation.x,
+                                shift.orientation.y,
+                                shift.orientation.z]))
 
-        base_orientation[0] += shift_orientation[0]
-        base_orientation[1] += shift_orientation[1]
-        base_orientation[2] += shift_orientation[2]
+        base_orientation[0] = base_orientation[0] + shift_orientation[0]
+        base_orientation[1] = base_orientation[1] + shift_orientation[1]
+        base_orientation[2] = base_orientation[2] + shift_orientation[2]
 
         quat = euler2quat(base_orientation[0], base_orientation[1], base_orientation[2])
 
