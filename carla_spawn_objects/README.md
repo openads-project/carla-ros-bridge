@@ -9,21 +9,29 @@ Find the official documentation about the CARLA Spawn Objects package [__here__]
 ## Vehicles
 
 - a vehicle needs to be defined on top level
-- a vehicle can not be attached to other vehicles
-  
+  - a vehicle can not be attached to other vehicles
+- a vehicle can contain multiple sensors/children
+  - a child can be
+    - a sensor (tested)
+    - a blueprint (tested)
+    - a group (tested)
+
 ## Groups
 
-- a group have one or multiple children
-- a child can be
-  - a sensor (tested)
-  - a blueprint (tested)
-  - a group (not tested)
+- a group can be defined on top level
+- a group can be defined in blueprints or vehicles
+- a group can contain multiple children
+  - a child can be
+    - a sensor (tested)
+    - a blueprint (tested)
+    - a group (not tested)
 
 ## Blueprints
 
 - a blueprint can be defined in the blueprint section
 - a blueprint can be used in other blueprints
-- a blueprint can be used in the objects section
+- a blueprint can be used as a group child
+- a blueprint can be used as a vehicle child
 - a blueprint can be of type
   - group (tested)
   - sensor (not tested)
