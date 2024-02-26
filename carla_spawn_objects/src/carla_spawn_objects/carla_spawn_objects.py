@@ -69,6 +69,7 @@ class CarlaSpawnObjects(CompatibleNode):
         self.vehicles_sensors = []
         self.global_sensors = []
         self.sensor_names = []
+        self.group_names = []
 
         self.spawn_object_service = self.new_client(SpawnObject, "/carla/spawn_object")
         self.destroy_object_service = self.new_client(DestroyObject, "/carla/destroy_object")
@@ -86,7 +87,6 @@ class CarlaSpawnObjects(CompatibleNode):
             raise RuntimeError(response.error_string)
         return response_id
 
-
     def spawn_objects(self):
         """
         Spawns the objects
@@ -96,7 +96,6 @@ class CarlaSpawnObjects(CompatibleNode):
         :return:
         """
         # Read sensors from file
-
         if not self.objects_definition_file or not os.path.exists(self.objects_definition_file):
             raise RuntimeError(
                 "Could not read object definitions from {}".format(self.objects_definition_file))
@@ -113,7 +112,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
         found_sensor_actor_list = any(sensor['id'] == 'sensor.pseudo.actor_list' for sensor in global_sensors)
 
-        if self.spawn_sensors_only and not found_sensor_actor_list:
+        if self.spawn_sensors_only is True and found_sensor_actor_list is False:
             raise RuntimeError("Parameter 'spawn_sensors_only' enabled, " +
                                "but 'sensor.pseudo.actor_list' is not instantiated, add it to your config file.")
 
@@ -138,18 +137,6 @@ class CarlaSpawnObjects(CompatibleNode):
             self.process_group(group, None)
 
         self.loginfo("All objects spawned.")
-
-
-    def process_object(self, obj, parent):
-     
-        # Get the corresponding function and call it
-        func = self.object_type_map.get(obj["type"].split('.')[0], None)
-        if func:
-            func(obj, parent)
-        else:
-            self.logwarn(
-                    "Object with type {} is not a vehicle, a walker or a sensor, ignoring".format(obj["type"]))
-
 
     def process_vehicle(self, vehicle, parent):
         """
@@ -226,7 +213,6 @@ class CarlaSpawnObjects(CompatibleNode):
                     # recursively process child objects:
                     for object in vehicle.get('children', []):
                         self.process_object(object, vehicle)
-
 
     def process_sensor(self, sensor, parent):
         """
@@ -330,7 +316,6 @@ class CarlaSpawnObjects(CompatibleNode):
                 sensor_id))
             return
 
-    
     def process_group(self, group, parent):
 
         if not roscomp.ok():
@@ -437,7 +422,6 @@ class CarlaSpawnObjects(CompatibleNode):
         #static_transform.transform.rotation.w = group['spawn_point'].orientation.w
         #broadcaster.sendTransform(static_transform) 
 
-
     def process_blueprint(self, object, parent):
         # take blueprint and add object information
         for blueprint in self.blueprints:
@@ -447,7 +431,17 @@ class CarlaSpawnObjects(CompatibleNode):
             blueprint["spawn_point"] = object["spawn_point"]
 
             self.process_object(blueprint, parent)
-                
+    
+    def process_object(self, obj, parent):
+     
+        # Get the corresponding function and call it
+        func = self.object_type_map.get(obj["type"].split('.')[0], None)
+        if func:
+            func(obj, parent)
+        else:
+            self.logwarn(
+                    "Object with type {} is not a vehicle, a walker or a sensor, ignoring".format(obj["type"]))
+
     def create_spawn_point(self, x, y, z, roll, pitch, yaw):
         spawn_point = Pose()
         spawn_point.position.x = x
