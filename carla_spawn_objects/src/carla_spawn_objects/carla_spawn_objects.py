@@ -228,8 +228,8 @@ class CarlaSpawnObjects(CompatibleNode):
             sensor_id = str(sensor.pop("id"))
 
             # check if sensor name already exists
-            sensor_name = sensor_type + "/" + sensor_id
-            if sensor_name in self.sensor_names:
+            sensor_name = sensor_type + "/" + sensor_id 
+            if sensor_name in self.sensor_names:        # TODO: could be sensor with same id on different levels
                 raise NameError
             self.sensor_names.append(sensor_name)
 
@@ -398,7 +398,7 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
 
-        # initialize static transform for group (TODO: check if that is needed)
+        # initialize static transform for group         # TODO: check if that code is needed
         #static_transform = geometry_msgs.msg.TransformStamped()
         #if ROS_VERSION == 1:
         #    broadcaster = tf2_ros.StaticTransformBroadcaster()
@@ -515,7 +515,6 @@ def main(args=None):
     """
     main function
     """
-    print("START START ")
     roscomp.init("spawn_objects", args=args)
     spawn_objects_node = None
     try:
@@ -523,8 +522,6 @@ def main(args=None):
         roscomp.on_shutdown(spawn_objects_node.destroy)
     except KeyboardInterrupt:
         roscomp.logerr("Could not initialize CarlaSpawnObjects. Shutting down.")
-
-    print("START START ")
 
     if spawn_objects_node:
         try:
