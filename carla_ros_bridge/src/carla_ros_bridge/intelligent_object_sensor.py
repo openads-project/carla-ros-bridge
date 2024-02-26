@@ -96,13 +96,13 @@ class IntelligentObjectSensor(ObjectSensor):
         distance = ego_vehicle_location.distance(target_location)
 
         # Check if the target is inside the range of the sensor 
-        if distance <= self.attributes["range"]:
+        if distance <= float(self.attributes["range"]):
             """
             # Calculate the azimuth and elevation angle between the Ego and target Vehicles
             target_azimuth, target_elevation = self.calculate_azimuth_and_elevation(ego_vehicle_location, target_location, source_yaw)
             
             print(f"{actor_id} HAS AZIMUTH {target_azimuth} AND ELEVATION {target_elevation}")
-            if self.attributes["min_azimuth"] <= target_azimuth <= self.attributes["max_azimuth"] and self.attributes["min_elevation"] <= target_elevation <= self.attributes["max_elevation"]:  
+            if float(self.attributes["min_azimuth"]) <= target_azimuth <= float(self.attributes["max_azimuth"]) and float(self.attributes["min_elevation"]) <= target_elevation <= float(self.attributes["max_elevation"]):  
             """
             visible_corner_count = 0 
             for i, corner in enumerate(corners): 
@@ -169,12 +169,12 @@ class IntelligentObjectSensor(ObjectSensor):
         distance = ego_vehicle_location.distance(target_location)
 
         # Check if the target is within the sensor's threshold range
-        if distance > self.attributes["range"]: 
+        if distance > float(self.attributes["range"]): 
             return distance, False 
             
         # Define frustum planes 
-        half_fov_horiz = (self.attributes["max_azimuth"] - self.attributes["min_azimuth"]) / 2.0
-        half_fov_vert = (self.attributes["max_elevation"] - self.attributes["min_elevation"]) / 2.0
+        half_fov_horiz = (float(self.attributes["max_azimuth"]) - float(self.attributes["min_azimuth"])) / 2.0
+        half_fov_vert = (float(self.attributes["max_elevation"]) - float(self.attributes["min_elevation"])) / 2.0
 
         right_normal = (
             math.sin(math.radians(half_fov_horiz)), 
