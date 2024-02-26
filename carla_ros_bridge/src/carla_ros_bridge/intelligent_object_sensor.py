@@ -220,7 +220,7 @@ class IntelligentObjectSensor(ObjectSensor):
         far_normal = (0, -1, 0)
         
         frustum_planes = [left_normal, right_normal, top_normal, bottom_normal, near_normal, far_normal]
-        print(frustum_planes)
+        #print(frustum_planes)
         # Step 2: Check for bounding box intersection with frustum
         bounding_box = target.carla_actor.bounding_box
         for plane_normal in frustum_planes:
@@ -286,7 +286,7 @@ class IntelligentObjectSensor(ObjectSensor):
                     # distance, in_frustum = self.frustum_culling(ego_vehicle, actor)
                     distance, visible = self.check_visibility(ego_vehicle, actor, actor_id)
                     if visible : 
-                        print(f"ego vehicle is {ego_vehicle.uid}, and the distance of the target with an id of {actor_id} is {distance}")
+                        #print(f"ego vehicle is {ego_vehicle.uid}, and the distance of the target with an id of {actor_id} is {distance}")
                         ros_objects.objects.append(actor.get_object_info())
 
         self.object_publisher.publish(ros_objects)
