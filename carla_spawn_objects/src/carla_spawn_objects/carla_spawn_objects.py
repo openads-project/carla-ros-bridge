@@ -60,7 +60,6 @@ class CarlaSpawnObjects(CompatibleNode):
         response_id = -1
         response = self.call_service(self.spawn_object_service, spawn_object_request, spin_until_response_received=True)
         response_id = response.id
-        
         if response_id != -1:
             self.loginfo("Object (type='{}', id='{}') spawned successfully as {}.".format(
                 spawn_object_request.type, spawn_object_request.id, response_id))
