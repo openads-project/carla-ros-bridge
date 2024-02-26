@@ -54,7 +54,24 @@ class IntelligentObjectSensor(ObjectSensor):
                                                       actor_list=actor_list, 
                                                       world=world)
         self.node = node
-        self.attributes = attributes
+
+        # Parse attributes
+        extracted_attrs = {}
+    
+        for kv in attributes:
+            value = kv.value
+            # Convert specific attributes to integers
+            if kv.key in [
+                "range", 
+                "min_azimuth", 
+                "max_azimuth", 
+                "min_elevation", 
+                "max_elevation" 
+            ]:
+                value = float(value)
+            extracted_attrs[kv.key] = value
+
+        self.attributes = extracted_attrs
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
@@ -96,13 +113,13 @@ class IntelligentObjectSensor(ObjectSensor):
         distance = ego_vehicle_location.distance(target_location)
 
         # Check if the target is inside the range of the sensor 
-        if distance <= float(self.attributes["range"]):
+        if distance <= self.attributes["range"]:
             """
             # Calculate the azimuth and elevation angle between the Ego and target Vehicles
             target_azimuth, target_elevation = self.calculate_azimuth_and_elevation(ego_vehicle_location, target_location, source_yaw)
             
             print(f"{actor_id} HAS AZIMUTH {target_azimuth} AND ELEVATION {target_elevation}")
-            if float(self.attributes["min_azimuth"]) <= target_azimuth <= float(self.attributes["max_azimuth"]) and float(self.attributes["min_elevation"]) <= target_elevation <= float(self.attributes["max_elevation"]):  
+            if self.attributes["min_azimuth"] <= target_azimuth <= self.attributes["max_azimuth"] and self.attributes["min_elevation"] <= target_elevation <= self.attributes["max_elevation"]:  
             """
             visible_corner_count = 0 
             for i, corner in enumerate(corners): 
@@ -169,12 +186,12 @@ class IntelligentObjectSensor(ObjectSensor):
         distance = ego_vehicle_location.distance(target_location)
 
         # Check if the target is within the sensor's threshold range
-        if distance > float(self.attributes["range"]): 
+        if distance > self.attributes["range"]: 
             return distance, False 
             
         # Define frustum planes 
-        half_fov_horiz = (float(self.attributes["max_azimuth"]) - float(self.attributes["min_azimuth"])) / 2.0
-        half_fov_vert = (float(self.attributes["max_elevation"]) - float(self.attributes["min_elevation"])) / 2.0
+        half_fov_horiz = (self.attributes["max_azimuth"] - self.attributes["min_azimuth"]) / 2.0
+        half_fov_vert = (self.attributes["max_elevation"] - self.attributes["min_elevation"]) / 2.0
 
         right_normal = (
             math.sin(math.radians(half_fov_horiz)), 
