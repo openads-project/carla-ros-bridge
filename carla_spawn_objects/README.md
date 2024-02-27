@@ -6,6 +6,7 @@ Find the official documentation about the CARLA Spawn Objects package [__here__]
 - observe the example [objects.json](../../config/objects.json)
 - (TODO) table with all possible configurations
   
+  -> Testcatalog of all combinations as json files
 ## Vehicles
 
 - a vehicle needs to be defined on top level
@@ -36,9 +37,3 @@ Find the official documentation about the CARLA Spawn Objects package [__here__]
   - group (tested)
   - sensor (not tested)
   - vehicle (not tested)
-
-# Open ToDos: 
-
-- check available ros tf's
-- check correct spawnpoints
-- harmonize sensors and groups processing

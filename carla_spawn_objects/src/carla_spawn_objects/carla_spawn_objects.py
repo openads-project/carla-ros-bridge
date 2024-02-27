@@ -68,8 +68,7 @@ class CarlaSpawnObjects(CompatibleNode):
         self.players = []
         self.vehicles_sensors = []
         self.global_sensors = []
-        self.sensor_names = []
-        self.group_names = []
+        self.object_names = []
 
         self.spawn_object_service = self.new_client(SpawnObject, "/carla/spawn_object")
         self.destroy_object_service = self.new_client(DestroyObject, "/carla/destroy_object")
@@ -218,6 +217,50 @@ class CarlaSpawnObjects(CompatibleNode):
                     for object in vehicle.get('children', []):
                         self.process_object(object, vehicle)
 
+    def preprocess_object(self, object, parent):
+        
+        # use spawn_point if object is non-pseudo top level object or contains spawn_point
+        if (parent is None and "pseudo" not in object["type"]) or 'spawn_point' in object:
+            spawn_point = object['spawn_point']
+            object['local_transform'] = self.create_spawn_point(
+                spawn_point["x"],
+                spawn_point["y"],
+                spawn_point["z"],
+                spawn_point["roll"],
+                spawn_point["pitch"],
+                spawn_point["yaw"]
+            )
+        # if object attached to a parent, or is a 'pseudo_actor', allow default pose
+        elif 'spawn_point' not in object:
+            object['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+        # set name, attached_vehicle_id, and transform by considering parent object
+        if parent is not None:
+            
+            if parent['type'] == 'vehicle' and 'attached_vehicle_id' in parent:
+                raise RuntimeError("Object {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(object["id"], parent['id']))
+
+            elif parent['type'].split('.')[0] == 'vehicle':
+                object["name"] = parent['id'] + "/" + object["id"]
+                object["transform"] = object['local_transform']
+                object['attached_vehicle_id'] = parent['response_id']
+
+            elif 'attached_vehicle_id' in parent:
+                object["id"] = parent['id'] + "/" + object["id"]
+                object["name"] = parent['id'] + "/" + object["id"]
+                object['attached_vehicle_id'] = parent['attached_vehicle_id']
+                object['transform'] = self.combine_spawn_point(parent['transform'], object['local_transform'])
+        else:
+            object["name"] = object["id"]
+            object["transform"] = object['local_transform']
+            object['attached_vehicle_id'] = 0
+
+        # check if object name already exists
+        if object["name"] in self.object_names:
+            raise NameError
+        self.object_names.append(object["name"])
+
+
     def process_sensor(self, sensor, parent):
         """
         Create the sensor defined by the input dict
@@ -228,54 +271,16 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
         try:
+            # preprocess object
+            self.preprocess_object(sensor, parent)
 
-            if (parent is None and "pseudo" not in sensor["type"]) or 'spawn_point' in sensor:
-                spawn_point = sensor['spawn_point']
-                sensor['local_transform'] = self.create_spawn_point(
-                    spawn_point["x"],
-                    spawn_point["y"],
-                    spawn_point["z"],
-                    spawn_point["roll"],
-                    spawn_point["pitch"],
-                    spawn_point["yaw"]
-                )
-            elif 'spawn_point' not in sensor:
-                # if sensor attached to a parent, or is a 'pseudo_actor', allow default pose
-                sensor['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-
-            # Consider parent object transformations
-            if parent is not None:
-                
-                if parent['type'] == 'vehicle' and 'attached_vehicle_id' in parent:
-                    raise RuntimeError("Sensor {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(sensor["id"], parent['id']))
-
-                elif parent['type'].split('.')[0] == 'vehicle':
-                    sensor["name"] = parent['id'] + "/" + sensor["id"]
-                    sensor["transform"] = sensor['local_transform']
-                    sensor['attached_vehicle_id'] = parent['response_id']
-
-                elif 'attached_vehicle_id' in parent:
-                    sensor["id"] = parent['id'] + "/" + sensor["id"]
-                    sensor["name"] = parent['id'] + "/" + sensor["id"]
-                    sensor['attached_vehicle_id'] = parent['attached_vehicle_id']
-                    sensor['transform'] = self.combine_spawn_point(parent['transform'], sensor['local_transform'])
-            else:
-                sensor["name"] = sensor["id"]
-                sensor["transform"] = sensor['local_transform']
-                sensor['attached_vehicle_id'] = 0
-
-            # check if sensor name already exists
-            if sensor["name"] in self.sensor_names:
-                raise NameError
-            self.sensor_names.append(sensor["name"])
-
+            # spawn the sensor object
             spawn_object_request = roscomp.get_service_request(SpawnObject)
             spawn_object_request.type = sensor["type"]
             spawn_object_request.id = sensor["id"]
             spawn_object_request.attach_to = sensor['attached_vehicle_id']
             spawn_object_request.transform = sensor['transform']
             spawn_object_request.random_pose = False  # never set a random pose for a sensor
-
 
             attached_objects = []
             for attribute, value in sensor.items():
@@ -297,14 +302,15 @@ class CarlaSpawnObjects(CompatibleNode):
             for attached_object in attached_objects:
                 self.process_object(attached_object, sensor)
 
+            # keep track of sensors for destruction
             if parent is None:
                 self.global_sensors.append(sensor['response_id'])
             else:
                 self.vehicles_sensors.append(sensor['response_id'])
 
-        except NameError:
-            self.logerr("Sensor name '{}' is only allowed to be used once. The second one will be ignored.".format(
-                sensor["id"]))
+        except NameError as e:
+            self.logerr("Sensor name '{}' is only allowed to be used once. The second one will be ignored: {}".format(
+                sensor["id"], e))
             return
 
         except RuntimeError as e:
@@ -324,45 +330,8 @@ class CarlaSpawnObjects(CompatibleNode):
 
         try:
             
-            if parent is None or 'spawn_point' in group:
-                spawn_point = group['spawn_point']
-                group['local_transform'] = self.create_spawn_point(
-                    spawn_point["x"],
-                    spawn_point["y"],
-                    spawn_point["z"],
-                    spawn_point["roll"],
-                    spawn_point["pitch"],
-                    spawn_point["yaw"]
-                )
-            elif 'spawn_point' not in group:
-                # if group attached to a parent allow default pose
-                group['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-
-            # Consider parent object transformations
-            if parent is not None:
-                
-                if parent['type'] == 'vehicle' and 'attached_vehicle_id' in parent:
-                    raise RuntimeError("Group {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(group["id"], parent['id']))
-
-                elif parent['type'].split('.')[0] == 'vehicle':
-                    group["name"] = parent['id'] + "/" + group["id"]
-                    group["transform"] = group['local_transform']
-                    group['attached_vehicle_id'] = parent['response_id']
-
-                elif 'attached_vehicle_id' in parent:
-                    group["id"] = parent['id'] + "/" + group["id"]
-                    group["name"] = parent['id'] + "/" + group["id"]
-                    group['attached_vehicle_id'] = parent['attached_vehicle_id']
-                    group['transform'] = self.combine_spawn_point(parent['transform'], group['local_transform'])
-            else:
-                group["name"] = group["id"]
-                group["transform"] = group['local_transform']
-                group['attached_vehicle_id'] = 0
-
-            # check if group name already exists
-            if group["name"] in self.group_names:
-                raise NameError
-            self.group_names.append(group["name"])
+            # preprocess object
+            self.preprocess_object(group, parent)            
 
             # spawn the physical object
             if 'physical_object' in group:
@@ -371,7 +340,8 @@ class CarlaSpawnObjects(CompatibleNode):
                 spawn_object_request.id = group["name"]
                 spawn_object_request.attach_to = group['attached_vehicle_id']
                 spawn_object_request.transform = group['transform']
-                spawn_object_request.random_pose = False
+                spawn_object_request.random_pose = False # never set a random pose for an object
+
             
                 group_spawned = False
                 while not group_spawned and roscomp.ok():
@@ -385,9 +355,9 @@ class CarlaSpawnObjects(CompatibleNode):
             for child in group['children']:
                 self.process_object(child, group)
 
-        except NameError:
-            self.logerr("Group name '{}' is only allowed to be used once. The second one will be ignored.".format(
-                group["id"]))
+        except NameError as e:
+            self.logerr("Group name '{}' is only allowed to be used once. The second one will be ignored: {}".format(
+                group["id"], e))
             return
 
         except RuntimeError as e:
