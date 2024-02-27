@@ -137,19 +137,17 @@
                     "spawn_point": {"x": 0.0, "y": 0.0, "z": 0.0}
                 },
                 {
-                    "type": "sensor.pseudo.visible_objects",
-                    "id": "objects", 
-                    "spawn_point": {"x": 0.0, "y": 0.0, "z": 3.5, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
-                    "range": 200, 
-                    "min_azimuth": -180, 
-                    "max_azimuth": 180, 
-                    "min_elevation": -90, 
-                    "max_elevation": 90, 
-                    "tilt_angle": 0
-                },
-                {
                     "type": "sensor.pseudo.tf",
                     "id": "tf"
+                },
+                {
+                    "type": "sensor.pseudo.objects",
+                    "id": "objects"
+                },
+                {
+                    "type": "sensor.pseudo.visible_objects",
+                    "id": "visible_objects", 
+                    "range": 200.0
                 },
                 {
                     "type": "sensor.pseudo.odom",
