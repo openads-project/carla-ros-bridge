@@ -149,6 +149,7 @@ class CarlaSpawnObjects(CompatibleNode):
         if parent is not None:
             self.logerr(
                     "Could not spawn vehicle {}, because parent exists for vehicle definition.".format(vehicle["id"]))
+            return
 
         if self.spawn_sensors_only is True:
             # spawn sensors of non-ros spawned vehicles
@@ -273,6 +274,12 @@ class CarlaSpawnObjects(CompatibleNode):
         """
         if not roscomp.ok():
             return
+        
+        # check if parent is a sensor
+        if parent is not None and parent['type'].split('.')[0] == 'sensor':
+            self.logerr(
+                    "Could not spawn sensor {}, because the parent is already a sensor.".format(vehicle["id"]))
+            return
 
         try:
             # preprocess object
@@ -335,6 +342,12 @@ class CarlaSpawnObjects(CompatibleNode):
         :param parent: parent object
         """
         if not roscomp.ok():
+            return
+
+        # check if parent is a sensor
+        if parent is not None and parent['type'].split('.')[0] == 'sensor':
+            self.logerr(
+                    "Could not spawn group {}, because the parent is a sensor.".format(vehicle["id"]))
             return
 
         try:
@@ -406,11 +419,18 @@ class CarlaSpawnObjects(CompatibleNode):
         :param group: object input dict
         :param parent: parent object
         """
+
         # take blueprint and add object information
         blueprint_found = False
 
         for blueprint in self.blueprints:
             if blueprint['id'] != object['type'].split('.')[1]: continue
+            
+            # check if blueprint is of type blueprint
+            if blueprint['type'].split('.')[0] == 'blueprint':
+                self.logerr(
+                        "Could not use blueprint {}, because the type is already a blueprint.".format(blueprint["id"]))
+                return
 
             blueprint_found = True
             extended_object = blueprint.copy()
