@@ -214,7 +214,8 @@ class CarlaSpawnObjects(CompatibleNode):
                 if vehicle['response_id'] != -1:
                     player_spawned = True
                     self.players.append(vehicle['response_id'])
-                        
+                    vehicle["name"] = vehicle["id"]
+
                     # recursively process sensor objects:
                     for object in vehicle.get('sensors', []):
                         self.process_object(object, vehicle)
@@ -246,13 +247,13 @@ class CarlaSpawnObjects(CompatibleNode):
                 raise RuntimeError("Object {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(object["id"], parent['id']))
 
             elif parent['type'].split('.')[0] == 'vehicle':
-                object["name"] = parent['id'] + "/" + object["id"]
+                object["name"] = parent['name'] + "/" + object["id"]
                 object["transform"] = object['local_transform']
                 object['attached_vehicle_id'] = parent['response_id']
 
             elif 'attached_vehicle_id' in parent:
+                object["name"] = parent['name'] + "/" + object["id"]
                 object["id"] = parent['id'] + "/" + object["id"]
-                object["name"] = parent['id'] + "/" + object["id"]
                 object['attached_vehicle_id'] = parent['attached_vehicle_id']
                 object['transform'] = self.extend_spawn_point(parent['transform'], object['local_transform'])
         else:
@@ -359,7 +360,7 @@ class CarlaSpawnObjects(CompatibleNode):
             if 'physical_object' in group:
                 spawn_object_request = roscomp.get_service_request(SpawnObject)
                 spawn_object_request.type = group["physical_object"]
-                spawn_object_request.id = group["name"]
+                spawn_object_request.id = group["id"]
                 spawn_object_request.attach_to = group['attached_vehicle_id']
                 spawn_object_request.transform = group['transform']
                 spawn_object_request.random_pose = False # never set a random pose for an object
@@ -403,7 +404,7 @@ class CarlaSpawnObjects(CompatibleNode):
         if parent is None:
             static_transform.header.frame_id = self.world_frame
         else:
-            static_transform.header.frame_id = parent['id']
+            static_transform.header.frame_id = parent['name']
 
         static_transform.child_frame_id = group["name"]
         static_transform.transform.translation.x = group['local_transform'].position.x
