@@ -407,12 +407,21 @@ class CarlaSpawnObjects(CompatibleNode):
         :param parent: parent object
         """
         # take blueprint and add object information
+        blueprint_found = False
+
         for blueprint in self.blueprints:
             if blueprint['id'] != object['type'].split('.')[1]: continue
 
-            blueprint["id"] = object["id"]
-            blueprint["spawn_point"] = object["spawn_point"]
+            blueprint_found = True
+            extended_object = blueprint.copy()
+            extended_object["id"] = object["id"]
+            extended_object["spawn_point"] = object["spawn_point"]
 
+            self.process_object(extended_object, parent)
+
+        # check if blueprint was found
+        if not blueprint_found:
+            self.logerr("Blueprint {} not found.".format(object["type"].split('.')[1]))
 
     def process_object(self, obj, parent):
         """
