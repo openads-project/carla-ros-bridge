@@ -228,13 +228,7 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
         try:
-            print("DEBUG0")
 
-            print(parent is None)
-            print(sensor["type"])
-            print('spawn_point' in sensor)
-
-            
             if (parent is None and "pseudo" not in sensor["type"]) or 'spawn_point' in sensor:
                 spawn_point = sensor['spawn_point']
                 sensor['local_transform'] = self.create_spawn_point(
@@ -308,9 +302,9 @@ class CarlaSpawnObjects(CompatibleNode):
             else:
                 self.vehicles_sensors.append(sensor['response_id'])
 
-        except KeyError as e:
-            self.logerr(
-                "Sensor {} will not be spawned, the mandatory attribute {} is missing".format(sensor["id"], e))
+        except NameError:
+            self.logerr("Sensor name '{}' is only allowed to be used once. The second one will be ignored.".format(
+                sensor["id"]))
             return
 
         except RuntimeError as e:
@@ -318,9 +312,9 @@ class CarlaSpawnObjects(CompatibleNode):
                 "Sensor {} will not be spawned: {}".format(sensor["id"], e))
             return
 
-        except NameError:
-            self.logerr("Sensor rolename '{}' is only allowed to be used once. The second one will be ignored.".format(
-                sensor["id"]))
+        except:
+            self.logerr(
+                "Sensor {} will not be spawned: {}".format(sensor["id"]))
             return
 
     def process_group(self, group, parent):
@@ -374,7 +368,7 @@ class CarlaSpawnObjects(CompatibleNode):
             if 'physical_object' in group:
                 spawn_object_request = roscomp.get_service_request(SpawnObject)
                 spawn_object_request.type = group["physical_object"]
-                spawn_object_request.id = group["id"]
+                spawn_object_request.id = group["name"]
                 spawn_object_request.attach_to = group['attached_vehicle_id']
                 spawn_object_request.transform = group['transform']
                 spawn_object_request.random_pose = False
@@ -391,16 +385,20 @@ class CarlaSpawnObjects(CompatibleNode):
             for child in group['children']:
                 self.process_object(child, group)
 
-        except RuntimeError as e:
-            self.logerr(
-                "Group {} will not be spawned: {}".format(group["id"], e))
-            return
-
         except NameError:
             self.logerr("Group name '{}' is only allowed to be used once. The second one will be ignored.".format(
                 group["id"]))
             return
 
+        except RuntimeError as e:
+            self.logerr(
+                "Group {} will not be spawned: {}".format(group["id"], e))
+            return
+
+        except:
+            self.logerr(
+                "Group {} will not be spawned: {}".format(group["id"]))
+            return
 
         # initialize static transform from parent to group
         static_transform = geometry_msgs.msg.TransformStamped()
@@ -458,10 +456,11 @@ class CarlaSpawnObjects(CompatibleNode):
 
     def combine_spawn_point(self, base, shift):
 
-        base.position.x += shift.position.x
-        base.position.y += shift.position.y
-        base.position.z += shift.position.z
-
+        combined = Pose()
+        combined.position.x = base.position.x + shift.position.x
+        combined.position.y = base.position.y + shift.position.y
+        combined.position.z = base.position.z + shift.position.z
+        
         base_orientation = list(quat2euler([base.orientation.w,
                                 base.orientation.x,
                                 base.orientation.y,
@@ -472,18 +471,19 @@ class CarlaSpawnObjects(CompatibleNode):
                                 shift.orientation.y,
                                 shift.orientation.z]))
 
-        base_orientation[0] = base_orientation[0] + shift_orientation[0]
-        base_orientation[1] = base_orientation[1] + shift_orientation[1]
-        base_orientation[2] = base_orientation[2] + shift_orientation[2]
+        combined_orientation = [0, 0, 0]
+        combined_orientation[0] = base_orientation[0] + shift_orientation[0]
+        combined_orientation[1] = base_orientation[1] + shift_orientation[1]
+        combined_orientation[2] = base_orientation[2] + shift_orientation[2]
 
-        quat = euler2quat(base_orientation[0], base_orientation[1], base_orientation[2])
+        quat = euler2quat(combined_orientation[0], combined_orientation[1], combined_orientation[2])
 
-        base.orientation.w = quat[0]
-        base.orientation.x = quat[1]
-        base.orientation.y = quat[2]
-        base.orientation.z = quat[3]
+        combined.orientation.w = quat[0]
+        combined.orientation.x = quat[1]
+        combined.orientation.y = quat[2]
+        combined.orientation.z = quat[3]
         
-        return base
+        return combined
 
     def check_spawn_point_param(self, spawn_point_parameter):
         components = spawn_point_parameter.split(',')
