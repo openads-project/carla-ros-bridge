@@ -171,7 +171,7 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_param_used = False
             if (spawn_point_param is not None):
                 # try to use spawn_point from parameters
-                spawn_point = self.check_spawn_point_param(spawn_point_param)
+                vehicle["local_transform"] = self.check_spawn_point_param(spawn_point_param)
                 if spawn_point is None:
                     self.logwarn("{}: Could not use spawn point from parameters, ".format(vehicle["id"]) +
                                     "the spawn point from config file will be used.")
@@ -179,31 +179,32 @@ class CarlaSpawnObjects(CompatibleNode):
                     self.loginfo("Spawn point from ros parameters")
                     spawn_param_used = True
 
-            if "spawn_point" in vehicle and spawn_param_used is False:
+            if spawn_param_used is False and "spawn_point" in vehicle:
                 # get spawn point from config file
                 try:
-                    spawn_point = self.create_spawn_point(
-                        vehicle["spawn_point"]["x"],
-                        vehicle["spawn_point"]["y"],
-                        vehicle["spawn_point"]["z"],
-                        vehicle["spawn_point"]["roll"],
-                        vehicle["spawn_point"]["pitch"],
-                        vehicle["spawn_point"]["yaw"]
+                    spawn_point = vehicle["spawn_point"]
+                    vehicle["local_transform"] = self.create_spawn_point(
+                        spawn_point["x"],
+                        spawn_point["y"],
+                        spawn_point["z"],
+                        spawn_point["roll"],
+                        spawn_point["pitch"],
+                        spawn_point["yaw"]
                     )
                     self.loginfo("Spawn point from configuration file")
                 except KeyError as e:
                     self.logerr("{}: Could not use the spawn point from config file, ".format(vehicle["id"]) +
                                 "the mandatory attribute {} is missing, a random spawn point will be used".format(e))
 
-            if spawn_point is None:
+            if spawn_param_used is False and "spawn_point" not in vehicle:
                 # pose not specified, ask for a random one in the service call
                 self.loginfo("Spawn point selected at random")
-                spawn_point = Pose()  # empty pose
+                vehicle["local_transform"] = Pose()  # empty pose
                 spawn_object_request.random_pose = True
 
             player_spawned = False
             while not player_spawned and roscomp.ok():
-                spawn_object_request.transform = spawn_point
+                spawn_object_request.transform = vehicle["local_transform"]
 
                 vehicle['response_id'] = self.spawn_object(spawn_object_request)
                 if vehicle['response_id'] != -1:
@@ -227,10 +228,16 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
         try:
+            print("DEBUG0")
+
+            print(parent is None)
+            print(sensor["type"])
+            print('spawn_point' in sensor)
+
             
-            if parent is None and "pseudo" not in sensor["type"]:
-                spawn_point = sensor["spawn_point"]
-                sensor['transform'] = self.create_spawn_point(
+            if (parent is None and "pseudo" not in sensor["type"]) or 'spawn_point' in sensor:
+                spawn_point = sensor['spawn_point']
+                sensor['local_transform'] = self.create_spawn_point(
                     spawn_point["x"],
                     spawn_point["y"],
                     spawn_point["z"],
@@ -238,20 +245,9 @@ class CarlaSpawnObjects(CompatibleNode):
                     spawn_point["pitch"],
                     spawn_point["yaw"]
                 )
-            else:
+            elif 'spawn_point' not in sensor:
                 # if sensor attached to a parent, or is a 'pseudo_actor', allow default pose
-                
-                if 'spawn_point' not in sensor:
-                    sensor['transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-                else:
-                    spawn_point = sensor["spawn_point"]
-                    sensor['transform'] = self.create_spawn_point(
-                    spawn_point["x"],
-                    spawn_point["y"],
-                    spawn_point["z"],
-                    spawn_point["roll"],
-                    spawn_point["pitch"],
-                    spawn_point["yaw"])
+                sensor['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
             # Consider parent object transformations
             if parent is not None:
@@ -261,15 +257,17 @@ class CarlaSpawnObjects(CompatibleNode):
 
                 elif parent['type'].split('.')[0] == 'vehicle':
                     sensor["name"] = parent['id'] + "/" + sensor["id"]
+                    sensor["transform"] = sensor['local_transform']
                     sensor['attached_vehicle_id'] = parent['response_id']
 
                 elif 'attached_vehicle_id' in parent:
                     sensor["id"] = parent['id'] + "/" + sensor["id"]
                     sensor["name"] = parent['id'] + "/" + sensor["id"]
                     sensor['attached_vehicle_id'] = parent['attached_vehicle_id']
-                    sensor['transform'] = self.combine_spawn_point(parent['transform'], sensor['transform'])
+                    sensor['transform'] = self.combine_spawn_point(parent['transform'], sensor['local_transform'])
             else:
                 sensor["name"] = sensor["id"]
+                sensor["transform"] = sensor['local_transform']
                 sensor['attached_vehicle_id'] = 0
 
             # check if sensor name already exists
@@ -287,7 +285,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
             attached_objects = []
             for attribute, value in sensor.items():
-                if attribute in ["id", "type", "name", "spawn_point", "transform", "attached_vehicle_id", "response_id"]:
+                if attribute in ["id", "type", "name", "spawn_point", "local_transform", "transform", "attached_vehicle_id", "response_id"]:
                     continue
                 if attribute == "attached_objects":
                     for attached_object in sensor["attached_objects"]:
@@ -332,9 +330,9 @@ class CarlaSpawnObjects(CompatibleNode):
 
         try:
             
-            if parent is None:
-                spawn_point = group["spawn_point"]
-                group['transform'] = self.create_spawn_point(
+            if parent is None or 'spawn_point' in group:
+                spawn_point = group['spawn_point']
+                group['local_transform'] = self.create_spawn_point(
                     spawn_point["x"],
                     spawn_point["y"],
                     spawn_point["z"],
@@ -342,21 +340,9 @@ class CarlaSpawnObjects(CompatibleNode):
                     spawn_point["pitch"],
                     spawn_point["yaw"]
                 )
-            else:
+            elif 'spawn_point' not in group:
                 # if group attached to a parent allow default pose
-               
-                if 'spawn_point' not in group:
-                    group['transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-                else:
-                    spawn_point = group["spawn_point"]
-
-                    group['transform'] = self.create_spawn_point(
-                    spawn_point["x"],
-                    spawn_point["y"],
-                    spawn_point["z"],
-                    spawn_point["roll"],
-                    spawn_point["pitch"],
-                    spawn_point["yaw"])
+                group['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
             # Consider parent object transformations
             if parent is not None:
@@ -366,15 +352,17 @@ class CarlaSpawnObjects(CompatibleNode):
 
                 elif parent['type'].split('.')[0] == 'vehicle':
                     group["name"] = parent['id'] + "/" + group["id"]
+                    group["transform"] = group['local_transform']
                     group['attached_vehicle_id'] = parent['response_id']
 
                 elif 'attached_vehicle_id' in parent:
                     group["id"] = parent['id'] + "/" + group["id"]
                     group["name"] = parent['id'] + "/" + group["id"]
                     group['attached_vehicle_id'] = parent['attached_vehicle_id']
-                    group['transform'] = self.combine_spawn_point(parent['transform'], group['transform'])
+                    group['transform'] = self.combine_spawn_point(parent['transform'], group['local_transform'])
             else:
                 group["name"] = group["id"]
+                group["transform"] = group['local_transform']
                 group['attached_vehicle_id'] = 0
 
             # check if group name already exists
@@ -414,29 +402,26 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
 
-        # initialize static transform for group         # TODO: check if that code is needed
-        #static_transform = geometry_msgs.msg.TransformStamped()
-        #if ROS_VERSION == 1:
-        #    broadcaster = tf2_ros.StaticTransformBroadcaster()
-        #    static_transform.header.stamp = rospy.Time.now()
-        #elif ROS_VERSION == 2:
-        #    broadcaster = tf2_ros.StaticTransformBroadcaster(self)
-        #    static_transform.header.stamp = self.get_clock().now().to_msg()
+        # initialize static transform from parent to group
+        static_transform = geometry_msgs.msg.TransformStamped()
+        if ROS_VERSION == 1:
+            broadcaster = tf2_ros.StaticTransformBroadcaster()
+            static_transform.header.stamp = rospy.Time.now()
+        elif ROS_VERSION == 2:
+            broadcaster = tf2_ros.StaticTransformBroadcaster(self)
+            static_transform.header.stamp = self.get_clock().now().to_msg()
 
-        #if parent is None:
-        #    static_transform.header.frame_id = self.world_frame
-        #else:
-        #    static_transform.header.frame_id = parent['id']
+        if parent is None:
+            static_transform.header.frame_id = self.world_frame
+        else:
+            static_transform.header.frame_id = parent['id']
 
-        #static_transform.child_frame_id = group["id"]
-        #static_transform.transform.translation.x = group['spawn_point'].position.x
-        #static_transform.transform.translation.y = group['spawn_point'].position.y
-        #static_transform.transform.translation.z = group['spawn_point'].position.z
-        #static_transform.transform.rotation.x = group['spawn_point'].orientation.x
-        #static_transform.transform.rotation.y = group['spawn_point'].orientation.y
-        #static_transform.transform.rotation.z = group['spawn_point'].orientation.z
-        #static_transform.transform.rotation.w = group['spawn_point'].orientation.w
-        #broadcaster.sendTransform(static_transform) 
+        static_transform.child_frame_id = group["id"]
+        static_transform.transform.translation.x = group['local_transform'].position.x
+        static_transform.transform.translation.y = group['local_transform'].position.y
+        static_transform.transform.translation.z = group['local_transform'].position.z
+        static_transform.transform.rotation = group['local_transform'].orientation
+        broadcaster.sendTransform(static_transform) 
 
     def process_blueprint(self, object, parent):
         # take blueprint and add object information
