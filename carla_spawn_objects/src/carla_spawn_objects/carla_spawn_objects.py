@@ -63,16 +63,24 @@ class CarlaSpawnObjects(CompatibleNode):
         }
         self.world_frame = "carla_map"
 
-        # managing lists of spawned entities
+        # lists of spawned entities
         self.players = []
         self.vehicles_sensors = []
         self.global_sensors = []
+
         self.object_names = []
 
+        # setup services
         self.spawn_object_service = self.new_client(SpawnObject, "/carla/spawn_object")
         self.destroy_object_service = self.new_client(DestroyObject, "/carla/destroy_object")
 
     def spawn_object(self, spawn_object_request):
+        """
+        Spawns the object defined by the object input request via ROS service
+        :param spawn_object_request: object input request
+        :return: response id
+        """
+
         response_id = -1
         response = self.call_service(self.spawn_object_service, spawn_object_request, spin_until_response_received=True)
         response_id = response.id
@@ -87,12 +95,9 @@ class CarlaSpawnObjects(CompatibleNode):
 
     def spawn_objects(self):
         """
-        Spawns the objects
-
-        Either at a given spawnpoint or at a random Carla spawnpoint
-
-        :return:
+        Processes the input objects_definition_file
         """
+        
         # Read sensors from file
         if not self.objects_definition_file or not os.path.exists(self.objects_definition_file):
             raise RuntimeError(
@@ -100,8 +105,8 @@ class CarlaSpawnObjects(CompatibleNode):
         with open(self.objects_definition_file) as handle:
             json_actors = json.loads(handle.read())
 
-        self.blueprints = json_actors.get('blueprints', [])  # Read blueprints 
-        self.objects = json_actors.get('objects', [])  # Read objects
+        self.blueprints = json_actors.get('blueprints', [])     # Read blueprints 
+        self.objects = json_actors.get('objects', [])           # Read objects
 
         global_sensors = [obj for obj in self.objects if obj['type'].split('.')[0] == 'sensor']
 
@@ -126,7 +131,7 @@ class CarlaSpawnObjects(CompatibleNode):
                     if actor_info.type == vehicle["type"] and actor_info.rolename == vehicle["id"]:
                         vehicle["carla_id"] = actor_info.id
 
-        # iterate through all top-level objects (without sensors)
+        # iterate through all remaining top-level objects (without sensors)
         global_objects = [obj for obj in self.objects if obj['type'].split('.')[0] != 'sensor']
 
         for obj in global_objects:
@@ -248,7 +253,7 @@ class CarlaSpawnObjects(CompatibleNode):
                 object["id"] = parent['id'] + "/" + object["id"]
                 object["name"] = parent['id'] + "/" + object["id"]
                 object['attached_vehicle_id'] = parent['attached_vehicle_id']
-                object['transform'] = self.combine_spawn_point(parent['transform'], object['local_transform'])
+                object['transform'] = self.extend_spawn_point(parent['transform'], object['local_transform'])
         else:
             object["name"] = object["id"]
             object["transform"] = object['local_transform']
@@ -264,7 +269,7 @@ class CarlaSpawnObjects(CompatibleNode):
         """
         Create the sensor defined by the input dict
         :param sensor: sensor input dict
-        :param parent: id of attached parent
+        :param parent: parent object
         """
         if not roscomp.ok():
             return
@@ -283,6 +288,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
             attached_objects = []
             for attribute, value in sensor.items():
+                # skip general attributes
                 if attribute in ["id", "type", "name", "spawn_point", "local_transform", "transform", "attached_vehicle_id", "response_id"]:
                     continue
                 if attribute == "attached_objects":
@@ -301,7 +307,7 @@ class CarlaSpawnObjects(CompatibleNode):
             for attached_object in attached_objects:
                 self.process_object(attached_object, sensor)
 
-            # keep track of sensors for destruction
+            # keep track of sensors for deconstruction
             if parent is None:
                 self.global_sensors.append(sensor['response_id'])
             else:
@@ -323,7 +329,11 @@ class CarlaSpawnObjects(CompatibleNode):
             return
 
     def process_group(self, group, parent):
-
+        """
+        Create the group defined by the input dict
+        :param group: group input dict
+        :param parent: parent object
+        """
         if not roscomp.ok():
             return
 
@@ -332,7 +342,7 @@ class CarlaSpawnObjects(CompatibleNode):
             # preprocess object
             self.preprocess_object(group, parent)            
 
-            # spawn the physical object
+            # spawn a potential physical object
             if 'physical_object' in group:
                 spawn_object_request = roscomp.get_service_request(SpawnObject)
                 spawn_object_request.type = group["physical_object"]
@@ -341,7 +351,6 @@ class CarlaSpawnObjects(CompatibleNode):
                 spawn_object_request.transform = group['transform']
                 spawn_object_request.random_pose = False # never set a random pose for an object
 
-            
                 group_spawned = False
                 while not group_spawned and roscomp.ok():
 
@@ -369,7 +378,7 @@ class CarlaSpawnObjects(CompatibleNode):
                 "Group {} will not be spawned: {}".format(group["id"]))
             return
 
-        # initialize static transform from parent to group
+        # broadcast static static transform from parent to group
         static_transform = geometry_msgs.msg.TransformStamped()
         if ROS_VERSION == 1:
             broadcaster = tf2_ros.StaticTransformBroadcaster()
@@ -388,9 +397,15 @@ class CarlaSpawnObjects(CompatibleNode):
         static_transform.transform.translation.y = group['local_transform'].position.y
         static_transform.transform.translation.z = group['local_transform'].position.z
         static_transform.transform.rotation = group['local_transform'].orientation
+
         broadcaster.sendTransform(static_transform) 
 
     def process_blueprint(self, object, parent):
+        """
+        Extend existing blueprint with object information
+        :param group: object input dict
+        :param parent: parent object
+        """
         # take blueprint and add object information
         for blueprint in self.blueprints:
             if blueprint['id'] != object['type'].split('.')[1]: continue
@@ -398,19 +413,27 @@ class CarlaSpawnObjects(CompatibleNode):
             blueprint["id"] = object["id"]
             blueprint["spawn_point"] = object["spawn_point"]
 
-            self.process_object(blueprint, parent)
-    
+
     def process_object(self, obj, parent):
-     
-        # Get the corresponding function and call it
+        """
+        General function to process an object of any type
+        :param obj: object input dict
+        :param parent: parent object
+        """
+
+        # get the corresponding function and call it
         func = self.object_type_map.get(obj["type"].split('.')[0], None)
         if func:
             func(obj, parent)
         else:
             self.logwarn(
-                    "Object with type {} is not a vehicle, a walker or a sensor, ignoring".format(obj["type"]))
+                    "Object with type {} is not a vehicle, a walker, a sensor, a group, or a blueprint, ignoring".format(obj["type"]))
 
     def create_spawn_point(self, x, y, z, roll, pitch, yaw):
+        """
+        Create a spawn point from the input parameters
+        """
+
         spawn_point = Pose()
         spawn_point.position.x = x
         spawn_point.position.y = y
@@ -423,13 +446,21 @@ class CarlaSpawnObjects(CompatibleNode):
         spawn_point.orientation.z = quat[3]
         return spawn_point
 
-    def combine_spawn_point(self, base, shift):
+    def extend_spawn_point(self, base, shift):
+        """
+        Extend a spawn point by another spawn point
+        param base: base spawn point
+        param shift: shift spawn point
+        """
 
-        combined = Pose()
-        combined.position.x = base.position.x + shift.position.x
-        combined.position.y = base.position.y + shift.position.y
-        combined.position.z = base.position.z + shift.position.z
+        spawn_point = Pose()
+
+        # add position
+        spawn_point.position.x = base.position.x + shift.position.x
+        spawn_point.position.y = base.position.y + shift.position.y
+        spawn_point.position.z = base.position.z + shift.position.z
         
+        # transform orientation to euler angles
         base_orientation = list(quat2euler([base.orientation.w,
                                 base.orientation.x,
                                 base.orientation.y,
@@ -440,19 +471,23 @@ class CarlaSpawnObjects(CompatibleNode):
                                 shift.orientation.y,
                                 shift.orientation.z]))
 
-        combined_orientation = [0, 0, 0]
-        combined_orientation[0] = base_orientation[0] + shift_orientation[0]
-        combined_orientation[1] = base_orientation[1] + shift_orientation[1]
-        combined_orientation[2] = base_orientation[2] + shift_orientation[2]
+        # add orientation in euler angles
+        spawn_point_orientation = [0, 0, 0]
+        spawn_point_orientation[0] = base_orientation[0] + shift_orientation[0]
+        spawn_point_orientation[1] = base_orientation[1] + shift_orientation[1]
+        spawn_point_orientation[2] = base_orientation[2] + shift_orientation[2]
 
-        quat = euler2quat(combined_orientation[0], combined_orientation[1], combined_orientation[2])
 
-        combined.orientation.w = quat[0]
-        combined.orientation.x = quat[1]
-        combined.orientation.y = quat[2]
-        combined.orientation.z = quat[3]
+        # transform orientation to quaternion
+        quat = euler2quat(spawn_point_orientation[0], spawn_point_orientation[1], spawn_point_orientation[2])
+
+        # set orientation
+        spawn_point.orientation.w = quat[0]
+        spawn_point.orientation.x = quat[1]
+        spawn_point.orientation.y = quat[2]
+        spawn_point.orientation.z = quat[3]
         
-        return combined
+        return spawn_point
 
     def check_spawn_point_param(self, spawn_point_parameter):
         components = spawn_point_parameter.split(',')
