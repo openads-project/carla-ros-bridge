@@ -416,7 +416,7 @@ class CarlaSpawnObjects(CompatibleNode):
         else:
             static_transform.header.frame_id = parent['id']
 
-        static_transform.child_frame_id = group["id"]
+        static_transform.child_frame_id = group["name"]
         static_transform.transform.translation.x = group['local_transform'].position.x
         static_transform.transform.translation.y = group['local_transform'].position.y
         static_transform.transform.translation.z = group['local_transform'].position.z
