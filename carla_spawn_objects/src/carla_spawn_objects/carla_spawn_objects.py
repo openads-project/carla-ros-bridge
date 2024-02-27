@@ -148,7 +148,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
         if parent is not None:
             self.logerr(
-                    "Could not spawn vehicle {}, because parent exists for vehicle definition.".format(vehicle["id"]))
+                    "Could not spawn vehicle {}, because parent exists.".format(vehicle["id"]))
             return
 
         if self.spawn_sensors_only is True:
@@ -279,7 +279,7 @@ class CarlaSpawnObjects(CompatibleNode):
         # check if parent is a sensor
         if parent is not None and parent['type'].split('.')[0] == 'sensor':
             self.logerr(
-                    "Could not spawn sensor {}, because the parent is already a sensor.".format(vehicle["id"]))
+                    "Could not spawn sensor {}, because the parent is already a sensor.".format(sensor["id"]))
             return
 
         try:
@@ -348,7 +348,7 @@ class CarlaSpawnObjects(CompatibleNode):
         # check if parent is a sensor
         if parent is not None and parent['type'].split('.')[0] == 'sensor':
             self.logerr(
-                    "Could not spawn group {}, because the parent is a sensor.".format(vehicle["id"]))
+                    "Could not spawn group {}, because the parent is a sensor.".format(group["id"]))
             return
 
         try:
