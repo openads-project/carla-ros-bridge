@@ -19,14 +19,12 @@ import json
 import math
 import os
 
-from transforms3d.euler import quat2euler, euler2quat
-
 import ros_compatibility as roscomp
+from ros_compatibility.exceptions import *
+from ros_compatibility.node import CompatibleNode
 ROS_VERSION = roscomp.get_ros_version()
 if ROS_VERSION == 1:
     import rospy
-from ros_compatibility.exceptions import *
-from ros_compatibility.node import CompatibleNode
 
 from carla_msgs.msg import CarlaActorList
 from carla_msgs.srv import SpawnObject, DestroyObject
@@ -34,6 +32,7 @@ from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import Pose
 import geometry_msgs.msg
 import tf2_ros
+from transforms3d.euler import quat2euler, euler2quat
 
 # ==============================================================================
 # -- CarlaSpawnObjects ------------------------------------------------------------
