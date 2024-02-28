@@ -224,6 +224,11 @@ class CarlaSpawnObjects(CompatibleNode):
                         self.process_object(object, vehicle)
 
     def preprocess_object(self, object, parent):
+        """
+        Preprocess sensors and groups before actual spawning
+        :param object: object input dict
+        :param parent: parent object
+        """
         
         # use spawn_point if object is non-pseudo top level object or contains spawn_point
         if (parent is None and "pseudo" not in object["type"]) or 'spawn_point' in object:
