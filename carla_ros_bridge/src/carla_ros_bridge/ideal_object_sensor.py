@@ -53,17 +53,14 @@ class IdealObjectSensor(ObjectSensor):
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
 
-        # extract relevant attributes and convert to float
-        relevant_attributes = {}
-        relavant_keys = ["range"]
-    
-        for attribute in attributes:
-            value = attribute.value
-            if kv.key in relavant_keys:
-                value = float(value)
-            relevant_attributes[kv.key] = value
-
-        self.attributes = relevant_attributes
+        # Extract relevant attributes and convert to float
+        try:
+            self.range = float(attributes["range"])
+        except:
+            self.range = 15.0
+            self.node.logerr(
+                "No range attribute found for IdealObjectSensor. Using default value of {} meters.".format(self.range)
+            ) 
     
     def destroy(self):
         """
