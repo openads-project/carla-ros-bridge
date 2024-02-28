@@ -6,7 +6,7 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 #
 """
-handle an IdealObjectSensor
+Handle an IdealObjectSensor
 """
 
 from carla_ros_bridge.vehicle import Vehicle
@@ -79,17 +79,13 @@ class IdealObjectSensor(ObjectSensor):
         """
         return "sensor.pseudo.ideal_objects"
 
-    def check_visibility(self, ego_vehicle, target): 
+    def check_visibility(self, sensor_location, target_location): 
 
-        # Get the location of the source parent vehicle of Ideal Object Sensor and the target
-        ego_vehicle_location = ego_vehicle.carla_actor.get_location()
-        target_location = target.carla_actor.get_location()
-        
-        # Calculate the Euclidean distance between the ego and the target 
-        distance = ego_vehicle_location.distance(target_location)
+        # Calculate the Euclidean distance between the sensor and the target 
+        distance = sensor_location.distance(target_location)
 
         # Check if the target is inside the range of the sensor 
-        if distance <= self.attributes["range"]:
+        if distance <= self.range:
             return True
         
         return False 
@@ -112,13 +108,38 @@ class IdealObjectSensor(ObjectSensor):
             - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
         """
         ego_vehicle = self.actor_list[self.parent.uid]  
+        ego_vehicle_location = ego_vehicle.carla_actor.get_location()
 
+        # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
-            # currently only Vehicles and Walkers are added to the object array
+            
+            # Currently only vehicles and walkers are added to the object array
             if self.parent is None or self.parent.uid != actor_id:
                 actor = self.actor_list[actor_id]
                 if isinstance(actor, Vehicle) or isinstance(actor, Walker):
-                    if self.check_visibility(ego_vehicle, actor):
+                    
+                    # Get the location of the target
+                    target_location = actor.carla_actor.get_location()
+
+                    # Check visibility of the target
+                    if self.check_visibility(ego_vehicle_location, target_location):
                         ros_objects.objects.append(actor.get_object_info())
+
+        # Iterate over all static vehicles
+        if(self.node.parameters['publish_static_vehicles']):
+            for object_key, object_value in self.OBJECT_LABELS.items():
+                static_vehicles = self.world.get_environment_objects(object_key)
+
+                for vehicle in static_vehicles:
+                    # Take only vehicles with bounding_box attribute set
+                    if hasattr(vehicle, "bounding_box"):
+                        
+                        # Get the location of the target
+                        target_location = vehicle.transform.location
+
+                        # Check visibility of the target
+                        if self.check_visibility(ego_vehicle_location, target_location):
+                            vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
+                            ros_objects.objects.append(vehicle_obj)
 
         self.object_publisher.publish(ros_objects)
