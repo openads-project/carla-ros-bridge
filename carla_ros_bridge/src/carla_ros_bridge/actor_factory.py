@@ -32,6 +32,7 @@ from carla_ros_bridge.lane_invasion_sensor import LaneInvasionSensor
 from carla_ros_bridge.lidar import Lidar, SemanticLidar
 from carla_ros_bridge.marker_sensor import MarkerSensor
 from carla_ros_bridge.object_sensor import ObjectSensor
+from carla_ros_bridge.ideal_object_sensor import IdealObjectSensor
 from carla_ros_bridge.odom_sensor import OdometrySensor
 from carla_ros_bridge.opendrive_sensor import OpenDriveSensor
 from carla_ros_bridge.pseudo_actor import PseudoActor
@@ -127,7 +128,7 @@ class ActorFactory(object):
                     carla_actor = self.world.get_actor(actor_id)
                     self._create_object_from_actor(carla_actor, req)
                 elif task_type == ActorFactory.TaskType.SPAWN_PSEUDO_ACTOR and not self.node.shutdown.is_set():
-                    self._create_object(actor_id, req.type, req.id, req.attach_to, req.transform)
+                    self._create_object(actor_id, req.type, req.id, req.attach_to, req.transform, req.attributes)
                 elif task_type == ActorFactory.TaskType.DESTROY_ACTOR:
                     self._destroy_object(actor_id, delete_actor=True)
 
@@ -255,7 +256,7 @@ class ActorFactory(object):
             name = str(carla_actor.id)
 
         obj = self._create_object(carla_actor.id, carla_actor.type_id, name,
-                                  parent_id, relative_transform, carla_actor)
+                                  parent_id, relative_transform, carla_actor.attributes, carla_actor)
         return obj
 
     def _destroy_object(self, actor_id, delete_actor):
@@ -278,7 +279,7 @@ class ActorFactory(object):
                 pseudo_sensors.append(cls.get_blueprint_name())
         return pseudo_sensors
 
-    def _create_object(self, uid, type_id, name, attach_to, spawn_pose, carla_actor=None):
+    def _create_object(self, uid, type_id, name, attach_to, spawn_pose, attributes, carla_actor=None):
         # check that the actor is not already created.
         if carla_actor is not None and carla_actor.id in self.actors:
             return None
@@ -329,6 +330,17 @@ class ActorFactory(object):
                 node=self.node,
                 actor_list=self.actors,
                 world=self.world
+            )
+
+        elif type_id == IdealObjectSensor.get_blueprint_name():
+            actor = IdealObjectSensor(
+                uid=uid,
+                name=name,
+                parent=parent,
+                node=self.node,
+                actor_list=self.actors,
+                world=self.world, 
+                attributes=attributes
             )
 
         elif type_id == TrafficLightsSensor.get_blueprint_name():

@@ -21,20 +21,20 @@ from derived_object_msgs.msg import ObjectArray, Object
 from shape_msgs.msg import SolidPrimitive
 from transforms3d.euler import euler2quat
 
-OBJECT_LABELS = {
-    carla.CityObjectLabel.Car: Object.CLASSIFICATION_CAR,
-    carla.CityObjectLabel.Truck: Object.CLASSIFICATION_TRUCK,
-    carla.CityObjectLabel.Bus: Object.CLASSIFICATION_OTHER_VEHICLE,
-    carla.CityObjectLabel.Motorcycle:Object.CLASSIFICATION_MOTORCYCLE,
-    carla.CityObjectLabel.Bicycle: Object.CLASSIFICATION_BIKE,
-    carla.CityObjectLabel.Pedestrians: Object.CLASSIFICATION_PEDESTRIAN
-}
-
 class ObjectSensor(PseudoActor):
 
     """
     Pseudo object sensor
     """
+
+    OBJECT_LABELS = {
+        carla.CityObjectLabel.Car: Object.CLASSIFICATION_CAR,
+        carla.CityObjectLabel.Truck: Object.CLASSIFICATION_TRUCK,
+        carla.CityObjectLabel.Bus: Object.CLASSIFICATION_OTHER_VEHICLE,
+        carla.CityObjectLabel.Motorcycle:Object.CLASSIFICATION_MOTORCYCLE,
+        carla.CityObjectLabel.Bicycle: Object.CLASSIFICATION_BIKE,
+        carla.CityObjectLabel.Pedestrians: Object.CLASSIFICATION_PEDESTRIAN
+    }
 
     def __init__(self, uid, name, parent, node, actor_list, world):
         """
@@ -100,7 +100,7 @@ class ObjectSensor(PseudoActor):
 
     def _get_static_vehicles(self, ros_objects):
         # iterate over all possible static vehicles
-        for object_key, object_value in OBJECT_LABELS.items():
+        for object_key, object_value in self.OBJECT_LABELS.items():
             static_vehicles = self.world.get_environment_objects(object_key)
             for vehicle in static_vehicles:
                 # take only vehicles with bounding_box attribute set

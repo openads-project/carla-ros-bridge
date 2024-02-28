@@ -145,6 +145,11 @@
                     "id": "objects"
                 },
                 {
+                    "type": "sensor.pseudo.ideal_objects",
+                    "id": "visible_objects", 
+                    "range": 50.0
+                },
+                {
                     "type": "sensor.pseudo.odom",
                     "id": "odometry"
                 },
