@@ -230,7 +230,12 @@ class ActorFactory(object):
         """
         parent = None
         # the transform relative to the carla_map
-        relative_transform = trans.carla_transform_to_ros_pose(carla_actor.get_transform())
+        if req == None:
+            relative_transform = trans.carla_transform_to_ros_pose(carla_actor.get_transform())
+        else:
+            relative_transform = req.transform
+
+
         if carla_actor.parent:
             if carla_actor.parent.id in self.actors:
                 parent = self.actors[carla_actor.parent.id]

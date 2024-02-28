@@ -1,0 +1,87 @@
+{
+    "objects":
+    [
+        {
+            "type": "sensor.pseudo.actor_list",
+            "id": "actor_list"
+        },
+        {
+            "id": "sensor_A",
+            "type": "sensor.camera.rgb",
+            "spawn_point": {"x": -50.0,"y": -10.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0},
+            "attached_objects": [
+                {
+                    "id": "fail_sensor_B",
+                    "type": "sensor.camera.rgb",
+                    "spawn_point": {"x": -50.0,"y": -10.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0}
+                },
+                {
+                    "id": "fail_vehicle_B_1",
+                    "type": "vehicle.unicaragil.autoshuttle",
+                    "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0}
+                },
+                {
+                    "id": "fail_group_B",
+                    "type": "group",
+                    "physical_object": "static.prop.dirtdebris01",
+                    "spawn_point": {"x": -5.0,"y": 0.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0},
+                    "children": [
+                        {
+                            "id": "fail_sensor_C",
+                            "type": "sensor.camera.rgb",
+                            "spawn_point": {"x": -5.0,"y": 0.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0}
+                        }
+                    ]
+                },
+                {
+                    "id": "fail_blueprint_B",
+                    "type": "blueprint.sensor_blueprint",
+                    "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0}
+                }
+            ]
+        },
+        {
+            "id": "ego_vehicle",
+            "type": "vehicle.unicaragil.autoshuttle",
+            "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0},
+            "children": [
+                {
+                    "id": "fail_vehicle_B_2",
+                    "type": "vehicle.unicaragil.autoshuttle",
+                    "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0}
+                }
+            ]
+        },
+        {
+            "id": "group_A",
+            "type": "group",
+            "physical_object": "static.prop.dirtdebris01",
+            "spawn_point": {"x": -50.0,"y": -10.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0},
+            "children": [
+                {
+                    "id": "fail_vehicle_B_3",
+                    "type": "vehicle.unicaragil.autoshuttle",
+                    "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0}
+                }
+            ]
+        },
+        {
+            "id": "fail_blueprint",
+            "type": "blueprint.fail_blueprint",
+            "spawn_point": {"x": -50.0,"y": 20.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0}
+        }          
+    ],
+    "blueprints":
+    [
+        {
+            "id": "sensor_blueprint",
+            "type": "sensor.camera.rgb",
+            "spawn_point": {"x": -5.0,"y": 0.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0}
+        },
+        {
+            "id": "fail_blueprint",
+            "type": "blueprint.sensor_blueprint",
+            "spawn_point": {"x": -50.0,"y": 20.0,"z": 2.0,"roll": 0.0,"pitch": 0.0,"yaw": 0.0}
+        }     
+    ]
+  }

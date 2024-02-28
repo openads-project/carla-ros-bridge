@@ -54,13 +54,19 @@ class IdealObjectSensor(ObjectSensor):
                                                    qos_profile=10)
 
         # Extract relevant attributes and convert to float
-        try:
-            self.range = float(attributes["range"])
+        for attribute in attributes:
+            if attribute.key == "range":
+                self.range = float(attribute.value)
+                break
+
+        # Check relevant attributes and set default values if not available
+        try: 
+            self.range
         except:
             self.range = 15.0
-            self.node.logerr(
+            self.node.logwarn(
                 "No range attribute found for IdealObjectSensor. Using default value of {} meters.".format(self.range)
-            ) 
+            )
     
     def destroy(self):
         """
