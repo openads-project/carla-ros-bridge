@@ -145,9 +145,9 @@
                     "id": "objects"
                 },
                 {
-                    "type": "sensor.pseudo.visible_objects",
+                    "type": "sensor.pseudo.ideal_objects",
                     "id": "visible_objects", 
-                    "range": 200.0
+                    "range": 50.0
                 },
                 {
                     "type": "sensor.pseudo.odom",
@@ -204,6 +204,10 @@
                 {
                     "type": "sensor.pseudo.tf",
                     "id": "tf"
+                },               
+                {
+                  "type": "sensor.pseudo.objects",
+                  "id": "objects"
                 },
                 {
                     "type": "sensor.pseudo.odom",
