@@ -58,7 +58,7 @@ class IdealObjectSensor(ObjectSensor):
             self.range = float(attributes["range"])
         except:
             self.range = 15.0
-            self.node.logerr(
+            self.node.logwarn(
                 "No range attribute found for IdealObjectSensor. Using default value of {} meters.".format(self.range)
             ) 
     
