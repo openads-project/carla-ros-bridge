@@ -32,7 +32,7 @@ from carla_ros_bridge.lane_invasion_sensor import LaneInvasionSensor
 from carla_ros_bridge.lidar import Lidar, SemanticLidar
 from carla_ros_bridge.marker_sensor import MarkerSensor
 from carla_ros_bridge.object_sensor import ObjectSensor
-from carla_ros_bridge.intelligent_object_sensor import IntelligentObjectSensor
+from carla_ros_bridge.ideal_object_sensor import IdealObjectSensor
 from carla_ros_bridge.odom_sensor import OdometrySensor
 from carla_ros_bridge.opendrive_sensor import OpenDriveSensor
 from carla_ros_bridge.pseudo_actor import PseudoActor
@@ -332,8 +332,8 @@ class ActorFactory(object):
                 world=self.world
             )
 
-        elif type_id == IntelligentObjectSensor.get_blueprint_name():
-            actor = IntelligentObjectSensor(
+        elif type_id == IdealObjectSensor.get_blueprint_name():
+            actor = IdealObjectSensor(
                 uid=uid,
                 name=name,
                 parent=parent,
