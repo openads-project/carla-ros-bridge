@@ -6,7 +6,7 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 #
 """
-handle an IntelligentObjectSensor
+handle an IdealObjectSensor
 """
 
 from carla_ros_bridge.vehicle import Vehicle
@@ -16,10 +16,10 @@ from derived_object_msgs.msg import ObjectArray
 
 from carla_ros_bridge.object_sensor import ObjectSensor
 
-class IntelligentObjectSensor(ObjectSensor):
+class IdealObjectSensor(ObjectSensor):
 
     """
-    IntelligentObjectSensor
+    IdealObjectSensor
     """
 
     def __init__(self, uid, name, parent, node, actor_list, world, attributes):
@@ -38,44 +38,41 @@ class IntelligentObjectSensor(ObjectSensor):
         :type actor_list: map(carla-actor-id -> python-actor-object)
         :param world: current carla world object
         :type world: carla.World
-        :param attributes: attributes of intelligentObjectSensor
+        :param attributes: attributes of IdealObjectSensor
         :type attributes: diagnostic_msgs/KeyValue[]
         """
         
-        super(IntelligentObjectSensor, self).__init__(uid=uid,
+        super(IdealObjectSensor, self).__init__(uid=uid,
                                                       name=name,
                                                       parent=parent,
                                                       node=node,
                                                       actor_list=actor_list, 
                                                       world=world)
         self.node = node
-
-        # Parse attributes
-        extracted_attrs = {}
-    
-        for kv in attributes:
-            value = kv.value
-            # Convert specific attributes to float
-            if kv.key in [
-                "range"
-            ]:
-                value = float(value)
-            extracted_attrs[kv.key] = value
-
-        self.attributes = extracted_attrs
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
+
+        # extract relevant attributes and convert to float
+        relevant_attributes = {}
+        relavant_keys = ["range"]
+    
+        for attribute in attributes:
+            value = attribute.value
+            if kv.key in relavant_keys:
+                value = float(value)
+            relevant_attributes[kv.key] = value
+
+        self.attributes = relevant_attributes
     
     def destroy(self):
         """
         Function to destroy this object.
         :return:
         """
-        super(IntelligentObjectSensor, self).destroy()
+        super(IdealObjectSensor, self).destroy()
         self.actor_list = None
         self.node.destroy_publisher(self.object_publisher)
-
 
     @staticmethod
     def get_blueprint_name():
@@ -83,11 +80,11 @@ class IntelligentObjectSensor(ObjectSensor):
         Get the blueprint identifier for the pseudo sensor
         :return: name
         """
-        return "sensor.pseudo.visible_objects"
+        return "sensor.pseudo.ideal_objects"
 
     def check_visibility(self, ego_vehicle, target): 
 
-        # Get the location of the source parent vehicle of Intelligent Object Sensor and the target
+        # Get the location of the source parent vehicle of Ideal Object Sensor and the target
         ego_vehicle_location = ego_vehicle.carla_actor.get_location()
         target_location = target.carla_actor.get_location()
         
@@ -114,7 +111,7 @@ class IntelligentObjectSensor(ObjectSensor):
             return 
         
         """       
-            - Get the vehicle that the IntelligentObjectSensor is appended
+            - Get the vehicle that the IdealObjectSensor is appended
             - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
         """
         ego_vehicle = self.actor_list[self.parent.uid]  
