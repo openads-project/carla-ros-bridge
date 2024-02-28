@@ -338,7 +338,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
         except:
             self.logerr(
-                "Sensor {} will not be spawned: {}".format(sensor["id"]))
+                "Sensor {} will not be spawned".format(sensor["id"]))
             return
 
     def process_group(self, group, parent):
@@ -394,7 +394,7 @@ class CarlaSpawnObjects(CompatibleNode):
 
         except:
             self.logerr(
-                "Group {} will not be spawned: {}".format(group["id"]))
+                "Group {} will not be spawned".format(group["id"]))
             return
 
         # broadcast static static transform from parent to group
