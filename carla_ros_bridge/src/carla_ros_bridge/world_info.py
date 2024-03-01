@@ -86,17 +86,29 @@ class WorldInfo(object):
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
                     proj = geo.text
+                    lat = float(proj[proj.find("+lat_0=")+7:].split()[0])
+                    lon = float(proj[proj.find("+lon_0=")+7:].split()[0])
 
-                    p = Proj(proj='utm',zone=10,ellps='WGS84', preserve_units=False)
+                    # derive utm zone
+                    if lat>=0.0: northp = True
+                    else: northp = False
+                    zone = int(ceil((lon + 180.0)/6.0))
 
-                    self.world_x, self.world_y = p(0,0)
+                    if northp:
+                        p = Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(zone) + "N"
+                    else:
+                        p = Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(zone) + "S"
+
+                    self.world_x, self.world_y = p(lon,lat)
         
         # publish transform 
         if self.world_x and self.world_y:
 
             t = geometry_msgs.msg.TransformStamped()
             t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
-            t.header.frame_id = "world"
+            t.header.frame_id = self.world_frame
             t.child_frame_id = "carla_map"
 
             t.transform.translation.x = self.world_x
