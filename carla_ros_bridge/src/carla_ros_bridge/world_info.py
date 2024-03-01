@@ -20,6 +20,7 @@ from carla_msgs.msg import CarlaWorldInfo
 
 import xml.etree.ElementTree as ET
 from pyproj import Proj
+import math
 
 ROS_VERSION = get_ros_version()
 
@@ -43,6 +44,7 @@ class WorldInfo(object):
         self.carla_map = carla_world.get_map()
 
         self.map_published = False
+        self.map_frame = "carla_map"
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
@@ -92,7 +94,7 @@ class WorldInfo(object):
                     # derive utm zone
                     if lat>=0.0: northp = True
                     else: northp = False
-                    zone = int(ceil((lon + 180.0)/6.0))
+                    zone = int(math.ceil((lon + 180.0)/6.0))
 
                     if northp:
                         p = Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
@@ -100,6 +102,8 @@ class WorldInfo(object):
                     else:
                         p = Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
                         self.world_frame = "utm_" + str(zone) + "S"
+
+                    print("Publishing transform from {} to {}".format(self.world_frame, self.map_frame))
 
                     self.world_x, self.world_y = p(lon,lat)
         
@@ -109,7 +113,7 @@ class WorldInfo(object):
             t = geometry_msgs.msg.TransformStamped()
             t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
             t.header.frame_id = self.world_frame
-            t.child_frame_id = "carla_map"
+            t.child_frame_id = self.map_frame
 
             t.transform.translation.x = self.world_x
             t.transform.translation.y = self.world_y
