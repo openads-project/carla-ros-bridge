@@ -45,6 +45,7 @@ class WorldInfo(object):
 
         self.map_published = False
         self.map_frame = "carla_map"
+        self.world_set = False
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
@@ -106,9 +107,10 @@ class WorldInfo(object):
                     print("Publishing transform from {} to {}".format(self.world_frame, self.map_frame))
 
                     self.world_x, self.world_y = p(lon,lat)
-        
+                    self.world_set = True
+
         # publish transform 
-        if self.world_x and self.world_y:
+        if self.world_set:
 
             t = geometry_msgs.msg.TransformStamped()
             t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
