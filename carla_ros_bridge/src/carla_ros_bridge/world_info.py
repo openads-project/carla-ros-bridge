@@ -19,9 +19,17 @@ from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 from carla_msgs.msg import CarlaWorldInfo
 
 import xml.etree.ElementTree as ET
-from pyproj import Proj
+import pyproj
+import math
 
 ROS_VERSION = get_ros_version()
+
+if ROS_VERSION == 1:
+    from tf.transformations import quaternion_from_euler
+elif ROS_VERSION == 2:
+    from tf_transformations import quaternion_from_euler
+else:
+    raise NotImplementedError("Unsupported ROS version")
 
 
 class WorldInfo(object):
@@ -43,6 +51,8 @@ class WorldInfo(object):
         self.carla_map = carla_world.get_map()
 
         self.map_published = False
+        self.map_frame = "carla_map"
+        self.world_set = False
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
@@ -85,22 +95,47 @@ class WorldInfo(object):
 
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
-                    proj = geo.text
+                    projection_string = geo.text
 
-                    p = Proj(proj='utm',zone=10,ellps='WGS84', preserve_units=False)
+                    # get lat and lon from projection string
+                    proj_xodr = pyproj.Proj(projparams=projection_string)
+                    lon, lat = proj_xodr(0, 0, inverse=True)
 
-                    self.world_x, self.world_y = p(0,0)
-        
+                    # derive utm zone and set frame id
+                    if lat >= 0.0: northp = True
+                    else: northp = False
+                    zone = int(math.floor((lon + 180.0)/6.0) + 1)
+                    if northp:
+                        p = pyproj.Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(zone) + "N"
+                    else:
+                        p = pyproj.Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(zone) + "S"
+                    
+                    # calculate grid convergence
+                    center_lon = 6.0 * float(zone) - 183.0
+                    grid_convergence = math.atan(math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) * math.sin(lat * math.pi / 180.0))
+                    self.q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
+
+                    print("Publishing transform from {} to {}".format(self.world_frame, self.map_frame))
+
+                    self.world_x, self.world_y = p(lon,lat)
+                    self.world_set = True
+
         # publish transform 
-        if self.world_x and self.world_y:
+        if self.world_set:
 
             t = geometry_msgs.msg.TransformStamped()
             t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
-            t.header.frame_id = "world"
-            t.child_frame_id = "carla_map"
+            t.header.frame_id = self.world_frame
+            t.child_frame_id = self.map_frame
 
             t.transform.translation.x = self.world_x
             t.transform.translation.y = self.world_y
-            t.transform.rotation.w = 1.0
+            t.transform.translation.z = 0.0
+            t.transform.rotation.x = self.q_grid_convergence[0]
+            t.transform.rotation.y = self.q_grid_convergence[1]
+            t.transform.rotation.z = self.q_grid_convergence[2]
+            t.transform.rotation.w = self.q_grid_convergence[3]
 
             self._tf_broadcaster.sendTransform(t)
