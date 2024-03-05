@@ -11,7 +11,6 @@ Class to handle the carla map
 """
 
 import tf2_ros
-from tf_transformations import quaternion_from_euler
 import geometry_msgs.msg
 import ros_compatibility as roscomp
 from ros_compatibility.core import get_ros_version
@@ -24,6 +23,13 @@ from pyproj import Proj
 import math
 
 ROS_VERSION = get_ros_version()
+
+if ROS_VERSION == 1:
+    from tf.transformations import quaternion_from_euler
+elif ROS_VERSION == 2:
+    from tf_transformations import quaternion_from_euler
+else:
+    raise NotImplementedError("Unsupported ROS version")
 
 
 class WorldInfo(object):

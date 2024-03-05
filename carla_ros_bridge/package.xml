@@ -11,7 +11,6 @@
   <exec_depend>shape_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
   <exec_depend>tf2_msgs</exec_depend>
-  <exec_depend>tf_transformations</exec_depend>
   <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
@@ -27,6 +26,7 @@
   <!-- ROS 2 DEPENDENCIES-->
   <depend condition="$ROS_VERSION == 2">rclpy</depend>
   <exec_depend condition="$ROS_VERSION == 2">tf2_ros</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 2">tf_transformations</exec_depend>
   <exec_depend condition="$ROS_VERSION == 2">rviz2</exec_depend>
 
   <!-- ROS 1 DEPENDENCIES-->
