@@ -19,7 +19,7 @@ from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 from carla_msgs.msg import CarlaWorldInfo
 
 import xml.etree.ElementTree as ET
-from pyproj import Proj
+import pyproj
 import math
 
 ROS_VERSION = get_ros_version()
@@ -95,20 +95,22 @@ class WorldInfo(object):
 
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
-                    proj = geo.text
-                    lat = float(proj[proj.find("+lat_0=")+7:].split()[0])
-                    lon = float(proj[proj.find("+lon_0=")+7:].split()[0])
+                    projection_string = geo.text
 
-                    # derive utm zone
-                    if lat>=0.0: northp = True
+                    # get lat and lon in ETRS89 coordinates
+                    proj_xodr = pyproj.Proj(projparams=projection_string)
+                    x, y = proj_xodr(0, 0, inverse=True)
+                    lon, lat = pyproj.transform(proj_xodr, pyproj.Proj(init='epsg:4258'), x, y)
+
+                    # derive utm zone and set frame id
+                    if lat >= 0.0: northp = True
                     else: northp = False
                     zone = int(math.floor((lon + 180.0)/6.0) + 1)
-
                     if northp:
-                        p = Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
+                        p = pyproj.Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
                         self.world_frame = "utm_" + str(zone) + "N"
                     else:
-                        p = Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
+                        p = pyproj.Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
                         self.world_frame = "utm_" + str(zone) + "S"
                     
                     # calculate grid convergence
