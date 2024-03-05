@@ -11,6 +11,7 @@ Class to handle the carla map
 """
 
 import tf2_ros
+from tf_transformations import quaternion_from_euler
 import geometry_msgs.msg
 import ros_compatibility as roscomp
 from ros_compatibility.core import get_ros_version
@@ -103,6 +104,11 @@ class WorldInfo(object):
                     else:
                         p = Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
                         self.world_frame = "utm_" + str(zone) + "S"
+                    
+                    # calculate grid convergence
+                    center_lon = 6.0 * float(zone) - 183.0
+                    grid_convergence = math.atan(math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) * math.sin(lat * math.pi / 180.0))
+                    self.q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
 
                     print("Publishing transform from {} to {}".format(self.world_frame, self.map_frame))
 
@@ -119,6 +125,10 @@ class WorldInfo(object):
 
             t.transform.translation.x = self.world_x
             t.transform.translation.y = self.world_y
-            t.transform.rotation.w = 1.0
+            t.transform.translation.z = 0.0
+            t.transform.rotation.x = self.q_grid_convergence[0]
+            t.transform.rotation.y = self.q_grid_convergence[1]
+            t.transform.rotation.z = self.q_grid_convergence[2]
+            t.transform.rotation.w = self.q_grid_convergence[3]
 
             self._tf_broadcaster.sendTransform(t)
