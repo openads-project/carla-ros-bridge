@@ -97,10 +97,9 @@ class WorldInfo(object):
                 for geo in header.findall('geoReference'):
                     projection_string = geo.text
 
-                    # get lat and lon in ETRS89 coordinates
+                    # get lat and lon from projection string
                     proj_xodr = pyproj.Proj(projparams=projection_string)
-                    x, y = proj_xodr(0, 0, inverse=True)
-                    lon, lat = pyproj.transform(proj_xodr, pyproj.Proj(init='epsg:4258'), x, y)
+                    lon, lat = proj_xodr(0, 0, inverse=True)
 
                     # derive utm zone and set frame id
                     if lat >= 0.0: northp = True
