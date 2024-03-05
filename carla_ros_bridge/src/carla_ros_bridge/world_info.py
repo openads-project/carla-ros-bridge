@@ -95,7 +95,7 @@ class WorldInfo(object):
                     # derive utm zone
                     if lat>=0.0: northp = True
                     else: northp = False
-                    zone = int(math.ceil((lon + 180.0)/6.0))
+                    zone = int(math.floor((lon + 180.0)/6.0) + 1)
 
                     if northp:
                         p = Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
