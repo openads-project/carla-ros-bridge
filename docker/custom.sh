@@ -32,3 +32,6 @@ fi
 echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla/dist/$(ls /opt/carla/PythonAPI/carla/dist | grep py$PYTHON_VERSION_SHORT.)" >> /opt/carla/setup.bash
 echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla" >> /opt/carla/setup.bash
 echo "source /opt/carla/setup.bash" >> /root/.bashrc
+
+# Allow proj to automatically download remote grids to interpret the projection string in OpenDRIVE maps
+echo "export PROJ_NETWORK=ON" >> /opt/carla/setup.bash
