@@ -442,7 +442,9 @@ class CarlaSpawnObjects(CompatibleNode):
             blueprint_found = True
             extended_object = copy.deepcopy(blueprint)
             extended_object["id"] = object["id"]
-            extended_object["spawn_point"] = object["spawn_point"]
+
+            if "spawn_point" in object:
+                extended_object["spawn_point"] = object["spawn_point"]
 
             self.process_object(extended_object, parent)
 
