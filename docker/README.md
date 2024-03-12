@@ -1,6 +1,4 @@
-# ROS-Bridge
-
-This repository aims to provide standalone images of the [CARLA ROS Bridge](https://gitlab.ika.rwth-aachen.de/fb-fi/simulation/carla/ros-bridge) fork by **ika** for usage in CI pipelines, cluster deployments etc. by utilizing [docker-ros](https://gitlab.ika.rwth-aachen.de/fb-fi/ops/docker-ros).
+# Containerization of the carla-ros-bridge
 
 - [ROS-Bridge](#ros-bridge)
   - [Nodes](#nodes)
@@ -12,11 +10,7 @@ This repository aims to provide standalone images of the [CARLA ROS Bridge](http
     - [Available Images](#available-images)
     - [Default Command](#default-command)
     - [Launch Files](#launch-files)
-  - [Building Locally](#building-locally)
-    - [Requirements](#requirements)
-    - [Steps](#steps)
   - [Official Documentation](#official-documentation)
-
 
 ## Nodes
 
@@ -25,8 +19,6 @@ This repository aims to provide standalone images of the [CARLA ROS Bridge](http
 | `carla_ros_bridge` | `bridge.py` | Enables two-way communication between ROS and CARLA via ROS topics and commands applied to the CARLA server |
 
 ### carla_ros_bridge/bridge.py
-
-This node, besides other components, comes from the ika fork of the [ros-bridge](https://gitlab.ika.rwth-aachen.de/fb-fi/simulation/carla/ros-bridge).
 
 Also see the [official documentation](https://carla.readthedocs.io/projects/ros-bridge/en/latest/)
 
@@ -77,37 +69,6 @@ bash -ic "roslaunch carla_ros_bridge carla_ros_bridge.launch"
 | Package | File | Path | Description |
 | --- | --- | --- | --- |
 | `carla_ros_bridge` | `carla_ros_bridge(launch/py)` | `/docker-ros/ws/install/share/carla_ros_bridge` | Creates ROS bridge node and connects it to the CARLA server |
-
-
-## Building Locally
-
-### Requirements
-
-For a build outside of the GitLab CI you will need to provide a few parts of the CARLA PythonAPI that are usually downloaded and integrated automatically. These parts should be placed into `docker/files/carla` (create, if not present)
-
-The above mentioned `carla` directory should look like this:
-
-```bash
-carla
-├── agents
-│   ├── navigation
-│   │   ├── ...
-│   ├── tools
-│   │   ├── ...
-│   ├── __init__.py
-└── dist
-    ├── carla-0.9.15-cp310-cp310m-linux_x86_64.whl 
-    ├── carla-0.9.15-py3.10-linux-x86_64.egg 
-```
-
-### Steps
-
-1) Clone repository
-2) Meet requirements mentioned above
-3) Navigate to `docker` directory of cloned repository
-4) Make changes to `docker-compose.yml` if necessary
-5) Run `docker compose build dev run` and wait for completion
-6) Start image (e.g. `docker run gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/ros-bridge:latest`)
 
 ## Official Documentation
 
