@@ -52,6 +52,10 @@ class IdealObjectSensor(ObjectSensor):
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
+        
+        # Extract spawn point
+        self.position = relative_spawn_pose.position
+        self.orientation = relative_spawn_pose.orientation
 
         # Extract relevant attributes and convert to float
         for attribute in attributes:
@@ -106,9 +110,12 @@ class IdealObjectSensor(ObjectSensor):
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
+        relative_location = self.position
+
         if not self.parent: 
+            location = relative_location
             return 
-        
+        else:
         """       
             - Get the vehicle that the IdealObjectSensor is appended
             - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
