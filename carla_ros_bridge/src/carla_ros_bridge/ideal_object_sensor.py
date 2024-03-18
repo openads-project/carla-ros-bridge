@@ -22,7 +22,7 @@ class IdealObjectSensor(ObjectSensor):
     IdealObjectSensor
     """
 
-    def __init__(self, uid, name, parent, node, actor_list, world, attributes):
+    def __init__(self, uid, name, parent, relative_spawn_pose, node, actor_list, world, attributes):
         """
         Constructor
 

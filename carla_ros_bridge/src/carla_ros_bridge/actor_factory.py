@@ -342,9 +342,10 @@ class ActorFactory(object):
                 uid=uid,
                 name=name,
                 parent=parent,
+                relative_spawn_pose=spawn_pose,
                 node=self.node,
                 actor_list=self.actors,
-                world=self.world, 
+                world=self.world,
                 attributes=attributes
             )
 
