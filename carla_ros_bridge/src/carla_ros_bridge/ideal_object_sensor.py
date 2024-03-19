@@ -96,12 +96,23 @@ class IdealObjectSensor(ObjectSensor):
         # Calculate the Euclidean distance between the sensor and the target 
         distance = sensor_location.distance(target_location)
 
+        # Calculate azimuth and elevation between the sensor and the target
+        azimuth_deg, elevation_deg = self.calculate_azimuth_and_elevation(sensor_location, target_location)
+
         # Check if the target is inside the range of the sensor 
         if distance <= self.range:
             return True
         
         return False 
-        
+    
+    def calculate_azimuth_and_elevation(self, sensor_location, target_location):
+
+        # Calculate the vector from source to target
+        dx = target_location.x - sensor_location.x
+        dy = target_location.y - sensor_location.y
+        dz = target_location.z - sensor_location.z
+        return
+    
     def update(self, frame, timestamp):
         """
         Function (override) to update this object.
@@ -115,7 +126,7 @@ class IdealObjectSensor(ObjectSensor):
         # Construct sensor location
         if not self.parent:
             # Location for idealObjectSensor without vehicle parent
-            location = self.position
+            sensor_location = self.position
         else:
             """       
                 - Get the vehicle that the IdealObjectSensor is appended
@@ -126,7 +137,7 @@ class IdealObjectSensor(ObjectSensor):
             ego_vehicle_location = ego_vehicle.carla_actor.get_location()
 
             # Location for idealObjectSensor with vehicle parent
-            location = self.position + ego_vehicle_location
+            sensor_location = self.position + ego_vehicle_location
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
@@ -140,7 +151,7 @@ class IdealObjectSensor(ObjectSensor):
                     target_location = actor.carla_actor.get_location()
 
                     # Check visibility of the target
-                    if self.check_visibility(location, target_location):
+                    if self.check_visibility(sensor_location, target_location):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -156,7 +167,7 @@ class IdealObjectSensor(ObjectSensor):
                         target_location = vehicle.transform.location
 
                         # Check visibility of the target
-                        if self.check_visibility(location, target_location):
+                        if self.check_visibility(sensor_location, target_location):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
