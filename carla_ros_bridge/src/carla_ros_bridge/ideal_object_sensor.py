@@ -112,17 +112,16 @@ class IdealObjectSensor(ObjectSensor):
 
         relative_location = self.position
 
-        if not self.parent: 
+        if not self.parent:
             location = relative_location
-            return 
+            return
         else:
-        """       
-            - Get the vehicle that the IdealObjectSensor is appended
-            - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
-        """
-        ego_vehicle = self.actor_list[self.parent.uid]  
-        ego_vehicle_location = ego_vehicle.carla_actor.get_location()
-
+            """       
+                - Get the vehicle that the IdealObjectSensor is appended
+                - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
+            """
+            ego_vehicle = self.actor_list[self.parent.uid]  
+            ego_vehicle_location = ego_vehicle.carla_actor.get_location()
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
             
