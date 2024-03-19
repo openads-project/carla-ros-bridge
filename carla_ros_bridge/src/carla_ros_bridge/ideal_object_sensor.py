@@ -16,6 +16,8 @@ from derived_object_msgs.msg import ObjectArray
 
 from carla_ros_bridge.object_sensor import ObjectSensor
 
+from carla.libcarla import Location
+
 class IdealObjectSensor(ObjectSensor):
 
     """
@@ -53,8 +55,8 @@ class IdealObjectSensor(ObjectSensor):
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
         
-        # Extract spawn point
-        self.position = relative_spawn_pose.position
+        # Extract spawn pose and convert (relative) position to carla.Location
+        self.position = Location(x=relative_spawn_pose.position.x, y=relative_spawn_pose.position.y, z=relative_spawn_pose.position.z)
         self.orientation = relative_spawn_pose.orientation
 
         # Extract relevant attributes and convert to float
@@ -110,18 +112,22 @@ class IdealObjectSensor(ObjectSensor):
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
-        relative_location = self.position
-
+        # Construct sensor location
         if not self.parent:
-            location = relative_location
-            return
+            # Location for idealObjectSensor without vehicle parent
+            location = self.position
         else:
             """       
                 - Get the vehicle that the IdealObjectSensor is appended
                 - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
+                - Calculate position of the IdealObjectSensor located in vehicle
             """
             ego_vehicle = self.actor_list[self.parent.uid]  
             ego_vehicle_location = ego_vehicle.carla_actor.get_location()
+
+            # Location for idealObjectSensor with vehicle parent
+            location = self.position + ego_vehicle_location
+
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
             
@@ -134,7 +140,7 @@ class IdealObjectSensor(ObjectSensor):
                     target_location = actor.carla_actor.get_location()
 
                     # Check visibility of the target
-                    if self.check_visibility(ego_vehicle_location, target_location):
+                    if self.check_visibility(location, target_location):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -150,7 +156,7 @@ class IdealObjectSensor(ObjectSensor):
                         target_location = vehicle.transform.location
 
                         # Check visibility of the target
-                        if self.check_visibility(ego_vehicle_location, target_location):
+                        if self.check_visibility(location, target_location):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
