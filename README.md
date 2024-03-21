@@ -1,5 +1,13 @@
 # Communication Actor: *carla-ros-bridge*
 
+> [!IMPORTANT]
+> This repository is a fork of the [carla-ros-bridge](https://github.com/ika-rwth-aachen/carla-ros-bridge)! All initial and following modifications to the parent repository are documented in [IKA_CHANGELOG.md](./IKA_CHANGELOG.md).
+
+---
+---
+
+## IKA GitHub README
+
 <p align="left">
   <img src="https://img.shields.io/github/v/release/ika-rwth-aachen/carla-ros-bridge"/>
   <img src="https://img.shields.io/github/license/ika-rwth-aachen/carla-ros-bridge"/>
@@ -35,8 +43,6 @@
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/carla-simulator/ros-bridge)](https://github.com/carla-simulator/ros-bridge/releases/latest)
 
  This ROS package is a bridge that enables two-way communication between ROS and CARLA. The information from the CARLA server is translated to ROS topics. In the same way, the messages sent between nodes in ROS get translated to commands to be applied in CARLA.
-
- This repository is a fork of the [official repository](https://github.com/carla-simulator/ros-bridge). The ROS API and additional documentation, as well as parts specific to building standalone images of this project can be found in the [docker directory](https://gitlab.ika.rwth-aachen.de/fb-fi/simulation/carla/ros-bridge/-/tree/develop/docker).
 
 ![rviz setup](./docs/images/ad_demo.png "AD Demo")
 
