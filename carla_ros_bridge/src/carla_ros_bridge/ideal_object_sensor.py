@@ -97,7 +97,7 @@ class IdealObjectSensor(ObjectSensor):
         distance = sensor_location.distance(target_location)
 
         # Calculate azimuth and elevation between the sensor and the target
-        azimuth_deg, elevation_deg = self.calculate_azimuth_and_elevation(sensor_location, target_location)
+        # azimuth_deg, elevation_deg = self.calculate_azimuth_and_elevation(sensor_location, target_location)
 
         # Check if the target is inside the range of the sensor 
         if distance <= self.range:
