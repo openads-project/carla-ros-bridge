@@ -7,6 +7,7 @@ variables:
   TARGET: dev,run
   PLATFORM: amd64
   IMAGE_TAG: ros1
+  ADDITIONAL_PIP_FILE: docker/additional-pip-requirements-ros1.txt
   ENABLE_INDUSTRIAL_CI: 'true'
 
 .test:

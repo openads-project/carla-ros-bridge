@@ -18,7 +18,6 @@ try:
 except ImportError:
     import Queue as queue
 import sys
-from distutils.version import LooseVersion
 from threading import Thread, Lock, Event
 
 import carla
@@ -438,18 +437,17 @@ def main(args=None):
 
         # check carla version
         dist = pkg_resources.get_distribution("carla")
-        if LooseVersion(dist.version) != LooseVersion(CarlaRosBridge.CARLA_VERSION):
+        if dist.version != CarlaRosBridge.CARLA_VERSION:
             carla_bridge.logfatal("CARLA python module version {} required. Found: {}".format(
                 CarlaRosBridge.CARLA_VERSION, dist.version))
             sys.exit(1)
-        
-        # TODO: check uncomment section in dedicated issue
-        #if LooseVersion(carla_client.get_server_version()) != \
-        #   LooseVersion(carla_client.get_client_version()):
-        #    carla_bridge.logwarn(
-        #        "Version mismatch detected: You are trying to connect to a simulator that might be incompatible with this API. Client API version: {}. Simulator API version: {}"
-        #        .format(carla_client.get_client_version(),
-        #                carla_client.get_server_version()))
+
+        if carla_client.get_server_version() != \
+           carla_client.get_client_version():
+            carla_bridge.logwarn(
+                "Version mismatch detected: You are trying to connect to a simulator that might be incompatible with this API. Client API version: {}. Simulator API version: {}"
+                .format(carla_client.get_client_version(),
+                        carla_client.get_server_version()))
 
         carla_world = carla_client.get_world()
 
