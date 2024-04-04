@@ -18,6 +18,18 @@ from carla_ros_bridge.object_sensor import ObjectSensor
 
 from carla.libcarla import Location
 
+try:
+    import queue
+except ImportError:
+    import Queue as queue
+
+import carla_common.transforms as trans
+import ros_compatibility as roscomp
+
+import tf2_ros
+
+ROS_VERSION = roscomp.get_ros_version()
+
 class IdealObjectSensor(ObjectSensor):
 
     """
@@ -55,6 +67,12 @@ class IdealObjectSensor(ObjectSensor):
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
         
+        self.queue = queue.Queue()
+        if ROS_VERSION == 1:
+            self._tf_broadcaster = tf2_ros.TransformBroadcaster()
+        elif ROS_VERSION == 2:
+            self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
+        
         # Extract spawn pose and convert (relative) position to carla.Location
         self.position = Location(x=relative_spawn_pose.position.x, y=relative_spawn_pose.position.y, z=relative_spawn_pose.position.z)
         self.orientation = relative_spawn_pose.orientation
@@ -90,7 +108,7 @@ class IdealObjectSensor(ObjectSensor):
         :return: name
         """
         return "sensor.pseudo.ideal_objects"
-
+    
     def check_visibility(self, sensor_location, target_location): 
 
         # Calculate the Euclidean distance between the sensor and the target 
@@ -113,6 +131,41 @@ class IdealObjectSensor(ObjectSensor):
         dz = target_location.z - sensor_location.z
         return
     
+    def get_ros_transform(self, timestamp):
+        if not self.position and not self.orientation:
+            self.node.logwarn("{}: No relative spawn pose defined.".format(self.get_prefix()))
+            return
+        if self.parent is not None:
+            frame_id = self.parent.get_prefix()
+        else:
+            frame_id = "carla_map"
+        child_frame_id = self.get_prefix()
+        
+        transform = tf2_ros.TransformStamped()
+        transform.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
+        transform.header.frame_id = frame_id
+        transform.child_frame_id = child_frame_id
+
+        transform.transform.translation.x = self.position.x
+        transform.transform.translation.y = self.position.y
+        transform.transform.translation.z = self.position.z
+
+        transform.transform.rotation.x = self.orientation.x
+        transform.transform.rotation.y = self.orientation.y
+        transform.transform.rotation.z = self.orientation.z
+        transform.transform.rotation.w = self.orientation.w
+
+        return transform
+
+
+    def publish_tf(self, timestamp):
+        transform =self.get_ros_transform(timestamp)
+        try:
+            self._tf_broadcaster.sendTransform(transform)
+        except roscomp.exceptions.ROSException:
+            if roscomp.ok():
+                self.node.logwarn("Sensor {} failed to send transform.".fromat(self.uid))
+
     def update(self, frame, timestamp):
         """
         Function (override) to update this object.
@@ -120,6 +173,12 @@ class IdealObjectSensor(ObjectSensor):
         - tf global frame
         :return:
         """
+
+        try:
+            self.publish_tf(timestamp)
+        except queue.Empty:
+            return
+        
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
