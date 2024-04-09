@@ -28,6 +28,8 @@ import ros_compatibility as roscomp
 
 import tf2_ros
 
+import math
+
 ROS_VERSION = roscomp.get_ros_version()
 
 class IdealObjectSensor(ObjectSensor):
@@ -81,7 +83,14 @@ class IdealObjectSensor(ObjectSensor):
         for attribute in attributes:
             if attribute.key == "range":
                 self.range = float(attribute.value)
-                break
+            elif attribute.key == "left_fov":
+                self.left_fov = float(attribute.value)
+            elif attribute.key == "right_fov":
+                self.right_fov = float(attribute.value)
+            elif attribute.key == "upper_fov":
+                self.upper_fov = float(attribute.value)
+            elif attribute.key == "lower_fov":
+                self.lower_fov = float(attribute.value)
 
         # Check relevant attributes and set default values if not available
         try: 
@@ -91,7 +100,7 @@ class IdealObjectSensor(ObjectSensor):
             self.node.logwarn(
                 "No range attribute found for IdealObjectSensor. Using default value of {} meters.".format(self.range)
             )
-    
+
     def destroy(self):
         """
         Function to destroy this object.
@@ -109,27 +118,47 @@ class IdealObjectSensor(ObjectSensor):
         """
         return "sensor.pseudo.ideal_objects"
     
-    def check_visibility(self, sensor_location, target_location): 
+    def check_visibility(self, sensor_location, target_location, id): 
 
-        # Calculate the Euclidean distance between the sensor and the target 
+        # Calculate the Euclidean distance between sensor and target 
         distance = sensor_location.distance(target_location)
 
-        # Calculate azimuth and elevation between the sensor and the target
-        # azimuth_deg, elevation_deg = self.calculate_azimuth_and_elevation(sensor_location, target_location)
+        # Calculate azimuth and elevation between sensor and target
+        azimuth_deg, elevation_deg = self.calculate_azimuth_and_elevation(sensor_location, target_location, distance, id)
 
-        # Check if the target is inside the range of the sensor 
-        if distance <= self.range:
+        # Check if the target is inside the range and fov of the sensor
+        if distance > self.range:
+            return False
+        elif azimuth_deg < self.left_fov:
+            return False
+        elif azimuth_deg > self.right_fov:
+            return False
+        elif elevation_deg > self.upper_fov:
+            return False
+        elif elevation_deg < self.lower_fov:
+            return False
+        else:
             return True
-        
-        return False 
     
-    def calculate_azimuth_and_elevation(self, sensor_location, target_location):
+    def calculate_azimuth_and_elevation(self, sensor_location, target_location, distance, id):
 
         # Calculate the vector from source to target
         dx = target_location.x - sensor_location.x
         dy = target_location.y - sensor_location.y
         dz = target_location.z - sensor_location.z
-        return
+
+        # Calculate azimuth in degrees
+        azimuth_rad = math.atan(dx/dz)
+        azimuth_deg = math.degrees(azimuth_rad)
+
+        # Calculate elevation in degrees
+        elevation_rad = math.asin(dy/distance)
+        elevation_deg = math.degrees(elevation_rad)
+
+        if distance < 50:
+            print(f"Distance: {round(distance, 2)}, ID: {id}, dx: {round(dx,2)}, dy: {round(dy, 2)}, dz: {round(dz, 2)}, Azimuth: {round(azimuth_deg, 2)}, Elevation: {round(elevation_deg, 2)}")
+
+        return azimuth_deg, elevation_deg
     
     def get_ros_transform(self, timestamp):
         if not self.position and not self.orientation:
@@ -210,7 +239,7 @@ class IdealObjectSensor(ObjectSensor):
                     target_location = actor.carla_actor.get_location()
 
                     # Check visibility of the target
-                    if self.check_visibility(sensor_location, target_location):
+                    if self.check_visibility(sensor_location, target_location, actor.carla_actor.id):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -226,7 +255,7 @@ class IdealObjectSensor(ObjectSensor):
                         target_location = vehicle.transform.location
 
                         # Check visibility of the target
-                        if self.check_visibility(sensor_location, target_location):
+                        if self.check_visibility(sensor_location, target_location, vehicle.id):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
