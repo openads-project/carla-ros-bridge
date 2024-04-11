@@ -16,7 +16,7 @@ from derived_object_msgs.msg import ObjectArray
 
 from carla_ros_bridge.object_sensor import ObjectSensor
 
-from carla.libcarla import Location
+from carla.libcarla import Location, Rotation, Vector3D
 
 try:
     import queue
@@ -28,7 +28,10 @@ import ros_compatibility as roscomp
 
 import tf2_ros
 
+from tf_transformations import euler_from_quaternion
+
 import math
+import numpy as np
 
 ROS_VERSION = roscomp.get_ros_version()
 
@@ -75,8 +78,18 @@ class IdealObjectSensor(ObjectSensor):
         elif ROS_VERSION == 2:
             self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
         
+        print(f"Type: {type(relative_spawn_pose.orientation)}")
         # Extract spawn pose and convert (relative) position to carla.Location
         self.position = Location(x=relative_spawn_pose.position.x, y=relative_spawn_pose.position.y, z=relative_spawn_pose.position.z)
+        # Extract spawn orientation and convert Rotation to carla.Rotation
+        orientation_list = [relative_spawn_pose.orientation.x, relative_spawn_pose.orientation.y, relative_spawn_pose.orientation.z, relative_spawn_pose.orientation.w]
+        (roll_rad, pitch_rad, yaw_rad) = euler_from_quaternion(orientation_list)
+        roll_deg = math.degrees(roll_rad)
+        pitch_deg = math.degrees(pitch_rad)
+        yaw_deg = math.degrees(yaw_rad)
+        self.rotation = Rotation(pitch=pitch_deg, yaw=yaw_deg, roll=roll_deg)
+        print(f"Rotation sensor: {self.rotation}")
+        # print(f"Data type: {relative_spawn_pose.orientation}")
         self.orientation = relative_spawn_pose.orientation
 
         # Extract relevant attributes and convert to float
@@ -118,13 +131,13 @@ class IdealObjectSensor(ObjectSensor):
         """
         return "sensor.pseudo.ideal_objects"
     
-    def check_visibility(self, sensor_location, target_location, id): 
+    def check_visibility(self, sensor_location, target_location, sensor_rotation, id): 
 
         # Calculate the Euclidean distance between sensor and target 
         distance = sensor_location.distance(target_location)
 
         # Calculate azimuth and elevation between sensor and target
-        azimuth_deg, elevation_deg = self.calculate_azimuth_and_elevation(sensor_location, target_location, distance, id)
+        azimuth_deg, elevation_deg, dx, dy, dz = self.calculate_azimuth_and_elevation(sensor_location, target_location, sensor_rotation, distance)
 
         # Check if the target is inside the range and fov of the sensor
         if distance > self.range:
@@ -138,9 +151,11 @@ class IdealObjectSensor(ObjectSensor):
         elif elevation_deg < self.lower_fov:
             return False
         else:
+            # if distance < 10:
+            #     print(f"Distance: {round(distance, 2)}, ID: {id}, dx: {round(dx,2)}, dy: {round(dy, 2)}, dz: {round(dz, 2)}, Azimuth: {round(azimuth_deg, 2)}, Elevation: {round(elevation_deg, 2)}")
             return True
     
-    def calculate_azimuth_and_elevation(self, sensor_location, target_location, distance, id):
+    def calculate_azimuth_and_elevation(self, sensor_location, target_location, sensor_rotation, distance):
 
         # Calculate the vector from source to target
         dx = target_location.x - sensor_location.x
@@ -148,17 +163,17 @@ class IdealObjectSensor(ObjectSensor):
         dz = target_location.z - sensor_location.z
 
         # Calculate azimuth in degrees
-        azimuth_rad = math.atan(dx/dz)
+        azimuth_rad = math.atan(dy/dx)
         azimuth_deg = math.degrees(azimuth_rad)
 
         # Calculate elevation in degrees
-        elevation_rad = math.asin(dy/distance)
+        elevation_rad = math.asin(dz/distance)
         elevation_deg = math.degrees(elevation_rad)
 
-        if distance < 50:
-            print(f"Distance: {round(distance, 2)}, ID: {id}, dx: {round(dx,2)}, dy: {round(dy, 2)}, dz: {round(dz, 2)}, Azimuth: {round(azimuth_deg, 2)}, Elevation: {round(elevation_deg, 2)}")
+        # if distance < 50:
+            # print(f"Distance: {round(distance, 2)}, ID: {id}, dx: {round(dx,2)}, dy: {round(dy, 2)}, dz: {round(dz, 2)}, Azimuth: {round(azimuth_deg, 2)}, Elevation: {round(elevation_deg, 2)}")
 
-        return azimuth_deg, elevation_deg
+        return azimuth_deg, elevation_deg, dx, dy, dz
     
     def get_ros_transform(self, timestamp):
         if not self.position and not self.orientation:
@@ -213,19 +228,68 @@ class IdealObjectSensor(ObjectSensor):
 
         # Construct sensor location
         if not self.parent:
-            # Location for idealObjectSensor without vehicle parent
+            # Location and rotation for idealObjectSensor without vehicle parent
             sensor_location = self.position
+            sensor_rotation = self.rotation
         else:
             """       
                 - Get the vehicle that the IdealObjectSensor is appended
                 - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
                 - Calculate position of the IdealObjectSensor located in vehicle
             """
-            ego_vehicle = self.actor_list[self.parent.uid]  
-            ego_vehicle_location = ego_vehicle.carla_actor.get_location()
+            ego_vehicle = self.actor_list[self.parent.uid]
+            # ego_vehicle_location = ego_vehicle.carla_actor.get_location()
+            # get ego_vehicle location and rotation
+            ego_vehicle_transform = ego_vehicle.carla_actor.get_transform()
+            ego_vehicle_location = ego_vehicle_transform.location
+            ego_vehicle_rotation = ego_vehicle_transform.rotation
 
-            # Location for idealObjectSensor with vehicle parent
+            # Location for idealObjectSensor including vehicle parent
             sensor_location = self.position + ego_vehicle_location
+            # Rotation for idealObjectSensor including vehicle parent
+            sensor_rotation = Rotation(
+                pitch = self.rotation.pitch + ego_vehicle_rotation.pitch,
+                yaw = self.rotation.yaw + ego_vehicle_rotation.yaw,
+                roll = self.rotation.roll + ego_vehicle_rotation.roll
+            )
+
+            pitch = sensor_rotation.pitch
+            yaw = sensor_rotation.yaw
+            roll = sensor_rotation.roll
+            
+            # Rotation matrix around x-axis
+            R_x = np.array((
+                (1, 0, 0),
+                (0, math.cos(math.radians(roll)), -math.sin(math.radians(roll))),
+                (0, math.sin(math.radians(roll)), math.cos(math.radians(roll)))
+            ))
+            # Rotation matrix around y-axis
+            R_y = np.array((
+                (math.cos(math.radians(pitch)), 0, math.sin(math.radians(pitch))),
+                (0, 1, 0),
+                (-math.sin(math.radians(pitch)), 0, math.cos(math.radians(pitch)))
+            ))
+            # Rotation matrix around z-axis
+            R_z = np.array((
+                (math.cos(math.radians(yaw)), -math.sin(math.radians(yaw)), 0),
+                (math.sin(math.radians(yaw)), math.cos(math.radians(yaw)), 0),
+                (0, 0, 1)
+            ))
+
+            # x, y, z axis as vectors
+            x_vector = np.array((1, 0, 0))
+            y_vector = np.array((0, 1, 0))
+            z_vector = np.array((0, 0, 1))
+            
+            # Create transformed x axis vector
+            x_vector_calc_1 = np.matmul(x_vector, R_y)
+            x_vector_calc_2 = np.matmul(x_vector_calc_1, R_z)
+            x_vector_calc = Vector3D(x=x_vector_calc_2[0], y=x_vector_calc_2[1], z=x_vector_calc_2[2])
+            # Get x axis vector with CARLA
+            x_vector_carla = sensor_rotation.get_forward_vector()
+
+            print(f"x_vector_calc: {x_vector_calc}")
+            print(f"x_vector_carla: {x_vector_carla}")
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
@@ -239,7 +303,7 @@ class IdealObjectSensor(ObjectSensor):
                     target_location = actor.carla_actor.get_location()
 
                     # Check visibility of the target
-                    if self.check_visibility(sensor_location, target_location, actor.carla_actor.id):
+                    if self.check_visibility(sensor_location, target_location, sensor_rotation, actor.carla_actor.id):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -255,7 +319,7 @@ class IdealObjectSensor(ObjectSensor):
                         target_location = vehicle.transform.location
 
                         # Check visibility of the target
-                        if self.check_visibility(sensor_location, target_location, vehicle.id):
+                        if self.check_visibility(sensor_location, target_location, sensor_rotation, vehicle.id):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
