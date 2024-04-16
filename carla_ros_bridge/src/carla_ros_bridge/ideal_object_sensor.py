@@ -14,6 +14,8 @@ from carla_ros_bridge.walker import Walker
 
 from derived_object_msgs.msg import ObjectArray
 
+from geometry_msgs.msg import Pose, Quaternion
+
 from carla_ros_bridge.object_sensor import ObjectSensor
 
 from carla.libcarla import Location, Rotation, Vector3D
@@ -28,7 +30,7 @@ import ros_compatibility as roscomp
 
 import tf2_ros
 
-from tf_transformations import euler_from_quaternion
+from tf_transformations import euler_from_quaternion, quaternion_from_euler
 
 import math
 import numpy as np
@@ -78,18 +80,27 @@ class IdealObjectSensor(ObjectSensor):
         elif ROS_VERSION == 2:
             self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
         
-        print(f"Type: {type(relative_spawn_pose.orientation)}")
+        # Extract (relative) spawn pose
+        self.relative_spawn_pose = relative_spawn_pose
         # Extract spawn pose and convert (relative) position to carla.Location
-        self.position = Location(x=relative_spawn_pose.position.x, y=relative_spawn_pose.position.y, z=relative_spawn_pose.position.z)
+        self.position = Location(
+            x=relative_spawn_pose.position.x,
+            y=relative_spawn_pose.position.y,
+            z=relative_spawn_pose.position.z
+            )
         # Extract spawn orientation and convert Rotation to carla.Rotation
-        orientation_list = [relative_spawn_pose.orientation.x, relative_spawn_pose.orientation.y, relative_spawn_pose.orientation.z, relative_spawn_pose.orientation.w]
+        orientation_list = [
+            relative_spawn_pose.orientation.x,
+            relative_spawn_pose.orientation.y,
+            relative_spawn_pose.orientation.z,
+            relative_spawn_pose.orientation.w
+            ]
         (roll_rad, pitch_rad, yaw_rad) = euler_from_quaternion(orientation_list)
         roll_deg = math.degrees(roll_rad)
         pitch_deg = math.degrees(pitch_rad)
         yaw_deg = math.degrees(yaw_rad)
         self.rotation = Rotation(pitch=pitch_deg, yaw=yaw_deg, roll=roll_deg)
-        print(f"Rotation sensor: {self.rotation}")
-        # print(f"Data type: {relative_spawn_pose.orientation}")
+        # Extract orientation
         self.orientation = relative_spawn_pose.orientation
 
         # Extract relevant attributes and convert to float
@@ -176,7 +187,7 @@ class IdealObjectSensor(ObjectSensor):
         return azimuth_deg, elevation_deg, dx, dy, dz
     
     def get_ros_transform(self, timestamp):
-        if not self.position and not self.orientation:
+        if not self.relative_spawn_pose:
             self.node.logwarn("{}: No relative spawn pose defined.".format(self.get_prefix()))
             return
         if self.parent is not None:
@@ -190,14 +201,14 @@ class IdealObjectSensor(ObjectSensor):
         transform.header.frame_id = frame_id
         transform.child_frame_id = child_frame_id
 
-        transform.transform.translation.x = self.position.x
-        transform.transform.translation.y = self.position.y
-        transform.transform.translation.z = self.position.z
+        transform.transform.translation.x = self.relative_spawn_pose.position.x
+        transform.transform.translation.y = self.relative_spawn_pose.position.y
+        transform.transform.translation.z = self.relative_spawn_pose.position.z
 
-        transform.transform.rotation.x = self.orientation.x
-        transform.transform.rotation.y = self.orientation.y
-        transform.transform.rotation.z = self.orientation.z
-        transform.transform.rotation.w = self.orientation.w
+        transform.transform.rotation.x = self.relative_spawn_pose.orientation.x
+        transform.transform.rotation.y = self.relative_spawn_pose.orientation.y
+        transform.transform.rotation.z = self.relative_spawn_pose.orientation.z
+        transform.transform.rotation.w = self.relative_spawn_pose.orientation.w
 
         return transform
 
@@ -229,6 +240,7 @@ class IdealObjectSensor(ObjectSensor):
         # Construct sensor location
         if not self.parent:
             # Location and rotation for idealObjectSensor without vehicle parent
+            sensor_pose = self.relative_spawn_pose
             sensor_location = self.position
             sensor_rotation = self.rotation
         else:
@@ -238,76 +250,47 @@ class IdealObjectSensor(ObjectSensor):
                 - Calculate position of the IdealObjectSensor located in vehicle
             """
             ego_vehicle = self.actor_list[self.parent.uid]
-            # ego_vehicle_location = ego_vehicle.carla_actor.get_location()
-            # get ego_vehicle location and rotation
+            # Get ego_vehicle location and rotation
             ego_vehicle_transform = ego_vehicle.carla_actor.get_transform()
             ego_vehicle_location = ego_vehicle_transform.location
-            ego_vehicle_rotation = ego_vehicle_transform.rotation
-
-            # Location for idealObjectSensor including vehicle parent
-            sensor_location = self.position + ego_vehicle_location
-            # Rotation for idealObjectSensor including vehicle parent
-            sensor_rotation = Rotation(
-                pitch = self.rotation.pitch + ego_vehicle_rotation.pitch,
-                yaw = self.rotation.yaw + ego_vehicle_rotation.yaw,
-                roll = self.rotation.roll + ego_vehicle_rotation.roll
+            ego_vehicle_rotation_euler_degree = ego_vehicle_transform.rotation
+            # Convert ego_vehicle rotation from degrees to rad 
+            ego_vehicle_rotation_euler_rad = [
+                math.radians(ego_vehicle_rotation_euler_degree.pitch),
+                math.radians(ego_vehicle_rotation_euler_degree.yaw),
+                math.radians(ego_vehicle_rotation_euler_degree.roll)
+                ]
+            # Convert ego_vehicle rotation from euler to quaternion
+            ego_vehicle_rotation_quaternion = quaternion_from_euler(
+                ego_vehicle_rotation_euler_rad[0],
+                ego_vehicle_rotation_euler_rad[1],
+                ego_vehicle_rotation_euler_rad[2]
+                )
+            # Convert ego_vehicle orientation from vector to geometry_msgs.msg.Quaternion
+            ego_vehicle_orientation = Quaternion(
+                x=ego_vehicle_rotation_quaternion[0],
+                y=ego_vehicle_rotation_quaternion[1],
+                z=ego_vehicle_rotation_quaternion[2],
+                w=ego_vehicle_rotation_quaternion[3]
             )
+            # Location and orientation for idealObjectSensor including vehicle parent
+            sensor_location = self.position + ego_vehicle_location
+            sensor_orientation = Quaternion(
+                x=self.orientation.x + ego_vehicle_orientation.x,
+                y=self.orientation.y + ego_vehicle_orientation.y,
+                z=self.orientation.z + ego_vehicle_orientation.z,
+                w=self.orientation.w + ego_vehicle_orientation.w
+            )
+            # Create sensor pose for carla_map
+            sensor_pose = Pose()
+            sensor_pose.position.x = sensor_location.x
+            sensor_pose.position.y = sensor_location.y
+            sensor_pose.position.z = sensor_location.z
+            sensor_pose.orientation.x = sensor_orientation.x
+            sensor_pose.orientation.y = sensor_orientation.y
+            sensor_pose.orientation.z = sensor_orientation.z
+            sensor_pose.orientation.w = sensor_orientation.w
 
-            pitch = sensor_rotation.pitch
-            yaw = sensor_rotation.yaw
-            roll = sensor_rotation.roll
-            
-            # Rotation matrix around x-axis
-            R_x = np.array((
-                (1, 0, 0),
-                (0, math.cos(math.radians(roll)), -math.sin(math.radians(roll))),
-                (0, math.sin(math.radians(roll)), math.cos(math.radians(roll)))
-            ))
-            # Rotation matrix around y-axis
-            R_y = np.array((
-                (math.cos(math.radians(pitch)), 0, math.sin(math.radians(pitch))),
-                (0, 1, 0),
-                (-math.sin(math.radians(pitch)), 0, math.cos(math.radians(pitch)))
-            ))
-            # Rotation matrix around z-axis
-            R_z = np.array((
-                (math.cos(math.radians(yaw)), -math.sin(math.radians(yaw)), 0),
-                (math.sin(math.radians(yaw)), math.cos(math.radians(yaw)), 0),
-                (0, 0, 1)
-            ))
-
-            # x, y, z axis as vectors
-            x_vector = np.array((1, 0, 0))
-            y_vector = np.array((0, 1, 0))
-            z_vector = np.array((0, 0, 1))
-            
-            # Create transformed x axis vector
-            x_vector_calc_1 = np.matmul(x_vector, R_y)
-            x_vector_calc_2 = np.matmul(x_vector_calc_1, R_z)
-            x_vector_calc_3 = np.matmul(x_vector_calc_2, R_x)
-            x_vector_calc = Vector3D(x=x_vector_calc_3[0], y=x_vector_calc_3[1], z=x_vector_calc_3[2])
-            #Create transformed y axis vector
-            y_vector_calc_1 = np.matmul(y_vector, R_x)
-            y_vector_calc_2 = np.matmul(y_vector_calc_1, R_y)
-            y_vector_calc_3 = np.matmul(y_vector_calc_2, R_z)
-            y_vector_calc = Vector3D(x=y_vector_calc_3[0], y=y_vector_calc_3[1], z=y_vector_calc_3[2])
-            # Create transformed z axis vector
-            z_vector_calc_1 = np.matmul(z_vector, R_x)
-            z_vector_calc_2 = np.matmul(z_vector_calc_1, R_y)
-            z_vector_calc_3 = np.matmul(z_vector_calc_2, R_z)
-            z_vector_calc = Vector3D(x=z_vector_calc_3[0], y=z_vector_calc_3[1], z=z_vector_calc_3[2])
-
-            # Get x,y and z axis vectors with CARLA
-            x_vector_carla = sensor_rotation.get_forward_vector()
-            y_vector_carla = sensor_rotation.get_right_vector()
-            z_vector_carla = sensor_rotation.get_up_vector()
-
-            print(f"x_vector_calc: {x_vector_calc}")
-            print(f"x_vector_carla: {x_vector_carla}")
-            print(f"y_vector_calc: {y_vector_calc}")
-            print(f"y_vector_carla: {y_vector_carla}")
-            print(f"z_vector_calc: {z_vector_calc}")
-            print(f"z_vector_carla: {z_vector_carla}")
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
