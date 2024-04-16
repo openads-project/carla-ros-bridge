@@ -284,12 +284,30 @@ class IdealObjectSensor(ObjectSensor):
             # Create transformed x axis vector
             x_vector_calc_1 = np.matmul(x_vector, R_y)
             x_vector_calc_2 = np.matmul(x_vector_calc_1, R_z)
-            x_vector_calc = Vector3D(x=x_vector_calc_2[0], y=x_vector_calc_2[1], z=x_vector_calc_2[2])
-            # Get x axis vector with CARLA
+            x_vector_calc_3 = np.matmul(x_vector_calc_2, R_x)
+            x_vector_calc = Vector3D(x=x_vector_calc_3[0], y=x_vector_calc_3[1], z=x_vector_calc_3[2])
+            #Create transformed y axis vector
+            y_vector_calc_1 = np.matmul(y_vector, R_x)
+            y_vector_calc_2 = np.matmul(y_vector_calc_1, R_y)
+            y_vector_calc_3 = np.matmul(y_vector_calc_2, R_z)
+            y_vector_calc = Vector3D(x=y_vector_calc_3[0], y=y_vector_calc_3[1], z=y_vector_calc_3[2])
+            # Create transformed z axis vector
+            z_vector_calc_1 = np.matmul(z_vector, R_x)
+            z_vector_calc_2 = np.matmul(z_vector_calc_1, R_y)
+            z_vector_calc_3 = np.matmul(z_vector_calc_2, R_z)
+            z_vector_calc = Vector3D(x=z_vector_calc_3[0], y=z_vector_calc_3[1], z=z_vector_calc_3[2])
+
+            # Get x,y and z axis vectors with CARLA
             x_vector_carla = sensor_rotation.get_forward_vector()
+            y_vector_carla = sensor_rotation.get_right_vector()
+            z_vector_carla = sensor_rotation.get_up_vector()
 
             print(f"x_vector_calc: {x_vector_calc}")
             print(f"x_vector_carla: {x_vector_carla}")
+            print(f"y_vector_calc: {y_vector_calc}")
+            print(f"y_vector_carla: {y_vector_carla}")
+            print(f"z_vector_calc: {z_vector_calc}")
+            print(f"z_vector_carla: {z_vector_carla}")
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
