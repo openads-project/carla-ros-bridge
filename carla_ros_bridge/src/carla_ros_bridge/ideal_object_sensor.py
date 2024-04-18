@@ -35,6 +35,8 @@ from tf_transformations import euler_from_quaternion, quaternion_from_euler
 import math
 import numpy as np
 
+from rclpy.time import Time
+
 ROS_VERSION = roscomp.get_ros_version()
 
 class IdealObjectSensor(ObjectSensor):
@@ -75,6 +77,7 @@ class IdealObjectSensor(ObjectSensor):
                                                    qos_profile=10)
         
         self.queue = queue.Queue()
+        self.tf_buffer = tf2_ros.Buffer()
         if ROS_VERSION == 1:
             self._tf_broadcaster = tf2_ros.TransformBroadcaster()
         elif ROS_VERSION == 2:
@@ -101,7 +104,7 @@ class IdealObjectSensor(ObjectSensor):
         yaw_deg = math.degrees(yaw_rad)
         self.rotation = Rotation(pitch=pitch_deg, yaw=yaw_deg, roll=roll_deg)
         # Extract orientation
-        self.orientation = relative_spawn_pose.orientation
+        self.relative_spawn_pose = relative_spawn_pose
 
         # Extract relevant attributes and convert to float
         for attribute in attributes:
@@ -142,10 +145,15 @@ class IdealObjectSensor(ObjectSensor):
         """
         return "sensor.pseudo.ideal_objects"
     
-    def check_visibility(self, sensor_location, target_location, sensor_rotation, id): 
+    def check_visibility(self, sensor_location, target_location, sensor_pose, target_frame, timestamp, id): 
 
-        # Calculate the Euclidean distance between sensor and target 
+        # Calculate the euclidean distance between sensor and target 
         distance = sensor_location.distance(target_location)
+
+        # Store frame names and lookup transform from sensor to target
+        sensor_frame = self.get_prefix()
+        now = Time()
+        tf_sensor_target = self.tf_buffer.lookup_transform(target_frame, sensor_frame, now)
 
         # Calculate azimuth and elevation between sensor and target
         azimuth_deg, elevation_deg, dx, dy, dz = self.calculate_azimuth_and_elevation(sensor_location, target_location, sensor_rotation, distance)
@@ -242,55 +250,44 @@ class IdealObjectSensor(ObjectSensor):
             # Location and rotation for idealObjectSensor without vehicle parent
             sensor_pose = self.relative_spawn_pose
             sensor_location = self.position
-            sensor_rotation = self.rotation
+            sensor_pose = self.relative_spawn_pose
         else:
             """       
                 - Get the vehicle that the IdealObjectSensor is appended
                 - This can be either ego-vehicle or hero-vehicle based on the sensors.json definitions
                 - Calculate position of the IdealObjectSensor located in vehicle
             """
+            # Get ego_vehicle location and rotation (in degrees)
             ego_vehicle = self.actor_list[self.parent.uid]
-            # Get ego_vehicle location and rotation
             ego_vehicle_transform = ego_vehicle.carla_actor.get_transform()
-            ego_vehicle_location = ego_vehicle_transform.location
-            ego_vehicle_rotation_euler_degree = ego_vehicle_transform.rotation
-            # Convert ego_vehicle rotation from degrees to rad 
-            ego_vehicle_rotation_euler_rad = [
-                math.radians(ego_vehicle_rotation_euler_degree.pitch),
-                math.radians(ego_vehicle_rotation_euler_degree.yaw),
-                math.radians(ego_vehicle_rotation_euler_degree.roll)
-                ]
-            # Convert ego_vehicle rotation from euler to quaternion
-            ego_vehicle_rotation_quaternion = quaternion_from_euler(
-                ego_vehicle_rotation_euler_rad[0],
-                ego_vehicle_rotation_euler_rad[1],
-                ego_vehicle_rotation_euler_rad[2]
-                )
-            # Convert ego_vehicle orientation from vector to geometry_msgs.msg.Quaternion
-            ego_vehicle_orientation = Quaternion(
-                x=ego_vehicle_rotation_quaternion[0],
-                y=ego_vehicle_rotation_quaternion[1],
-                z=ego_vehicle_rotation_quaternion[2],
-                w=ego_vehicle_rotation_quaternion[3]
+
+            # Calculate location and orientation for idealObjectSensor including vehicle parent
+            sensor_location = self.position + ego_vehicle_transform.location
+            sensor_orientation_degree = [
+                self.rotation.pitch + ego_vehicle_transform.rotation.pitch,
+                self.rotation.yaw + ego_vehicle_transform.rotation.yaw,
+                self.rotation.roll + ego_vehicle_transform.rotation.roll
+            ]
+
+            # Convert sensor orientation from degrees to rad
+            sensor_orientation_rad = np.radians(sensor_orientation_degree)
+
+            # Convert sensor orientation from rad to quaternion
+            sensor_orientation = quaternion_from_euler(
+                sensor_orientation_rad[0],
+                sensor_orientation_rad[1],
+                sensor_orientation_rad[2]
             )
-            # Location and orientation for idealObjectSensor including vehicle parent
-            sensor_location = self.position + ego_vehicle_location
-            sensor_orientation = Quaternion(
-                x=self.orientation.x + ego_vehicle_orientation.x,
-                y=self.orientation.y + ego_vehicle_orientation.y,
-                z=self.orientation.z + ego_vehicle_orientation.z,
-                w=self.orientation.w + ego_vehicle_orientation.w
-            )
+
             # Create sensor pose for carla_map
             sensor_pose = Pose()
             sensor_pose.position.x = sensor_location.x
             sensor_pose.position.y = sensor_location.y
             sensor_pose.position.z = sensor_location.z
-            sensor_pose.orientation.x = sensor_orientation.x
-            sensor_pose.orientation.y = sensor_orientation.y
-            sensor_pose.orientation.z = sensor_orientation.z
-            sensor_pose.orientation.w = sensor_orientation.w
-
+            sensor_pose.orientation.x = sensor_orientation[0]
+            sensor_pose.orientation.y = sensor_orientation[1]
+            sensor_pose.orientation.z = sensor_orientation[2]
+            sensor_pose.orientation.w = sensor_orientation[3]
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
@@ -302,9 +299,10 @@ class IdealObjectSensor(ObjectSensor):
                     
                     # Get the location of the target
                     target_location = actor.carla_actor.get_location()
+                    #TODO: get target frame
 
                     # Check visibility of the target
-                    if self.check_visibility(sensor_location, target_location, sensor_rotation, actor.carla_actor.id):
+                    if self.check_visibility(sensor_location, target_location, sensor_pose, target_frame, timestamp, actor.carla_actor.id):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -318,9 +316,10 @@ class IdealObjectSensor(ObjectSensor):
                         
                         # Get the location of the target
                         target_location = vehicle.transform.location
+                        #TODO: get target frame
 
                         # Check visibility of the target
-                        if self.check_visibility(sensor_location, target_location, sensor_rotation, vehicle.id):
+                        if self.check_visibility(sensor_location, target_location, sensor_pose, target_frame, timestamp, vehicle.id):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
