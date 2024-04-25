@@ -59,6 +59,7 @@ class CarlaSpawnObjects(CompatibleNode):
             'vehicle': self.process_vehicle,
             'walker': self.process_vehicle,
             'sensor': self.process_sensor,
+            'actor': self.process_sensor,
             'group': self.process_group,
             'blueprint': self.process_blueprint
         }
