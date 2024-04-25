@@ -43,6 +43,7 @@ import math
 import numpy as np
 
 from rclpy.time import Time
+from rclpy.duration import Duration
 
 ROS_VERSION = roscomp.get_ros_version()
 
@@ -152,20 +153,21 @@ class IdealObjectSensor(ObjectSensor):
         """
         return "sensor.pseudo.ideal_objects"
     
-    def check_visibility(self, sensor_location, target_location, target_pose_in_sensor_frame, timestamp): 
+    def check_visibility(self, sensor_location, target_location, target_pose_in_sensor_frame, timestamp, tp): 
 
-        # Calculate the euclidean distance between sensor and target 
-        distance = sensor_location.distance(target_location)
+        # Calculate the euclidean distance between sensor and target
+        # print(f"sensor_location: {sensor_location}, target_location: {target_location}")
+        # distance = sensor_location.distance(target_location)
 
         # Calculate azimuth and elevation between sensor and target
-        azimuth_deg, elevation_deg = self.calculate_azimuth_and_elevation(target_pose_in_sensor_frame, distance, timestamp)
+        azimut_deg, elevation_deg, distance = self.calculate_azimut_elevation_distance(target_pose_in_sensor_frame, timestamp, tp)
 
         # Check if the target is inside the range and fov of the sensor
         if distance > self.range:
             return False
-        elif azimuth_deg < self.left_fov:
+        elif azimut_deg < self.left_fov:
             return False
-        elif azimuth_deg > self.right_fov:
+        elif azimut_deg > self.right_fov:
             return False
         elif elevation_deg > self.upper_fov:
             return False
@@ -177,22 +179,25 @@ class IdealObjectSensor(ObjectSensor):
             return True
     
 
-    def calculate_azimuth_and_elevation(self, target_pose_in_sensor_frame, distance, timestamp):
+    def calculate_azimut_elevation_distance(self, target_pose_in_sensor_frame, timestamp, tp):
 
         # Get location vaules of pose
         dx = target_pose_in_sensor_frame.position.x
         dy = target_pose_in_sensor_frame.position.y
         dz = target_pose_in_sensor_frame.position.z
 
+        distance = math.sqrt(dx**2 + dy**2 + dz**2)
+        # print(f"dx: {dx}, dy: {dy}, dz: {dz}, distance: {distance}, type: {tp}")
+
         # Calculate azimuth
-        azimuth_rad = math.atan(dy/dx)
-        azimuth_deg = math.degrees(azimuth_rad)
+        azimut_rad = math.atan(dy/dx)
+        azimut_deg = math.degrees(azimut_rad)
 
         # Calculate elevation
         elevation_rad = math.asin(dz/distance)
         elevation_deg = math.degrees(elevation_rad)
 
-        return azimuth_deg, elevation_deg
+        return azimut_deg, elevation_deg, distance
     
 
     def get_ros_transform(self, timestamp):
@@ -247,10 +252,18 @@ class IdealObjectSensor(ObjectSensor):
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
-        # sensor_frame = self.get_prefix()
-        # now = Time()
-        # print(f"Time: {now}")
-        # tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map')
+        sensor_frame = self.get_prefix()
+        # print(f"timestamp: {timestamp}")
+        # print(f"Type timestamp: {type(timestamp)}")
+        # timestamp_time = datetime(timestamp)
+        time_latest_tf = Time(seconds=0)
+        duration_timeout = Duration(seconds=0)
+        # tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
+        try:
+            tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
+            print("YES!")
+        except:
+            print("lookupTransform not working!")
         # print(f"tf_carla_map_to_sensor: {tf_carla_map_to_sensor}")
         # Construct sensor location
 
@@ -326,7 +339,7 @@ class IdealObjectSensor(ObjectSensor):
                     target_pose_in_sensor_frame = do_transform_pose(target_pose_in_carla_map, tf_carla_map_to_sensor)
 
                     # Check visibility of the target
-                    if self.check_visibility(sensor_location, target_location, target_pose_in_sensor_frame, timestamp):
+                    if self.check_visibility(sensor_location, target_location, target_pose_in_sensor_frame, timestamp, 'actor'):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -370,7 +383,7 @@ class IdealObjectSensor(ObjectSensor):
                         target_pose_in_sensor_frame = do_transform_pose(target_pose_in_carla_map, tf_carla_map_to_sensor)
 
                         # Check visibility of the target
-                        if self.check_visibility(sensor_location, target_location, target_pose_in_sensor_frame, timestamp):
+                        if self.check_visibility(sensor_location, target_location, target_pose_in_sensor_frame, timestamp, 'static'):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
