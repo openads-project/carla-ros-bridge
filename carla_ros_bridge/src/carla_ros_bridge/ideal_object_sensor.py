@@ -124,22 +124,16 @@ class IdealObjectSensor(ObjectSensor):
 
         # Check if target is inside the range and fov of the sensor
         if distance > self.range:
-            # print(f"{id}: Distance above range!")
             return False
         elif azimut_deg < self.left_fov:
-            # print(f"{id}: Azimut < left_fov!")
             return False
         elif azimut_deg > self.right_fov:
-            # print(f"{id}: Azimut > right_fov!")
             return False
         elif elevation_deg > self.upper_fov:
-            # print(f"{id}: Elevation > upper_fov!")
             return False
         elif elevation_deg < self.lower_fov:
-            # print(f"{id}: Elevation < lower_fov!")
             return False
         else:
-            print(f"{id}: Object in fov!")
             return True
     
 
@@ -153,7 +147,7 @@ class IdealObjectSensor(ObjectSensor):
         distance = math.sqrt(dx**2 + dy**2 + dz**2)
 
         # Calculate azimuth between target and sensor based on sensor KOS
-        azimut_rad = math.atan(dy/dx)
+        azimut_rad = math.atan2(dy, dx)
         azimut_deg = math.degrees(azimut_rad)
 
         # Calculate elevation between target and sensor based on sensor KOS
