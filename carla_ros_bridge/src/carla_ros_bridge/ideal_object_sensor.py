@@ -21,12 +21,14 @@ import ros_compatibility as roscomp
 
 import tf2_ros
 
-from tf2_geometry_msgs import do_transform_pose
+from tf2_geometry_msgs import do_transform_pose, do_transform_point
 
 import math
 
 from rclpy.time import Time
 from rclpy.duration import Duration
+
+from geometry_msgs.msg import PointStamped
 
 ROS_VERSION = roscomp.get_ros_version()
 
@@ -184,7 +186,13 @@ class IdealObjectSensor(ObjectSensor):
 
         return transform
     
+    def point_to_pointstamped(self, point):
+        # Convert geometry_msgs/Point to geometry_msgs/PointStamped
+        point_stamped = PointStamped()
+        point_stamped.point = point
 
+        return point_stamped
+    
     def publish_tf(self, timestamp):
         # Publish transform of idealObjectSensor
         transform =self.get_ros_transform(timestamp)
@@ -209,7 +217,7 @@ class IdealObjectSensor(ObjectSensor):
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
-        # Get transform from idealIbjectSensor in carla_map
+        # Get ROS transform from idealIbjectSensor in carla_map
         sensor_frame = self.get_prefix()
         time_latest_tf = Time(seconds=0)
         duration_timeout = Duration(seconds=0)
@@ -228,10 +236,22 @@ class IdealObjectSensor(ObjectSensor):
                 actor = self.actor_list[actor_id]
                 if isinstance(actor, Vehicle) or isinstance(actor, Walker):
 
-                    # Get target pose in carla_map and transform to sensor frame
+                    # Get ROS target pose in carla_map and transform to ROS sensor frame
                     target_pose_in_carla_map = actor.get_current_ros_pose()
                     target_pose_in_sensor_frame = do_transform_pose(target_pose_in_carla_map, tf_carla_map_to_sensor)
 
+                    # Get target CARLA.Transform and transform corner list to CARLA target frame
+                    carla_tf_carla_map_to_target = actor.carla_actor.get_transform()
+                    target_bounding_box_in_carla_map = actor.carla_actor.bounding_box
+                    carla_corners_in_carla_map = target_bounding_box_in_carla_map.get_world_vertices(carla_tf_carla_map_to_target)
+
+                    # Convert corner list from CARLA.Location over geometry_msgs/Point to geometry_msgs/PointStamped 
+                    corners_in_carla_map_point = [trans.carla_location_to_ros_point(corner) for corner in carla_corners_in_carla_map]
+                    corners_in_carla_map_pointstamped = [self.point_to_pointstamped(corner) for corner in corners_in_carla_map_point]
+
+                    # Transform corner list from ROS target frame to ROS sensor frame
+                    corners_in_sensor_frame = [do_transform_point(corner, tf_carla_map_to_sensor) for corner in corners_in_carla_map_pointstamped]
+                    
                     # Check visibility of the target
                     if self.check_visibility(target_pose_in_sensor_frame, timestamp, actor_id):
                         ros_objects.objects.append(actor.get_object_info())
