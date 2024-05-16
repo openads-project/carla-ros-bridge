@@ -30,6 +30,8 @@ from rclpy.duration import Duration
 
 from geometry_msgs.msg import PointStamped
 
+import csv # CHECK
+
 ROS_VERSION = roscomp.get_ros_version()
 
 class IdealObjectSensor(ObjectSensor):
@@ -160,61 +162,143 @@ class IdealObjectSensor(ObjectSensor):
     def calculate_distance(self, coordinates):
         # Calculate distance between coordinates and sensor
         return math.sqrt(coordinates.x**2 + coordinates.y**2 + coordinates.z**2)
-
     
-    def check_visibility(self, target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, id): 
+    def format_data(self, data):
+        if isinstance(data, list):
+            csv_writer = csv.writer([data])
+            formatierte_daten = next(csv_writer)
+        else:
+            print("Could not save list!")
+            
+        return formatierte_daten[0]
+        
+    def save_data(self, data):
+        with open("terminal.txt", "a") as datei:
+            formatierte_daten = self.format_data(data)
+            datei.write(formatierte_daten)
+
+    def check_visibility(self, target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, id, object_key):
+        check_list = list() # CHECK
+        check_list.append(id) # CHECK
+        check_list.append(target_pose_in_sensor_frame.position) # CHECK
         # Calculate distance between sensor and target
         distance = self.calculate_distance(target_pose_in_sensor_frame.position)
+        check_list.append(distance) # CHECK
 
         # Set distance variance in [Meters]
         dinstance_variance = 10.0
 
         # Filter objects that are far outside the sensor range
         if abs(distance-dinstance_variance) > self.range:
-            print(f"(ID {id}): Vehicle out of distance")
+            check_list.append(False) # CHECK
+            # self.save_data(check_list) # CHECK
+            # if object_key is not None: # CHECK
+            #     if str.lower(object_key) == 'car': # CHECK
+            #         print(check_list) #  CHECK
+            # print(f"(ID {id}): Vehicle out of distance")
             return False
-        
+        else: # CHECK
+            check_list.append(True) # CHECK
+
         # Filter corners that are outside the sensor range and return if not enough corners are visible
         corner_list_distance = list()
+        check_corner_list = list() # CHECK
+        check_corner_list_distance = list() # CHECK
+        check_corner_list_distance_boolean = list() # CHECK
         for corner in corners_in_sensor_frame:
+            check_corner_list.append(corner.point) # CHECK
             corner_distance = self.calculate_distance(corner.point)
+            check_corner_list_distance.append(corner_distance) # CHECK
             if corner_distance > self.range:
+                check_corner_list_distance_boolean.append(False) # CHECK
                 # print(f"(ID {id}): Corner out of distance")
                 continue
             else:
+                check_corner_list_distance_boolean.append(True) # CHECK
                 corner_list_distance.append([corner.point, corner_distance])
 
+        check_list.append(check_corner_list) # CHECK
+        check_list.append(check_corner_list_distance) # CHECK
+        check_list.append(check_corner_list_distance_boolean) # CHECK
+        check_list.append(self.min_corner_amount) # CHECK
         if len(corner_list_distance) < self.min_corner_amount:
+            check_list.append(False) # CHECK
+            # self.save_data(check_list) # CHECK
+            # if object_key is not None: # CHECK
+            #     if str.lower(object_key) == 'car': # CHECK
+            #         print(check_list) # CHECK
             # print(f"(ID {id}): All corners out of distance")
             return False
+        else:
+            check_list.append(True) # CHECK
         
         # Filter corners that are outside the fov and return if not enough corners are visible
         corner_list_fov = list()
+        check_list_azimuth = list() # CHECK
+        check_list_elevation = list() # CHECK
+        check_list_in_left_fov = list() # CHECK
+        check_list_in_right_fov = list() # CHECK
+        check_list_in_upper_fov = list() # CHECK
+        check_list_in_lower_fov = list() # CHECK
         for corner in corner_list_distance:
             # Calculate azimuth and elevation
             azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(corner[0], corner[1])
+            check_list_azimuth.append(azimuth_deg) # CHECK
+            check_list_elevation.append(elevation_deg) # CHECK
             # Check, if point is inside the fov of the sensor
             if azimuth_deg < self.left_fov:
+                check_list_in_left_fov.append(False) # CHECK
+                check_list_in_right_fov.append(None) # CHECK
+                check_list_in_upper_fov.append(None) # CHECK
+                check_list_in_lower_fov.append(None) # CHECK
                 # print(f"(ID {id}): Corner not in left FOV")
                 continue
             elif azimuth_deg > self.right_fov:
+                check_list_in_left_fov.append(True) # CHECK
+                check_list_in_right_fov.append(False) # CHECK
+                check_list_in_upper_fov.append(None) # CHECK
+                check_list_in_lower_fov.append(None) # CHECK
                 # print(f"(ID {id}): Corner not in right FOV")
                 continue
             elif elevation_deg > self.upper_fov:
+                check_list_in_left_fov.append(True) # CHECK
+                check_list_in_right_fov.append(True) # CHECK
+                check_list_in_upper_fov.append(False) # CHECK
+                check_list_in_lower_fov.append(None) # CHECK
                 # print(f"(ID {id}): Corner not in upper FOV")
                 continue
             elif elevation_deg < self.lower_fov:
+                check_list_in_left_fov.append(True) # CHECK
+                check_list_in_right_fov.append(True) # CHECK
+                check_list_in_upper_fov.append(True) # CHECK
+                check_list_in_lower_fov.append(False) # CHECK
                 # print(f"(ID {id}): Corner not in lower FOV")
                 continue
             else:
+                check_list_in_left_fov.append(True) # CHECK
+                check_list_in_right_fov.append(True) # CHECK
+                check_list_in_upper_fov.append(True) # CHECK
+                check_list_in_lower_fov.append(True) # CHECK
                 corner.append(azimuth_deg)
                 corner.append(elevation_deg)
                 corner_list_fov.append(corner)
-        
+        check_list.append(check_list_in_left_fov) # CHECK
+        check_list.append(check_list_in_right_fov) # CHECK
+        check_list.append(check_list_in_upper_fov) # CHECK
+        check_list.append(check_list_in_lower_fov) # CHECK
         if len(corner_list_fov) < self.min_corner_amount:
+            check_list.append(False) # CHECK
+            # self.save_data(check_list) # CHECK
+            # if object_key is not None: # CHECK
+            #     if str.lower(object_key) == 'car': # CHECK
+            #         print(check_list) # CHECK
             # print(f"(ID {id}): Not enough corners in FOV")
             return False
-        
+        check_list.append(True) # CHECK
+        # self.save_data(check_list) # CHECK
+        # if object_key is not None: # CHECK
+        #     if str.lower(object_key) == 'car': # CHECK
+        #         print(check_list) # CHECK
         # print(f"(ID {id}): Vehicle visible!")
         return True    
 
@@ -319,7 +403,7 @@ class IdealObjectSensor(ObjectSensor):
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
-            
+
             # Currently only vehicles and walkers are added to the object array
             if self.parent is None or self.parent.uid != actor_id:
                 actor = self.actor_list[actor_id]
@@ -335,13 +419,15 @@ class IdealObjectSensor(ObjectSensor):
                     corners_in_sensor_frame = self.convert_target_corner(carla_tf_carla_map_to_target, bounding_box_in_target_frame, tf_carla_map_to_sensor)
 
                     # Check visibility of the target
-                    if self.check_visibility(target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, actor_id):
+                    if self.check_visibility(target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, actor_id, None):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
         if(self.node.parameters['publish_static_vehicles']):
             for object_key, object_value in self.OBJECT_LABELS.items():
                 static_vehicles = self.world.get_environment_objects(object_key)
+                print(f"type of object_key: {type(object_key)}")
+                print(f"object_key: {object_key}")
 
                 for vehicle in static_vehicles:
                     # Take only vehicles with bounding_box attribute set
@@ -356,7 +442,7 @@ class IdealObjectSensor(ObjectSensor):
                         corners_in_sensor_frame = self.convert_target_corner(carla_tf_carla_map_to_target, target_bounding_box_in_target_frame, tf_carla_map_to_sensor)
 
                         # Check visibility of the target
-                        if self.check_visibility(target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, vehicle.id):
+                        if self.check_visibility(target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, vehicle.id, object_key):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
