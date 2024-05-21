@@ -162,121 +162,56 @@ class IdealObjectSensor(ObjectSensor):
     def calculate_distance(self, coordinates):
         # Calculate distance between coordinates and sensor
         return math.sqrt(coordinates.x**2 + coordinates.y**2 + coordinates.z**2)
-        
-    def save_data(self, data): # CHECK
-        with open("/docker-ros/ws/src/target/terminal.txt", "a") as datei: # CHECK
-            for zeile in data: # CHECK
-                datei.write(zeile) # CHECK
 
-    def check_visibility(self, target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, id, object_key):
-        id_check = 1731148931 # CHECK
-        check_list = list() # CHECK
-        check_list.append(id) # CHECK
-        check_list.append(target_pose_in_sensor_frame.position) # CHECK
+    def check_visibility(self, target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp):
+
         # Calculate distance between sensor and target
         distance = self.calculate_distance(target_pose_in_sensor_frame.position)
-        check_list.append(distance) # CHECK
 
         # Set distance variance in [Meters]
         dinstance_variance = 10.0
 
         # Filter objects that are far outside the sensor range
         if abs(distance-dinstance_variance) > self.range:
-            check_list.append(False) # CHECK
-            if id == id_check: # CHECK
-                print(check_list) # CHECK
             return False
-        else: # CHECK
-            check_list.append(True) # CHECK
 
         # Filter corners that are outside the sensor range and return if not enough corners are visible
         corner_list_distance = list()
-        check_corner_list = list() # CHECK
-        check_corner_list_distance = list() # CHECK
-        check_corner_list_distance_boolean = list() # CHECK
+
         for corner in corners_in_sensor_frame:
-            check_corner_list.append(corner.point) # CHECK
             corner_distance = self.calculate_distance(corner.point)
-            check_corner_list_distance.append(corner_distance) # CHECK
             if corner_distance > self.range:
-                check_corner_list_distance_boolean.append(False) # CHECK
                 continue
             else:
-                check_corner_list_distance_boolean.append(True) # CHECK
                 corner_list_distance.append([corner.point, corner_distance])
 
-        check_list.append(check_corner_list) # CHECK
-        check_list.append(check_corner_list_distance) # CHECK
-        check_list.append(check_corner_list_distance_boolean) # CHECK
-        check_list.append(self.min_corner_amount) # CHECK
         if len(corner_list_distance) < self.min_corner_amount:
-            check_list.append(False) # CHECK
-            if id == id_check: # CHECK
-                print(check_list) # CHECK
             return False
-        else:
-            check_list.append(True) # CHECK
         
         # Filter corners that are outside the fov and return if not enough corners are visible
         corner_list_fov = list()
-        check_list_azimuth = list() # CHECK
-        check_list_elevation = list() # CHECK
-        check_list_in_left_fov = list() # CHECK
-        check_list_in_right_fov = list() # CHECK
-        check_list_in_upper_fov = list() # CHECK
-        check_list_in_lower_fov = list() # CHECK
+
         for corner in corner_list_distance:
             # Calculate azimuth and elevation
             azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(corner[0], corner[1])
-            check_list_azimuth.append(azimuth_deg) # CHECK
-            check_list_elevation.append(elevation_deg) # CHECK
+
             # Check, if point is inside the fov of the sensor
             if azimuth_deg < self.left_fov:
-                check_list_in_left_fov.append(False) # CHECK
-                check_list_in_right_fov.append(None) # CHECK
-                check_list_in_upper_fov.append(None) # CHECK
-                check_list_in_lower_fov.append(None) # CHECK
                 continue
             elif azimuth_deg > self.right_fov:
-                check_list_in_left_fov.append(True) # CHECK
-                check_list_in_right_fov.append(False) # CHECK
-                check_list_in_upper_fov.append(None) # CHECK
-                check_list_in_lower_fov.append(None) # CHECK
                 continue
             elif elevation_deg > self.upper_fov:
-                check_list_in_left_fov.append(True) # CHECK
-                check_list_in_right_fov.append(True) # CHECK
-                check_list_in_upper_fov.append(False) # CHECK
-                check_list_in_lower_fov.append(None) # CHECK
                 continue
             elif elevation_deg < self.lower_fov:
-                check_list_in_left_fov.append(True) # CHECK
-                check_list_in_right_fov.append(True) # CHECK
-                check_list_in_upper_fov.append(True) # CHECK
-                check_list_in_lower_fov.append(False) # CHECK
                 continue
             else:
-                check_list_in_left_fov.append(True) # CHECK
-                check_list_in_right_fov.append(True) # CHECK
-                check_list_in_upper_fov.append(True) # CHECK
-                check_list_in_lower_fov.append(True) # CHECK
                 corner.append(azimuth_deg)
                 corner.append(elevation_deg)
                 corner_list_fov.append(corner)
-        check_list.append(check_list_azimuth) # CHECK
-        check_list.appen(check_list_elevation) # CHECK
-        check_list.append(check_list_in_left_fov) # CHECK
-        check_list.append(check_list_in_right_fov) # CHECK
-        check_list.append(check_list_in_upper_fov) # CHECK
-        check_list.append(check_list_in_lower_fov) # CHECK
+
         if len(corner_list_fov) < self.min_corner_amount:
-            check_list.append(False) # CHECK
-            if id == id_check: # CHECK
-                print(check_list) # CHECK
             return False
-        check_list.append(True) # CHECK
-        if id == id_check: # CHECK
-            print(check_list) # CHECK
+
         return True    
 
     def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
@@ -339,17 +274,14 @@ class IdealObjectSensor(ObjectSensor):
             if roscomp.ok():
                 self.node.logwarn("Sensor {} failed to send transform.".fromat(self.uid))
 
-    def convert_target_corner(self, carla_tf_carla_map_to_target, bounding_box_in_target_frame, tf_carla_map_to_sensor):
-
-        # Transform target corners from target frame to carla_map frame (CARLA.Location)
-        carla_corners_in_carla_map = bounding_box_in_target_frame.get_world_vertices(carla_tf_carla_map_to_target)
+    def convert_target_corner(self, carla_corners_in_carla_map, ros_tf_carla_map_to_sensor):
 
         # Convert target corners from CARLA.Location to geometry_msgs/PointStamped (ROS)
         ros_corners_in_carla_map_point = [trans.carla_location_to_ros_point(corner) for corner in carla_corners_in_carla_map]
         ros_corners_in_carla_map_pointstamped = [self.point_to_pointstamped(corner) for corner in ros_corners_in_carla_map_point]
 
         # Transform target corners from carla_map frame to sensor frame
-        corners_in_sensor_frame = [do_transform_point(corner, tf_carla_map_to_sensor) for corner in ros_corners_in_carla_map_pointstamped]
+        corners_in_sensor_frame = [do_transform_point(corner, ros_tf_carla_map_to_sensor) for corner in ros_corners_in_carla_map_pointstamped]
         
         return corners_in_sensor_frame
 
@@ -372,17 +304,14 @@ class IdealObjectSensor(ObjectSensor):
         time_latest_tf = Time(seconds=0)
         duration_timeout = Duration(seconds=0)
         try:
-            tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
+            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
         except:
             self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
                 self.__class__.__name__, sensor_frame, 'carla_map', frame))
             return
         
-        actors_list = list() # CHECK
-        actors_list.append("Actors:\n") # CHECK
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
-            actors_list.append("    " + str(actor_id) + "\n") # CHECK
 
             # Currently only vehicles and walkers are added to the object array
             if self.parent is None or self.parent.uid != actor_id:
@@ -390,44 +319,44 @@ class IdealObjectSensor(ObjectSensor):
                 if isinstance(actor, Vehicle) or isinstance(actor, Walker):
 
                     # Get ROS target pose in carla_map and transform to ROS sensor frame
-                    target_pose_in_carla_map = actor.get_current_ros_pose()
-                    target_pose_in_sensor_frame = do_transform_pose(target_pose_in_carla_map, tf_carla_map_to_sensor)
+                    ros_target_pose_in_carla_map = actor.get_current_ros_pose()
+                    ros_target_pose_in_sensor_frame = do_transform_pose(ros_target_pose_in_carla_map, ros_tf_carla_map_to_sensor)
                     
-                    # Get corners of target bounding box in sensor frame
+                    # Get corners from target BoundingBox and convert location from CARLA carla_map into ROS sensor frame
                     carla_tf_carla_map_to_target = actor.carla_actor.get_transform()
-                    bounding_box_in_target_frame = actor.carla_actor.bounding_box
-                    corners_in_sensor_frame = self.convert_target_corner(carla_tf_carla_map_to_target, bounding_box_in_target_frame, tf_carla_map_to_sensor)
+                    
+                    bounding_box = actor.carla_actor.bounding_box
+                    carla_corners_in_carla_map = bounding_box.get_world_vertices(carla_tf_carla_map_to_target)
+
+                    corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                     # Check visibility of the target
-                    if self.check_visibility(target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, actor_id, None):
+                    if self.check_visibility(ros_target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
         if(self.node.parameters['publish_static_vehicles']):
-            static_vehicle_list = list() # CHECK
-            static_vehicle_list.append("Static Vehicles:\n") # CHECK
             for object_key, object_value in self.OBJECT_LABELS.items():
-                static_vehicle_list.append("    " + str(object_key) + ":\n") # CHECK
+
                 static_vehicles = self.world.get_environment_objects(object_key)
 
                 for vehicle in static_vehicles:
-                    static_vehicle_list.append("    " + "    " + str(ctypes.c_uint32(vehicle.id).value) + "\n") # CHECK
                     # Take only vehicles with bounding_box attribute set
                     if hasattr(vehicle, "bounding_box"):
-                        # Get target pose in carla_map and transform to sensor frame
-                        target_pose_in_carla_map = trans.carla_transform_to_ros_pose(vehicle.transform)
-                        target_pose_in_sensor_frame = do_transform_pose(target_pose_in_carla_map, tf_carla_map_to_sensor)
 
-                        carla_tf_carla_map_to_target = vehicle.transform
-                        target_bounding_box_in_target_frame = vehicle.bounding_box
-                        corners_in_sensor_frame = self.convert_target_corner(carla_tf_carla_map_to_target, target_bounding_box_in_target_frame, tf_carla_map_to_sensor)
+                        # Get target pose in carla_map and transform to sensor frame
+                        ros_target_pose_in_carla_map = trans.carla_transform_to_ros_pose(vehicle.transform)
+                        ros_target_pose_in_sensor_frame = do_transform_pose(ros_target_pose_in_carla_map, ros_tf_carla_map_to_sensor)
+
+                        # Get corners from target BoundingBox and convert location from CARLA carla_map to ROS sensor frame
+                        bounding_box = vehicle.bounding_box
+                        carla_corners_in_carla_map = bounding_box.get_local_vertices()
+
+                        corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                         # Check visibility of the target
-                        if self.check_visibility(target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp, ctypes.c_uint32(vehicle.id).value, object_key):
+                        if self.check_visibility(ros_target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
-        
-        self.save_data(actors_list) # CHECK
-        self.save_data(static_vehicle_list) # CHECK
 
         self.object_publisher.publish(ros_objects)
