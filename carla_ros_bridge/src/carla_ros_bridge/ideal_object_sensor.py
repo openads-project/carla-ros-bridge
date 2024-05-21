@@ -208,7 +208,12 @@ class IdealObjectSensor(ObjectSensor):
                 corner.append(azimuth_deg)
                 corner.append(elevation_deg)
                 corner_list_fov.append(corner)
-
+        check_list.append(check_list_azimuth) # CHECK
+        check_list.append(check_list_elevation) # CHECK
+        check_list.append(check_list_in_left_fov) # CHECK
+        check_list.append(check_list_in_right_fov) # CHECK
+        check_list.append(check_list_in_upper_fov) # CHECK
+        check_list.append(check_list_in_lower_fov) # CHECK
         if len(corner_list_fov) < self.min_corner_amount:
             return False
 
