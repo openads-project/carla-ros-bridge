@@ -389,7 +389,7 @@ class CarlaSpawnObjects(CompatibleNode):
                 group["id"], e))
             return
 
-        except RuntimeError as e:
+        except Exception as e:
             self.logerr(
                 "Group {} will not be spawned: {}".format(group["id"], e))
             return
