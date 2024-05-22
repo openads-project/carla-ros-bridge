@@ -394,11 +394,6 @@ class CarlaSpawnObjects(CompatibleNode):
                 "Group {} will not be spawned: {}".format(group["id"], e))
             return
 
-        except:
-            self.logerr(
-                "Group {} will not be spawned".format(group["id"]))
-            return
-
         # broadcast static static transform from parent to group
         static_transform = geometry_msgs.msg.TransformStamped()
         if ROS_VERSION == 1:
