@@ -28,7 +28,7 @@ import math
 from rclpy.time import Time
 from rclpy.duration import Duration
 
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import Point, PointStamped
 
 import ctypes # CHECK
 
@@ -137,7 +137,7 @@ class IdealObjectSensor(ObjectSensor):
         try:
             self.min_corner_amount
         except:
-            self.min_corner_amount = 6
+            self.min_corner_amount = 3
             self.node.logwarn(
                 "No minimal corner amount attribute found for IdealObjectSensor. Using default value of {} corners.".format(self.min_corner_amount)
             )
@@ -163,7 +163,7 @@ class IdealObjectSensor(ObjectSensor):
         # Calculate distance between coordinates and sensor
         return math.sqrt(coordinates.x**2 + coordinates.y**2 + coordinates.z**2)
 
-    def check_visibility(self, target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp):
+    def check_visibility(self, target_pose_in_sensor_frame, corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, id, is_actor):
 
         # Calculate distance between sensor and target
         distance = self.calculate_distance(target_pose_in_sensor_frame.position)
@@ -173,28 +173,53 @@ class IdealObjectSensor(ObjectSensor):
 
         # Filter objects that are far outside the sensor range
         if abs(distance-dinstance_variance) > self.range:
+            if is_actor: # CHECK
+                print(f"ID {id}: Vehicle outside of sensor range!") # CHECK
             return False
 
         # Filter corners that are outside the sensor range and return if not enough corners are visible
         corner_list_distance = list()
 
-        for corner in corners_in_sensor_frame:
+        for corner_num, corner in enumerate(corners_in_sensor_frame):
             corner_distance = self.calculate_distance(corner.point)
             if corner_distance > self.range:
                 continue
             else:
-                corner_list_distance.append([corner.point, corner_distance])
+                corner_list_distance.append([corner_num, corner.point, corner_distance])
 
         if len(corner_list_distance) < self.min_corner_amount:
+            if is_actor: # CHECK
+                print(f"ID {id}: Too many corners outside of sensor range!") # CHECK
             return False
+
+        # Filter corners that are covered by other objects and return if not enough corners are visible
+        corner_list_not_covered = list()
+
+        for corner in corner_list_distance:
+            carla_corner_location = carla_corners_in_carla_map[corner[0]]
+            hit_points = self.world.cast_ray(carla_location_sensor_in_carla_map, carla_corner_location)
+            if hit_points:
+                hit_point = hit_points[0]
+                distance_hit_to_corner = hit_point.location.distance(carla_corner_location)
+                if distance_hit_to_corner > 0.5:
+                    # if is_actor: # CHECK
+                    #     print(f"Sensor Location: {carla_location_sensor_in_carla_map}") # CHECK
+                    #     print(f"ID {id} corner location: {carla_corner_location}") # CHECK
+                    #     print(f"ID {id} hit points: {hit_points}") # CHECK
+                    continue
+            corner_list_not_covered.append(corner)
         
+        if len(corner_list_not_covered) < self.min_corner_amount:
+            if is_actor: # CHECK
+                print(f"ID {id}: Too many corners are covered!") # CHECK
+            return False
+
         # Filter corners that are outside the fov and return if not enough corners are visible
         corner_list_fov = list()
 
-        for corner in corner_list_distance:
+        for corner in corner_list_not_covered:
             # Calculate azimuth and elevation
-            azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(corner[0], corner[1])
-
+            azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(corner[1], corner[2])
             # Check, if point is inside the fov of the sensor
             if azimuth_deg < self.left_fov:
                 continue
@@ -204,14 +229,16 @@ class IdealObjectSensor(ObjectSensor):
                 continue
             elif elevation_deg < self.lower_fov:
                 continue
-            else:
-                corner.append(azimuth_deg)
-                corner.append(elevation_deg)
-                corner_list_fov.append(corner)
+            corner_list_fov.append(corner)
                 
         if len(corner_list_fov) < self.min_corner_amount:
+            if is_actor: # CHECK
+                print(f"ID {id}: Too many corners are outside sensor fov!") # CHECK
             return False
 
+        # Object is in distance, in fov and directly visible
+        # if is_actor: # CHECK
+        #     print(f"ID {id}: Vehicle is in sensor view!") # CHECK
         return True    
 
     def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
@@ -229,7 +256,6 @@ class IdealObjectSensor(ObjectSensor):
         elevation_deg = math.degrees(elevation_rad)
 
         return azimut_deg, elevation_deg
-    
 
     def get_ros_transform(self, timestamp):
         # Get transform of idealObjectSensor
@@ -309,7 +335,16 @@ class IdealObjectSensor(ObjectSensor):
             self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
                 self.__class__.__name__, sensor_frame, 'carla_map', frame))
             return
-        
+
+        # Convert ROS Translation from carla_map to sensor into geometry_msgs/Point
+        ros_point_sensor_in_carla_map = Point(
+            x=ros_tf_carla_map_to_sensor.transform.translation.x,
+            y=ros_tf_carla_map_to_sensor.transform.translation.y,
+            z=ros_tf_carla_map_to_sensor.transform.translation.z
+        )
+        # Convert ROS Point to CARLA Location
+        carla_location_sensor_in_carla_map = trans.ros_point_to_carla_location(ros_point_sensor_in_carla_map)
+
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
 
@@ -331,7 +366,7 @@ class IdealObjectSensor(ObjectSensor):
                     corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                     # Check visibility of the target
-                    if self.check_visibility(ros_target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp):
+                    if self.check_visibility(ros_target_pose_in_sensor_frame, corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, actor_id, True):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -355,7 +390,7 @@ class IdealObjectSensor(ObjectSensor):
                         corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                         # Check visibility of the target
-                        if self.check_visibility(ros_target_pose_in_sensor_frame, corners_in_sensor_frame, timestamp):
+                        if self.check_visibility(ros_target_pose_in_sensor_frame, corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, ctypes.c_uint32(vehicle.id).value, False):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
