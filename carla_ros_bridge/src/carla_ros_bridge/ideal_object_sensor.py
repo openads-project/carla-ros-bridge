@@ -195,10 +195,18 @@ class IdealObjectSensor(ObjectSensor):
         # Filter corners that are covered by other objects and return if not enough corners are visible
         corner_list_not_covered = list()
 
+        if is_actor:
+            print(f"ID {id} sensor location: {carla_location_sensor_in_carla_map}")
+
         for corner in corner_list_distance:
             carla_corner_location = carla_corners_in_carla_map[corner[0]]
             hit_points = self.world.cast_ray(carla_location_sensor_in_carla_map, carla_corner_location)
             if hit_points:
+            #     if is_actor:
+            #         print(f"ID {id} corner {corner[0]} location: {carla_corner_location}")
+            #         for n, hit_point in enumerate(hit_points):
+            #             print(f"ID {id} corner {corner[0]} hit point {n} location: {hit_point.location}")
+                #         print(f"ID {id} hit point {n}: {hit_point.label}")
                 hit_point = hit_points[0]
                 distance_hit_to_corner = hit_point.location.distance(carla_corner_location)
                 if distance_hit_to_corner > 0.5:
@@ -210,8 +218,8 @@ class IdealObjectSensor(ObjectSensor):
             corner_list_not_covered.append(corner)
         
         if len(corner_list_not_covered) < self.min_corner_amount:
-            if is_actor: # CHECK
-                print(f"ID {id}: Too many corners are covered!") # CHECK
+            # if is_actor: # CHECK
+                # print(f"ID {id}: Too many corners are covered!") # CHECK
             return False
 
         # Filter corners that are outside the fov and return if not enough corners are visible
@@ -232,8 +240,8 @@ class IdealObjectSensor(ObjectSensor):
             corner_list_fov.append(corner)
                 
         if len(corner_list_fov) < self.min_corner_amount:
-            if is_actor: # CHECK
-                print(f"ID {id}: Too many corners are outside sensor fov!") # CHECK
+            # if is_actor: # CHECK
+                # print(f"ID {id}: Too many corners are outside sensor fov!") # CHECK
             return False
 
         # Object is in distance, in fov and directly visible
@@ -330,7 +338,11 @@ class IdealObjectSensor(ObjectSensor):
         time_latest_tf = Time(seconds=0)
         duration_timeout = Duration(seconds=0)
         try:
-            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
+            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map' , time_latest_tf, duration_timeout)
+            ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
+
+
+            
         except:
             self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
                 self.__class__.__name__, sensor_frame, 'carla_map', frame))
@@ -338,13 +350,16 @@ class IdealObjectSensor(ObjectSensor):
 
         # Convert ROS Translation from carla_map to sensor into geometry_msgs/Point
         ros_point_sensor_in_carla_map = Point(
-            x=ros_tf_carla_map_to_sensor.transform.translation.x,
-            y=ros_tf_carla_map_to_sensor.transform.translation.y,
-            z=ros_tf_carla_map_to_sensor.transform.translation.z
+            x=ros_tf_sensor_to_carla_map.transform.translation.x,
+            y=ros_tf_sensor_to_carla_map.transform.translation.y,
+            z=ros_tf_sensor_to_carla_map.transform.translation.z
         )
+        # print(f"ros location ego_vehicle: {self.parent}")
+        print(f"ros point: {ros_point_sensor_in_carla_map}")
+        print(f"ros transform: {ros_tf_sensor_to_carla_map}")
         # Convert ROS Point to CARLA Location
         carla_location_sensor_in_carla_map = trans.ros_point_to_carla_location(ros_point_sensor_in_carla_map)
-
+        print(f"carla location: {carla_location_sensor_in_carla_map}")
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
 
@@ -361,7 +376,11 @@ class IdealObjectSensor(ObjectSensor):
                     carla_tf_carla_map_to_target = actor.carla_actor.get_transform()
                     
                     bounding_box = actor.carla_actor.bounding_box
+                    carla_corners_in_parent_frame = bounding_box.get_local_vertices()
                     carla_corners_in_carla_map = bounding_box.get_world_vertices(carla_tf_carla_map_to_target)
+                    # print(f"ID {actor_id} carla target tf: {carla_tf_carla_map_to_target}")
+                    # print(f"ID {actor_id} carla corners: {[[corner.x, corner.y, corner.z] for corner in carla_corners_in_parent_frame]}")
+                    # print(f"ID {actor_id} carla corners transformed: {[[corner.x, corner.y, corner.z] for corner in carla_corners_in_carla_map]}")
 
                     corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
@@ -386,6 +405,7 @@ class IdealObjectSensor(ObjectSensor):
                         # Get corners from target BoundingBox and convert location from CARLA carla_map to ROS sensor frame
                         bounding_box = vehicle.bounding_box
                         carla_corners_in_carla_map = bounding_box.get_local_vertices()
+                        # print(f"carla corners static objects: {carla_corners_in_carla_map}")
 
                         corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
