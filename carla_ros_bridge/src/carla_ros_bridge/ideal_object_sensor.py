@@ -220,27 +220,34 @@ class IdealObjectSensor(ObjectSensor):
         corner_list_filter_4 = list()
 
         check_num = True # CHECK
-        check_num_2 = False # CHECK
-        for corner_num, corner in enumerate(corner_list_filter_3):
+        check_num_3 = False # CHECK
+        for corner_num, corner in enumerate(corner_list_filter_3): # remove corner_num and enumerate(...) after completed
+            check_num_2 = True # CHECK
             hit_points = list()
+            hit = False
             # Send ray from sensor to corner and check for objects
             hit_points = self.world.cast_ray(carla_location_sensor_in_carla_map, corner)
             if hit_points:
-                if is_actor: # CHECK
-                    if check_num: # CHECK
-                        print(f"ID {id} sensor: {carla_location_sensor_in_carla_map}") # CHECK
-                        check_num = False # CHECK
-                    print(f"    ID {id} corner {corner_num}: {corner}") # CHECK
-                    for hit_point_num, hit_point in enumerate(hit_points): # CHECK
-                        if hit_point.label is carla.CityObjectLabel.Roads:
-                            distance = hit_point.location.distance(corner)
-                            print(f"        ID {id} hit_point {hit_point_num}: {hit_point.label} {hit_point.location} {distance}")
-                        else:
-                            print(f"        ID {id} hit_point {hit_point_num}: {hit_point.label} {hit_point.location}") # CHECK
-                    check_num_2 = True # CHECK
-                continue
+                for hit_point_num, hit_point in enumerate(hit_points): # remove hit_point_num and enumerate(...) after completed
+                    if hit_point.label is carla.CityObjectLabel.Roads and hit_point.location.distance(corner) > 0.15:
+                        continue
+                    if hit_point.label is carla.CityObjectLabel.NONE:
+                        continue
+                    if is_actor: # CHECK
+                        if check_num: # CHECK
+                            print(f"ID {id} sensor: {carla_location_sensor_in_carla_map}") # CHECK
+                            check_num = False # CHECK
+                        if check_num_2: # CHECK
+                            print(f"    ID {id} corner {corner_num}: {corner}") # CHECK
+                            check_num_2 = False # CHECK
+                        print(f"        ID {id} hit_point {hit_point_num}: {hit_point.label} {hit_point.location}") # CHECK
+                        check_num_3 = True # CHECK
+                    # Hit is relevant --> continue with next corner
+                    hit = True
+                    break
+                if hit: continue
             corner_list_filter_4.append(corner)
-        if check_num_2: # CHECK
+        if check_num_3: # CHECK
             print(" ") # CHECK
         
         if len(corner_list_filter_4) < self.min_corner_amount:
