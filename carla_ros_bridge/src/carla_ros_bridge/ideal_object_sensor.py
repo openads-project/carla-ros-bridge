@@ -32,6 +32,8 @@ from geometry_msgs.msg import Point, PointStamped
 
 import ctypes # CHECK
 
+import carla
+
 ROS_VERSION = roscomp.get_ros_version()
 
 class IdealObjectSensor(ObjectSensor):
@@ -164,7 +166,7 @@ class IdealObjectSensor(ObjectSensor):
         return math.sqrt(coordinates.x**2 + coordinates.y**2 + coordinates.z**2)
 
     def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, id, is_actor):
-        
+
         # FILTER 1
         # Calculate distance between sensor and target
         distance = carla_location_sensor_in_carla_map.distance(carla_location_target_in_carla_map)
@@ -174,8 +176,6 @@ class IdealObjectSensor(ObjectSensor):
 
         # Filter objects that are far outside the sensor range
         if abs(distance-dinstance_variance) > self.range:
-            if is_actor: # CHECK
-                print(f"ID {id}: Vehicle outside of sensor range!") # CHECK
             return False
         
         # FILTER 2
@@ -219,16 +219,35 @@ class IdealObjectSensor(ObjectSensor):
         # Filter corners that are covered by other objects and return if not enough corners are visible
         corner_list_filter_4 = list()
 
-        for corner in corner_list_filter_3:
+        check_num = True # CHECK
+        check_num_2 = False # CHECK
+        for corner_num, corner in enumerate(corner_list_filter_3):
+            hit_points = list()
             # Send ray from sensor to corner and check for objects
             hit_points = self.world.cast_ray(carla_location_sensor_in_carla_map, corner)
             if hit_points:
+                if is_actor: # CHECK
+                    if check_num: # CHECK
+                        print(f"ID {id} sensor: {carla_location_sensor_in_carla_map}") # CHECK
+                        check_num = False # CHECK
+                    print(f"    ID {id} corner {corner_num}: {corner}") # CHECK
+                    for hit_point_num, hit_point in enumerate(hit_points): # CHECK
+                        if hit_point.label is carla.CityObjectLabel.Roads:
+                            distance = hit_point.location.distance(corner)
+                            print(f"        ID {id} hit_point {hit_point_num}: {hit_point.label} {hit_point.location} {distance}")
+                        else:
+                            print(f"        ID {id} hit_point {hit_point_num}: {hit_point.label} {hit_point.location}") # CHECK
+                    check_num_2 = True # CHECK
                 continue
             corner_list_filter_4.append(corner)
+        if check_num_2: # CHECK
+            print(" ") # CHECK
         
         if len(corner_list_filter_4) < self.min_corner_amount:
+            # print(f"ID {id}: Unknown objects between sensor and too many corners!") # CHECK
             return False
         
+        # print(f"ID {id}: Object is visible!") # CHECK
         return True
 
     def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
@@ -298,7 +317,7 @@ class IdealObjectSensor(ObjectSensor):
 
         # Transform target corners from carla_map frame to sensor frame
         ros_corners_in_sensor_frame = [do_transform_point(corner, ros_tf_sensor_to_carla_map) for corner in ros_corners_in_carla_map_pointstamped]
-        
+
         return ros_corners_in_sensor_frame
 
     def update(self, frame, timestamp):
@@ -335,7 +354,6 @@ class IdealObjectSensor(ObjectSensor):
         )
         carla_location_sensor_in_carla_map = trans.ros_point_to_carla_location(ros_point_sensor_in_carla_map)
 
-        print(f"Actor list: {self.actor_list.keys()}")
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
 
@@ -346,7 +364,7 @@ class IdealObjectSensor(ObjectSensor):
 
                     # Get CARLA target location in carla_map
                     carla_location_target_in_carla_map = actor.carla_actor.get_location()
-                    print(f"ID {actor_id}")                    
+
                     # Get corners from target BoundingBox and convert location from CARLA carla_map into ROS sensor frame
                     carla_tf_carla_map_to_target = actor.carla_actor.get_transform()
                     bounding_box = actor.carla_actor.bounding_box
@@ -366,7 +384,6 @@ class IdealObjectSensor(ObjectSensor):
                 for vehicle in static_vehicles:
                     # Take only vehicles with bounding_box attribute set
                     if hasattr(vehicle, "bounding_box"):
-                        # print(f"Vehicle: {vehicle}")
 
                         # Get target location in carla_map
                         carla_location_target_in_carla_map = vehicle.transform.location
