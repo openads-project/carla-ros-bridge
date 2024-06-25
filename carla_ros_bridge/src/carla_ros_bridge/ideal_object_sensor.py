@@ -160,10 +160,6 @@ class IdealObjectSensor(ObjectSensor):
         :return: name
         """
         return "sensor.pseudo.ideal_objects"
-    
-    def calculate_distance(self, coordinates):
-        # Calculate distance between coordinates and sensor
-        return math.sqrt(coordinates.x**2 + coordinates.y**2 + coordinates.z**2)
 
     def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, id, is_actor):
 
