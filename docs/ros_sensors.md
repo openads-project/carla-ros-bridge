@@ -113,7 +113,7 @@ Note: Sensors publish the tf data when the measurement is done. The child_frame_
 
 | Topic | Type | Description |
 |-------|------|-------------|
-| `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>` | [derived_object_msgs/ObjectArray](https://docs.ros.org/en/melodic/api/derived_object_msgs/html/msg/ObjectArray.html) | Publishes all visible vehicles and walker. If attached to a parent, the parent is not contained. If attached directly to the world, [<PARENT ROLE NAME>] does not exist. |
+| `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>` | [derived_object_msgs/ObjectArray](https://docs.ros.org/en/melodic/api/derived_object_msgs/html/msg/ObjectArray.html) | Publishes all visible vehicles and walker. If attached to a parent, the parent is not contained. If attached directly to the world, `[<PARENT ROLE NAME>]` does not exist. |
 
 ###### Marker Sensor
 
