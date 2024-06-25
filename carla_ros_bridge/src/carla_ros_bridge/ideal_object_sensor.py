@@ -21,7 +21,7 @@ import ros_compatibility as roscomp
 
 import tf2_ros
 
-from tf2_geometry_msgs import do_transform_pose, do_transform_point
+from tf2_geometry_msgs import do_transform_point
 
 import math
 
@@ -158,7 +158,23 @@ class IdealObjectSensor(ObjectSensor):
         :return: name
         """
         return "sensor.pseudo.ideal_objects"
+    
+    def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
+        # Get location vaules of pose
+        dx = target_point_in_sensor_frame.x
+        dy = target_point_in_sensor_frame.y
+        dz = target_point_in_sensor_frame.z
 
+        # Calculate azimuth between target and sensor based on sensor KOS
+        azimut_rad = math.atan2(dy, dx)
+        azimut_deg = math.degrees(azimut_rad)
+
+        # Calculate elevation between target and sensor based on sensor KOS
+        elevation_rad = math.asin(dz/distance)
+        elevation_deg = math.degrees(elevation_rad)
+
+        return azimut_deg, elevation_deg
+    
     def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
 
         # FILTER 1
@@ -232,21 +248,23 @@ class IdealObjectSensor(ObjectSensor):
         
         return True
 
-    def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
-        # Get location vaules of pose
-        dx = target_point_in_sensor_frame.x
-        dy = target_point_in_sensor_frame.y
-        dz = target_point_in_sensor_frame.z
+    def point_to_pointstamped(self, point):
+        # Convert ROS geometry_msgs/Point to ROS geometry_msgs/PointStamped
+        point_stamped = PointStamped()
+        point_stamped.point = point
 
-        # Calculate azimuth between target and sensor based on sensor KOS
-        azimut_rad = math.atan2(dy, dx)
-        azimut_deg = math.degrees(azimut_rad)
+        return point_stamped
 
-        # Calculate elevation between target and sensor based on sensor KOS
-        elevation_rad = math.asin(dz/distance)
-        elevation_deg = math.degrees(elevation_rad)
+    def convert_target_corner(self, carla_corners_in_carla_map, ros_tf_sensor_to_carla_map):
 
-        return azimut_deg, elevation_deg
+        # Convert target corners from CARLA.Location to ROS geometry_msgs/PointStamped
+        ros_corners_in_carla_map_point = [trans.carla_location_to_ros_point(corner) for corner in carla_corners_in_carla_map]
+        ros_corners_in_carla_map_pointstamped = [self.point_to_pointstamped(corner) for corner in ros_corners_in_carla_map_point]
+
+        # Transform target corners from carla_map frame to sensor frame
+        ros_corners_in_sensor_frame = [do_transform_point(corner, ros_tf_sensor_to_carla_map) for corner in ros_corners_in_carla_map_pointstamped]
+
+        return ros_corners_in_sensor_frame
 
     def get_ros_transform(self, timestamp):
         # Get transform of idealObjectSensor
@@ -274,14 +292,7 @@ class IdealObjectSensor(ObjectSensor):
         transform.transform.rotation.w = self.relative_spawn_pose.orientation.w
 
         return transform
-    
-    def point_to_pointstamped(self, point):
-        # Convert geometry_msgs/Point to geometry_msgs/PointStamped
-        point_stamped = PointStamped()
-        point_stamped.point = point
-
-        return point_stamped
-    
+        
     def publish_tf(self, timestamp):
         # Publish transform of idealObjectSensor
         transform =self.get_ros_transform(timestamp)
@@ -290,18 +301,7 @@ class IdealObjectSensor(ObjectSensor):
         except roscomp.exceptions.ROSException:
             if roscomp.ok():
                 self.node.logwarn("Sensor {} failed to send transform.".fromat(self.uid))
-
-    def convert_target_corner(self, carla_corners_in_carla_map, ros_tf_sensor_to_carla_map):
-
-        # Convert target corners from CARLA.Location to geometry_msgs/PointStamped (ROS)
-        ros_corners_in_carla_map_point = [trans.carla_location_to_ros_point(corner) for corner in carla_corners_in_carla_map]
-        ros_corners_in_carla_map_pointstamped = [self.point_to_pointstamped(corner) for corner in ros_corners_in_carla_map_point]
-
-        # Transform target corners from carla_map frame to sensor frame
-        ros_corners_in_sensor_frame = [do_transform_point(corner, ros_tf_sensor_to_carla_map) for corner in ros_corners_in_carla_map_pointstamped]
-
-        return ros_corners_in_sensor_frame
-
+                
     def update(self, frame, timestamp):
         """
         Function (override) to update this object.
