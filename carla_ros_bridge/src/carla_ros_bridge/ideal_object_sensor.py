@@ -30,8 +30,6 @@ from rclpy.duration import Duration
 
 from geometry_msgs.msg import Point, PointStamped
 
-import ctypes # CHECK
-
 import carla
 
 ROS_VERSION = roscomp.get_ros_version()
@@ -161,7 +159,7 @@ class IdealObjectSensor(ObjectSensor):
         """
         return "sensor.pseudo.ideal_objects"
 
-    def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, id, is_actor):
+    def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
 
         # FILTER 1
         # Calculate distance between sensor and target
@@ -215,42 +213,26 @@ class IdealObjectSensor(ObjectSensor):
         # Filter corners that are covered by other objects and return if not enough corners are visible
         corner_list_filter_4 = list()
 
-        check_num = True # CHECK
-        check_num_3 = False # CHECK
-        for corner_num, corner in enumerate(corner_list_filter_3): # remove corner_num and enumerate(...) after completed
-            check_num_2 = True # CHECK
+        for corner in corner_list_filter_3:
             hit_points = list()
             hit = False
             # Send ray from sensor to corner and check for objects
             hit_points = self.world.cast_ray(carla_location_sensor_in_carla_map, corner)
             if hit_points:
-                for hit_point_num, hit_point in enumerate(hit_points): # remove hit_point_num and enumerate(...) after completed
+                for hit_point in hit_points:
                     if hit_point.label is carla.CityObjectLabel.Roads and hit_point.location.distance(corner) > 0.15:
                         continue
                     if hit_point.label is carla.CityObjectLabel.NONE:
                         continue
-                    if is_actor: # CHECK
-                        if check_num: # CHECK
-                            print(f"ID {id} sensor: {carla_location_sensor_in_carla_map}") # CHECK
-                            check_num = False # CHECK
-                        if check_num_2: # CHECK
-                            print(f"    ID {id} corner {corner_num}: {corner}") # CHECK
-                            check_num_2 = False # CHECK
-                        print(f"        ID {id} hit_point {hit_point_num}: {hit_point.label} {hit_point.location}") # CHECK
-                        check_num_3 = True # CHECK
                     # Hit is relevant --> continue with next corner
                     hit = True
                     break
                 if hit: continue
             corner_list_filter_4.append(corner)
-        if check_num_3: # CHECK
-            print(" ") # CHECK
         
         if len(corner_list_filter_4) < self.min_corner_amount:
-            # print(f"ID {id}: Unknown objects between sensor and too many corners!") # CHECK
             return False
         
-        # print(f"ID {id}: Object is visible!") # CHECK
         return True
 
     def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
@@ -375,7 +357,7 @@ class IdealObjectSensor(ObjectSensor):
                     ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_sensor_to_carla_map)
 
                     # Check visibility of the target
-                    if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, actor_id, True):
+                    if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -397,7 +379,7 @@ class IdealObjectSensor(ObjectSensor):
                         ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                         # Check visibility of the target
-                        if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp, ctypes.c_uint32(vehicle.id).value, False):
+                        if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
