@@ -195,14 +195,10 @@ class IdealObjectSensor(ObjectSensor):
             # Calculate azimuth and elevation
             azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(ros_corner_pointstamped.point, corner[2])
             # Check if corner is inside the sensor FOV
-            if azimuth_deg < self.left_fov:
-                continue
-            if azimuth_deg > self.right_fov:
-                continue
-            if elevation_deg > self.upper_fov:
-                continue
-            if elevation_deg < self.lower_fov:
-                continue
+            if azimuth_deg < self.left_fov: continue
+            if azimuth_deg > self.right_fov: continue
+            if elevation_deg > self.upper_fov: continue
+            if elevation_deg < self.lower_fov: continue
 
             corner_list_filter_3.append(corner[1])
         
@@ -214,17 +210,18 @@ class IdealObjectSensor(ObjectSensor):
         corner_list_filter_4 = list()
 
         for corner in corner_list_filter_3:
-            hit_points = list()
             hit = False
             # Send ray from sensor to corner and check for objects
             hit_points = self.world.cast_ray(carla_location_sensor_in_carla_map, corner)
             if hit_points:
                 for hit_point in hit_points:
+                    # Skip hit points with the label "Roads" located directly next to bounding box of target
                     if hit_point.label is carla.CityObjectLabel.Roads and hit_point.location.distance(corner) > 0.15:
                         continue
+                    # Skip hit points with the labe "NONE"
                     if hit_point.label is carla.CityObjectLabel.NONE:
                         continue
-                    # Hit is relevant --> continue with next corner
+                    # All other hits are relevant --> current corner is not visible, continue with next corner
                     hit = True
                     break
                 if hit: continue
@@ -314,12 +311,13 @@ class IdealObjectSensor(ObjectSensor):
         """
         # Publish transform of idealObjectSensor at timestamp
         self.publish_tf(timestamp)
+        print(f"Parent name: {self.parent}")
 
         # Generate object array to publish sensor data
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
-        # Get ROS transform from idealIbjectSensor in carla_map
+        # Get ROS transform from idealIbjectSensor to carla_map and vice versa
         sensor_frame = self.get_prefix()
         time_latest_tf = Time(seconds=0)
         duration_timeout = Duration(seconds=0)
