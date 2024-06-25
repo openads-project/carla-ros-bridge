@@ -97,6 +97,8 @@ class IdealObjectSensor(ObjectSensor):
                 self.lower_fov = float(attribute.value)
             elif attribute.key == 'min_corner_amount':
                 self.min_corner_amount = float(attribute.value)
+            elif attribute.key == "distance_variance":
+                self.distance_variance = float(attribute.value)
 
         # Check relevant attributes and set default values if not available
         try: 
@@ -141,6 +143,14 @@ class IdealObjectSensor(ObjectSensor):
             self.node.logwarn(
                 "No minimal corner amount attribute found for IdealObjectSensor. Using default value of {} corners.".format(self.min_corner_amount)
             )
+        try:
+            self.distance_variance
+        except:
+            # Set default distance variance in [Meters]
+            self.distance_variance = 10.0 # 10 Meters based on the length of a truck
+            self.node.logwarn(
+                "No distance variance attribute for distance measurement found for IdealObjectSensor. Using default value of {} Meters.".format(self.distance_variance)
+            )
 
     def destroy(self):
         """
@@ -181,11 +191,8 @@ class IdealObjectSensor(ObjectSensor):
         # Calculate distance between sensor and target
         distance = carla_location_sensor_in_carla_map.distance(carla_location_target_in_carla_map)
 
-        # Set distance variance in [Meters]
-        dinstance_variance = 10.0
-
-        # Filter objects that are far outside the sensor range
-        if abs(distance-dinstance_variance) > self.range:
+        # Filter objects that are far outside the sensor range (including distance variance)
+        if abs(distance-self.distance_variance) > self.range:
             return False
         
         # FILTER 2
@@ -311,7 +318,6 @@ class IdealObjectSensor(ObjectSensor):
         """
         # Publish transform of idealObjectSensor at timestamp
         self.publish_tf(timestamp)
-        print(f"Parent name: {self.parent}")
 
         # Generate object array to publish sensor data
         ros_objects = ObjectArray()
