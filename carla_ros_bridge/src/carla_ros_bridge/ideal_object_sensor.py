@@ -32,6 +32,8 @@ from geometry_msgs.msg import Point, PointStamped
 
 import carla
 
+import ctypes
+
 ROS_VERSION = roscomp.get_ros_version()
 
 class IdealObjectSensor(ObjectSensor):
@@ -180,12 +182,15 @@ class IdealObjectSensor(ObjectSensor):
         azimut_deg = math.degrees(azimut_rad)
 
         # Calculate elevation between target and sensor based on sensor KOS
-        elevation_rad = math.asin(dz/distance)
+        try:
+            elevation_rad = math.asin(dz/distance)
+        except ValueError as error:
+            raise error
         elevation_deg = math.degrees(elevation_rad)
-
+            
         return azimut_deg, elevation_deg
     
-    def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
+    def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, id, timestamp):
 
         # FILTER 1
         # Calculate distance between sensor and target
@@ -216,7 +221,17 @@ class IdealObjectSensor(ObjectSensor):
             # Get correct Position in ROS environemt
             ros_corner_pointstamped = ros_corners_in_sensor_frame[corner[0]]
             # Calculate azimuth and elevation
-            azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(ros_corner_pointstamped.point, corner[2])
+            try:
+                azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(ros_corner_pointstamped.point, corner[2])
+            except ValueError as error:
+                if self.parent is None: parent_frame = 'carla_map'
+                else: parent_frame = self.parent.get_prefix()
+                print(f"CARLA corner: {corner[1]}")
+                self.node.logwarn(
+                    "{}: IdealObjectSensor of {} failed to determine elevation of object {} with ROS location {} and distance {}!".format(
+                        error, parent_frame, id, ros_corner_pointstamped.point, corner[2]))
+                return False
+            
             # Check if corner is inside the sensor FOV
             if azimuth_deg < self.left_fov: continue
             if azimuth_deg > self.right_fov: continue
@@ -334,7 +349,11 @@ class IdealObjectSensor(ObjectSensor):
             self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
                 self.__class__.__name__, sensor_frame, 'carla_map', frame))
             return
-        
+
+        print(f"ros_tf_sensor_to_carla_map: {ros_tf_sensor_to_carla_map}")
+        print(f"ros_tf_carla_map_to_sensor: {ros_tf_carla_map_to_sensor}")
+        print(f"relative spawn pose: {self.relative_spawn_pose}")
+
         # Convert ROS Translation from carla_map to sensor into geometry_msgs/Point
         ros_point_sensor_in_carla_map = Point(
             x=ros_tf_carla_map_to_sensor.transform.translation.x,
@@ -361,7 +380,7 @@ class IdealObjectSensor(ObjectSensor):
                     ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_sensor_to_carla_map)
 
                     # Check visibility of the target
-                    if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
+                    if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, actor_id, timestamp):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -383,7 +402,7 @@ class IdealObjectSensor(ObjectSensor):
                         ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                         # Check visibility of the target
-                        if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
+                        if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, ctypes.c_uint32(vehicle.id).value, timestamp):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
