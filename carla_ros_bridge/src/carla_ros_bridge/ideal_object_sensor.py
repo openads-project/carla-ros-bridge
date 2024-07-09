@@ -97,8 +97,8 @@ class IdealObjectSensor(ObjectSensor):
                 self.lower_fov = float(attribute.value)
             elif attribute.key == 'min_corner_amount':
                 self.min_corner_amount = float(attribute.value)
-            elif attribute.key == "distance_variance":
-                self.distance_variance = float(attribute.value)
+            elif attribute.key == "distance_tolerance":
+                self.distance_tolerance = float(attribute.value)
 
         # Set default values, so that they are available when needed
         default_range = 15.0                # [Meters]
@@ -107,7 +107,7 @@ class IdealObjectSensor(ObjectSensor):
         default_upper_fov = 180.0           # [°]
         default_lower_fov = -180.0          # [°]
         default_min_corner_amount = 3       # [-]
-        default_distance_variance = 10.0    # [Meters], 10 Meters based on the length of a truck
+        default_distance_tolerance = 10.0   # [Meters], 10 Meters based on the length of a truck
 
         # Check relevant attributes and set default values if not available or values are not set in parameter boundaries
         try: 
@@ -183,16 +183,16 @@ class IdealObjectSensor(ObjectSensor):
                 "No minimal corner amount attribute found for IdealObjectSensor. Using default value of {} corners.".format(self.min_corner_amount)
             )
         try:
-            self.distance_variance
-            if self.distance_variance < 0:
-                self.distance_variance = default_distance_variance
+            self.distance_tolerance
+            if self.distance_tolerance < 0:
+                self.distance_tolerance = default_distance_tolerance
                 self.node.logwarn(
-                    "Distance variance attribute for IdealObjectSensor is not in parameter boundaries! Using defaut value of {} meters."-format(self.distance_variance)
+                    "Distance tolerance attribute for IdealObjectSensor is not in parameter boundaries! Using defaut value of {} meters."-format(self.distance_tolerance)
                 )
         except:
-            self.distance_variance = default_distance_variance
+            self.distance_tolerance = default_distance_tolerance
             self.node.logwarn(
-                "No distance variance attribute for distance measurement found for IdealObjectSensor. Using default value of {} Meters.".format(self.distance_variance)
+                "No distance tolerance attribute for distance measurement found for IdealObjectSensor. Using default value of {} Meters.".format(self.distance_tolerance)
             )
 
 
@@ -219,11 +219,11 @@ class IdealObjectSensor(ObjectSensor):
         dy = target_point_in_sensor_frame.y
         dz = target_point_in_sensor_frame.z
 
-        # Calculate azimuth between target and sensor based on sensor KOS
+        # Calculate azimuth between target and sensor based on sensor frame
         azimut_rad = math.atan2(dy, dx)
         azimut_deg = math.degrees(azimut_rad)
 
-        # Calculate elevation between target and sensor based on sensor KOS
+        # Calculate elevation between target and sensor based on sensor frame
         try:
             elevation_rad = math.asin(dz/distance)
         except ValueError as error:
@@ -238,8 +238,8 @@ class IdealObjectSensor(ObjectSensor):
         # Calculate distance between sensor and target
         distance = carla_location_sensor_in_carla_map.distance(carla_location_target_in_carla_map)
 
-        # Filter objects that are far outside the sensor range (including distance variance)
-        if abs(distance-self.distance_variance) > self.range:
+        # Filter objects that are far outside the sensor range (including distance tolerance)
+        if abs(distance-self.distance_tolerance) > self.range:
             return False
         
         # FILTER 2
