@@ -8,29 +8,24 @@
 """
 Handle an IdealObjectSensor
 """
+import ctypes
+import math
 
+import carla
+import carla_common.transforms as trans
 from carla_ros_bridge.vehicle import Vehicle
 from carla_ros_bridge.walker import Walker
-
-from derived_object_msgs.msg import ObjectArray
-
 from carla_ros_bridge.object_sensor import ObjectSensor
 
-import carla_common.transforms as trans
-import ros_compatibility as roscomp
-
-import tf2_ros
-
-from tf2_geometry_msgs import do_transform_point
-
-import math
+from derived_object_msgs.msg import ObjectArray
+from geometry_msgs.msg import Point, PointStamped
 
 from rclpy.time import Time
 from rclpy.duration import Duration
+import ros_compatibility as roscomp
 
-from geometry_msgs.msg import Point, PointStamped
-
-import carla
+import tf2_ros
+from tf2_geometry_msgs import do_transform_point
 
 ROS_VERSION = roscomp.get_ros_version()
 
@@ -46,7 +41,7 @@ class IdealObjectSensor(ObjectSensor):
 
         :param uid: unique identifier for this object
         :type uid: int
-        :param name: name identiying this object
+        :param name: name identifying this object
         :type name: string
         :param parent: the parent of this
         :type parent: carla_ros_bridge.Parent
@@ -350,12 +345,12 @@ class IdealObjectSensor(ObjectSensor):
         
     def publish_tf(self, timestamp):
         # Publish transform of idealObjectSensor
-        transform =self.get_ros_transform(timestamp)
+        transform = self.get_ros_transform(timestamp)
         try:
             self._tf_broadcaster.sendTransform(transform)
         except roscomp.exceptions.ROSException:
             if roscomp.ok():
-                self.node.logwarn("Sensor {} failed to send transform.".fromat(self.uid))
+                self.node.logwarn("Sensor {} failed to send transform.".format(self.uid))
                 
     def update(self, frame, timestamp):
         """
