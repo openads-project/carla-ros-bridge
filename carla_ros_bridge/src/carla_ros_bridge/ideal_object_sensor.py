@@ -100,57 +100,101 @@ class IdealObjectSensor(ObjectSensor):
             elif attribute.key == "distance_variance":
                 self.distance_variance = float(attribute.value)
 
-        # Check relevant attributes and set default values if not available
+        # Set default values, so that they are available when needed
+        default_range = 15.0                # [Meters]
+        default_left_fov = -180.0           # [°]
+        default_right_fov = 180.0           # [°]
+        default_upper_fov = 180.0           # [°]
+        default_lower_fov = -180.0          # [°]
+        default_min_corner_amount = 3       # [-]
+        default_distance_variance = 10.0    # [Meters], 10 Meters based on the length of a truck
+
+        # Check relevant attributes and set default values if not available or values are not set in parameter boundaries
         try: 
             self.range
+            if self.range < 0:
+                self.range = default_range
+                self.node.logwarn(
+                    "Range attribute for IdealObjectSensor is not in parameter boundaries! Using default value of {} meters.".format(self.range)
+                )
         except:
-            self.range = 15.0
+            self.range = default_range
             self.node.logwarn(
                 "No range attribute found for IdealObjectSensor. Using default value of {} meters.".format(self.range)
             )
         try:
             self.left_fov
+            if self.left_fov < -180 or self.left_fov > 0:
+                self.left_fov = default_left_fov
+                self.node.logwarn(
+                    "Left FOV attribute for IdealObjectSensor is not in parameter boundaries! Using default value of {} °.".format(self.left_fov)
+                )
         except:
-            self.left_fov = -180.0
+            self.left_fov = default_left_fov
             self.node.logwarn(
                 "No left FOV attribute found for IdealObjectSensor. Using default value of {} °.".format(self.left_fov)
             )
         try:
             self.right_fov
+            if self.right_fov < 0 or self.right_fov > 180:
+                self.right_fov = default_right_fov
+                self.node.logwarn(
+                    "Right FOV attribute for IdealObjectSensor is not in parameter boundaries! Using default value of {} °.".format(self.right_fov)
+                )
         except:
-            self.right_fov = 180.0
+            self.right_fov = default_right_fov
             self.node.logwarn(
                 "No right FOV attribute found for IdealObjectSensor. Using default value of {} °.".format(self.right_fov)
             )
         try:
             self.upper_fov
+            if self.upper_fov < 0 or self.upper_fov > 180:
+                self.upper_fov = default_upper_fov
+                self.node.logwarn(
+                    "Upper FOV attribute for IdealObjectSensor is not in parameter boundaries! Using default value of {} °.".format(self.upper_fov)
+                )
         except:
-            self.upper_fov = 180.0
+            self.upper_fov = default_upper_fov
             self.node.logwarn(
                 "No upper FOV attribute found for IdealObjectSensor. Using default value of {} °.".format(self.upper_fov)
             )
         try:
             self.lower_fov
+            if self.lower_fov < -180 or self.lower_fov > 0:
+                self.lower_fov = default_lower_fov
+                self.node.logwarn(
+                    "Lower FOV attribute for IdealObjectSensor is not in parameter boundaries! Using default value of {} °.".format(self.lower_fov)
+                )
         except:
-            self.lower_fov = -180.0
+            self.lower_fov = default_lower_fov
             self.node.logwarn(
                 "No lower FOV attribute found for IdealObjectSensor. Using default value of {} °.".format(self.lower_fov)
             )
         try:
             self.min_corner_amount
+            if self.min_corner_amount < 1 or self.min_corner_amount > 8:
+                self.min_corner_amount = default_min_corner_amount
+                self.node.logwarn(
+                    "Minimal corner amount attribute for IdealObjectSensor is not in parameter boundaries! Using default value of {} corners.".format(self.min_corner_amount)
+                )
         except:
-            self.min_corner_amount = 3
+            self.min_corner_amount = default_min_corner_amount
             self.node.logwarn(
                 "No minimal corner amount attribute found for IdealObjectSensor. Using default value of {} corners.".format(self.min_corner_amount)
             )
         try:
             self.distance_variance
+            if self.distance_variance < 0:
+                self.distance_variance = default_distance_variance
+                self.node.logwarn(
+                    "Distance variance attribute for IdealObjectSensor is not in parameter boundaries! Using defaut value of {} meters."-format(self.distance_variance)
+                )
         except:
-            # Set default distance variance in [Meters]
-            self.distance_variance = 10.0 # 10 Meters based on the length of a truck
+            self.distance_variance = default_distance_variance
             self.node.logwarn(
                 "No distance variance attribute for distance measurement found for IdealObjectSensor. Using default value of {} Meters.".format(self.distance_variance)
             )
+
 
     def destroy(self):
         """
