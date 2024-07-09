@@ -227,7 +227,7 @@ class IdealObjectSensor(ObjectSensor):
             
         return azimut_deg, elevation_deg
     
-    def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
+    def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map):
 
         # FILTER 1
         # Calculate distance between sensor and target
@@ -404,7 +404,7 @@ class IdealObjectSensor(ObjectSensor):
                     ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_sensor_to_carla_map)
 
                     # Check visibility of the target
-                    if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
+                    if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map):
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
@@ -426,7 +426,7 @@ class IdealObjectSensor(ObjectSensor):
                         ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_sensor_to_carla_map)
 
                         # Check visibility of the target
-                        if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map, timestamp):
+                        if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map):
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
 
