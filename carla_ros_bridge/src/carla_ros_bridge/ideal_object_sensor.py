@@ -144,18 +144,11 @@ class IdealObjectSensor(ObjectSensor):
         dy = target_point_in_sensor_frame.y
         dz = target_point_in_sensor_frame.z
 
-        # Calculate azimuth between target and sensor based on sensor frame
-        azimut_rad = math.atan2(dy, dx)
-        azimut_deg = math.degrees(azimut_rad)
+        # Calculate azimuth and elevation between target and sensor based on sensor frame
+        azimuth = math.degrees(math.atan2(dy, dx))
+        elevation = math.degrees(math.asin(dz/distance))
 
-        # Calculate elevation between target and sensor based on sensor frame
-        try:
-            elevation_rad = math.asin(dz/distance)
-        except ValueError as error:
-            raise error
-        elevation_deg = math.degrees(elevation_rad)
-            
-        return azimut_deg, elevation_deg
+        return azimuth, elevation
     
     def check_visibility(self, carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map):
 
@@ -185,16 +178,17 @@ class IdealObjectSensor(ObjectSensor):
         corner_list_filter_3 = list()
 
         for corner in corner_list_filter_2:
-            # Get correct Position in ROS environemt
+            # Get correct Position of corner in sensor frame (ROS environment)
             ros_corner_pointstamped = ros_corners_in_sensor_frame[corner[0]]
+
             # Calculate azimuth and elevation
-            azimuth_deg, elevation_deg = self.calculate_azimuth_elevation(ros_corner_pointstamped.point, corner[2])
+            azimuth, elevation = self.calculate_azimuth_elevation(ros_corner_pointstamped.point, corner[2])
             
             # Check if corner is inside the sensor FOV
-            if azimuth_deg < self.left_fov: continue
-            if azimuth_deg > self.right_fov: continue
-            if elevation_deg > self.upper_fov: continue
-            if elevation_deg < self.lower_fov: continue
+            if azimuth < self.left_fov: continue
+            if azimuth > self.right_fov: continue
+            if elevation > self.upper_fov: continue
+            if elevation < self.lower_fov: continue
 
             corner_list_filter_3.append(corner[1])
         
