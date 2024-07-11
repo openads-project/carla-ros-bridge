@@ -111,6 +111,28 @@ Note: Sensors publish the tf data when the measurement is done. The child_frame_
 
 ###### Ideal Object Sensor
 
+The sensor detects objects/targets (vehicles and walkers) in a specified field of view and range. The visibility of an object is checked using the corners of the object's `bounding_box`.
+
+The following parameters can be set:
+
+| Parameter | Unit | Type | <div style="text-align: center">Default Value</div> | <div style="text-align: center">Range of Applicability</div> | Description |
+|-----------|------|------|---------------|------------------------|-------------|
+| `range` | Meters | `string` | <div style="text-align: right">15</div> | <div style="text-align: center">[0 , ∞]</div> | Range of the sensor |
+| `left_fov` | Degrees | `float` | <div style="text-align: right">-180</div> | <div style="text-align: center">[-180 , 0]</div> | Sensor's left field of view |
+| `right_fov` | Degrees | `float` | <div style="text-align: right">180</div> | <div style="text-align: center">[0 , 180]</div> | Sensor's right field of view |
+| `upper_fov` | Degrees | `float` | <div style="text-align: right">180</div> | <div style="text-align: center">[0 , 180]</div> | Sensor's upper field of view |
+| `lower_fov` | Degrees | `float` | <div style="text-align: right">-180</div> | <div style="text-align: center">[-180 , 0]</div> | Sensor's lower field of view |
+| `min_corner_amount` | <div style="text-align: center">-</div> | `int` | <div style="text-align: right">3</div> | <div style="text-align: center">[1 , 8]</div> | Number of vertices required for a precise detection of the target |
+| `distance_tolerance` | Meters | `float` | <div style="text-align: right">10</div> | <div style="text-align: center">[0 , ∞]</div> | Distance tolerance for the distance measurement in FILTER 1 (10 m is chosen as default based on the length of a truck) |
+
+The visibility of a target is evaluated using 4 filters:
+1. FILTER: Rough filtering of targets baded on the distance between the sensor an the target's center (including `distance_tolerance`)
+2. FILTER: Distance meansurement from the sensor to all vertices of the target's `bounding_box`
+3. FILTER: Filtering vertices by checking their location in the sensor field of view using azimuth and elevation from the sensor to the vertex (in sensor frame)
+4. FILTER: Filtering vertices by sending a ray from the sensor location to the vertex location to check if vertices are covered by other objects
+
+The sensor publishes on the following topic:
+
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>` | [derived_object_msgs/ObjectArray](https://docs.ros.org/en/melodic/api/derived_object_msgs/html/msg/ObjectArray.html) | Publishes all visible vehicles and walker. If attached to a parent, the parent is not contained. If attached directly to the world, `[<PARENT ROLE NAME>]` does not exist. |
