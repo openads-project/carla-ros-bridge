@@ -77,23 +77,6 @@ class IdealObjectSensor(ObjectSensor):
         # Extract (relative) spawn pose
         self.relative_spawn_pose = relative_spawn_pose
 
-        # Extract relevant attributes and convert to float
-        for attribute in attributes:
-            if attribute.key == "range":
-                self.range = float(attribute.value)
-            elif attribute.key == "left_fov":
-                self.left_fov = float(attribute.value)
-            elif attribute.key == "right_fov":
-                self.right_fov = float(attribute.value)
-            elif attribute.key == "upper_fov":
-                self.upper_fov = float(attribute.value)
-            elif attribute.key == "lower_fov":
-                self.lower_fov = float(attribute.value)
-            elif attribute.key == 'min_corner_amount':
-                self.min_corner_amount = float(attribute.value)
-            elif attribute.key == "distance_tolerance":
-                self.distance_tolerance = float(attribute.value)
-
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {
             "range":                {"default": 15.0,   "lower_boundary": 0},
@@ -105,9 +88,12 @@ class IdealObjectSensor(ObjectSensor):
             "distance_tolerance":   {"default": 10.0,   "lower_boundary": 0} # 10 Meters based on the length of a truck
         }
 
-        # Check attributes and set default values if not available or values are not set in parameter boundaries
+        # Extract and check attributes and set default values if not available or values are not set in parameter boundaries
         for key, current_dict in attributes_dict.items():
             try:
+                # Extract relevant attributes and convert to float
+                attribute = next((attribute for attribute in attributes if attribute.key == key), None)
+                setattr(self, key, float(attribute.value))
                 # Boundary check
                 if getattr(self, key) < current_dict.get("lower_boundary") or ("upper_boundary" in current_dict.keys() and getattr(self, key) > current_dict.get("upper_boundary")):
                     setattr(self, key, getattr(current_dict, "default"))
