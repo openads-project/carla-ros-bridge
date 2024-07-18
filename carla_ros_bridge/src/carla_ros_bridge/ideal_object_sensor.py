@@ -281,8 +281,8 @@ class IdealObjectSensor(ObjectSensor):
         time_latest_tf = Time(seconds=0)
         duration_timeout = Duration(seconds=0)
         try:
-            ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map' , time_latest_tf, duration_timeout)
-            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
+            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map' , time_latest_tf, duration_timeout)
+            ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
         except:
             self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
                 self.__class__.__name__, sensor_frame, 'carla_map', frame))
@@ -290,12 +290,10 @@ class IdealObjectSensor(ObjectSensor):
 
         # Convert ROS Translation from carla_map to sensor into geometry_msgs/Point
         ros_point_sensor_in_carla_map = Point(
-            x=ros_tf_carla_map_to_sensor.transform.translation.x,
-            y=ros_tf_carla_map_to_sensor.transform.translation.y,
-            z=ros_tf_carla_map_to_sensor.transform.translation.z
+            x=ros_tf_sensor_to_carla_map.transform.translation.x,
+            y=ros_tf_sensor_to_carla_map.transform.translation.y,
+            z=ros_tf_sensor_to_carla_map.transform.translation.z
         )
-        # print(f"sensor location with tf carla_map to sensor: x = {ros_point_sensor_in_carla_map.x: .5f}, y = {ros_point_sensor_in_carla_map.y: .5f}, z = {ros_point_sensor_in_carla_map.z: .5f}")
-        # print(f"sensor location with tf sensor to carla_map: x = {ros_tf_sensor_to_carla_map.transform.translation.x: .5f}, y = {ros_tf_sensor_to_carla_map.transform.translation.y: .5f}, z = {ros_tf_sensor_to_carla_map.transform.translation.z: .5f}")
         carla_location_sensor_in_carla_map = trans.ros_point_to_carla_location(ros_point_sensor_in_carla_map)
 
         # Iterate over all dynamic actors
@@ -313,7 +311,7 @@ class IdealObjectSensor(ObjectSensor):
                     carla_tf_carla_map_to_target = actor.carla_actor.get_transform()
                     bounding_box = actor.carla_actor.bounding_box
                     carla_corners_in_carla_map = bounding_box.get_world_vertices(carla_tf_carla_map_to_target)
-                    ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_sensor_to_carla_map)
+                    ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                     # Check visibility of the target
                     if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map):
@@ -335,7 +333,7 @@ class IdealObjectSensor(ObjectSensor):
                         # Get corners from target BoundingBox and convert location from CARLA carla_map to ROS sensor frame
                         bounding_box = vehicle.bounding_box
                         carla_corners_in_carla_map = bounding_box.get_local_vertices()
-                        ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_sensor_to_carla_map)
+                        ros_corners_in_sensor_frame = self.convert_target_corner(carla_corners_in_carla_map, ros_tf_carla_map_to_sensor)
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_target_in_carla_map, ros_corners_in_sensor_frame, carla_corners_in_carla_map, carla_location_sensor_in_carla_map):
