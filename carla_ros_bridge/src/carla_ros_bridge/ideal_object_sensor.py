@@ -288,7 +288,7 @@ class IdealObjectSensor(ObjectSensor):
                 self.__class__.__name__, sensor_frame, 'carla_map', frame))
             return
 
-        # Convert ROS Translation from carla_map to sensor into geometry_msgs/Point
+        # Extract sensor location in carla_map from ROS transform and convert into geometry_msgs/Point
         ros_point_sensor_in_carla_map = Point(
             x=ros_tf_sensor_to_carla_map.transform.translation.x,
             y=ros_tf_sensor_to_carla_map.transform.translation.y,
