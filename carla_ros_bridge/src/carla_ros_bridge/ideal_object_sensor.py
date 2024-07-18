@@ -283,9 +283,6 @@ class IdealObjectSensor(ObjectSensor):
         try:
             ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map' , time_latest_tf, duration_timeout)
             ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
-
-            ros_tf_carla_map_to_ego_vehicle = self.tf_buffer.lookup_transform('ego_vehicle', 'carla_map', time_latest_tf, duration_timeout)
-            ros_tf_ego_vehicle_to_carla_map = self.tf_buffer.lookup_transform('carla_map', 'ego_vehicle', time_latest_tf, duration_timeout)
         except:
             self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
                 self.__class__.__name__, sensor_frame, 'carla_map', frame))
@@ -303,48 +300,6 @@ class IdealObjectSensor(ObjectSensor):
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
-            if self.parent.uid == actor_id:
-                actor = self.actor_list[actor_id]
-                carla_location_ego_vehicle_in_carla_map = actor.carla_actor.get_location()
-                ros_point_ego_vehicle_in_carla_map = trans.carla_location_to_ros_point(carla_location_ego_vehicle_in_carla_map)
-                ros_pointstamped_ego_vehicle_in_carla_map = self.point_to_pointstamped(ros_point_ego_vehicle_in_carla_map)
-                point_tf_carla_map_to_ego_vehicle = do_transform_point(ros_pointstamped_ego_vehicle_in_carla_map, ros_tf_carla_map_to_ego_vehicle)
-                point_tf_ego_vehicle_to_carla_map = do_transform_point(ros_pointstamped_ego_vehicle_in_carla_map, ros_tf_ego_vehicle_to_carla_map)
-                print("ros location ego_vehicle in carla_map:              (x={:.4f}, y={:.4f}, z={:.4f})".format(
-                    ros_point_ego_vehicle_in_carla_map.x,
-                    ros_point_ego_vehicle_in_carla_map.y,
-                    ros_point_ego_vehicle_in_carla_map.z
-                ))
-                print("tf ego_vehicle to carla_map:                        (x={:.4f}, y={:.4f}, z={:.4f}), (x={:.4f}, y={:.4f}, z={:.4f}, w={:.4f})".format(
-                    ros_tf_ego_vehicle_to_carla_map.transform.translation.x,
-                    ros_tf_ego_vehicle_to_carla_map.transform.translation.y,
-                    ros_tf_ego_vehicle_to_carla_map.transform.translation.z,
-                    ros_tf_ego_vehicle_to_carla_map.transform.rotation.x,
-                    ros_tf_ego_vehicle_to_carla_map.transform.rotation.y,
-                    ros_tf_ego_vehicle_to_carla_map.transform.rotation.z,
-                    ros_tf_ego_vehicle_to_carla_map.transform.rotation.w
-                ))
-                print("tf carla_map to ego_vehicle:                        (x={:.4f}, y={:.4f}, z={:.4f}), (x={:.4f}, y={:.4f}, z={:.4f}, w={:.4f})".format(
-                    ros_tf_carla_map_to_ego_vehicle.transform.translation.x,
-                    ros_tf_carla_map_to_ego_vehicle.transform.translation.y,
-                    ros_tf_carla_map_to_ego_vehicle.transform.translation.z,
-                    ros_tf_carla_map_to_ego_vehicle.transform.rotation.x,
-                    ros_tf_carla_map_to_ego_vehicle.transform.rotation.y,
-                    ros_tf_carla_map_to_ego_vehicle.transform.rotation.z,
-                    ros_tf_carla_map_to_ego_vehicle.transform.rotation.w
-                ))
-                print("point transformed with tf ego_vehicle to carla_map: (x={:.4f}, y={:.4f}, z={:.4f})".format(
-                    point_tf_ego_vehicle_to_carla_map.point.x,
-                    point_tf_ego_vehicle_to_carla_map.point.y,
-                    point_tf_ego_vehicle_to_carla_map.point.z
-                    
-                ))
-                print("point transformed with tf carla_map to ego_vehicle: (x={:.4f}, y={:.4f}, z={:.4f})".format(
-                    point_tf_carla_map_to_ego_vehicle.point.x,
-                    point_tf_carla_map_to_ego_vehicle.point.y,
-                    point_tf_carla_map_to_ego_vehicle.point.z
-                ))
-                print(" ")
 
             # Currently only vehicles and walkers are added to the object array
             if self.parent is None or self.parent.uid != actor_id:
