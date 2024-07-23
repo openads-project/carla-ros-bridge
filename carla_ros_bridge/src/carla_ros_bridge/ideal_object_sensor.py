@@ -194,8 +194,11 @@ class IdealObjectSensor(ObjectSensor):
                     # Skip hit points with the label "Roads" located directly next to bounding box of target
                     if hit_point.label is carla.CityObjectLabel.Roads and hit_point.location.distance(corner) > 0.15:
                         continue
-                    # Skip hit points with the labe "NONE"
+                    # Skip hit points with the label "NONE"
                     if hit_point.label is carla.CityObjectLabel.NONE:
+                        continue
+                    # Skip hit points with the label "Car" located directly next to the sensor
+                    if hit_point.label is carla.CityObjectLabel.Car and hit_point.location.distance(carla_location_sensor_in_carla_map) < 2.0:
                         continue
                     # All other hits are relevant --> current corner is not visible, continue with next corner
                     hit = True
