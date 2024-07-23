@@ -82,8 +82,8 @@ class IdealObjectSensor(ObjectSensor):
             "range":                {"default": 15.0,   "lower_boundary": 0},
             "left_fov":             {"default": -180.0, "lower_boundary": -180, "upper_boundary": 0},
             "right_fov":            {"default": 180.0,  "lower_boundary": 0,    "upper_boundary": 180},
-            "upper_fov":            {"default": 180.0,  "lower_boundary": 0,    "upper_boundary": 180},
-            "lower_fov":            {"default": -180.0, "lower_boundary": -180, "upper_boundary": 0},
+            "upper_fov":            {"default": 90.0,  "lower_boundary": 0,    "upper_boundary": 90},
+            "lower_fov":            {"default": -90.0, "lower_boundary": -90, "upper_boundary": 0},
             "min_corner_amount":    {"default": 3,      "lower_boundary": 1,    "upper_boundary": 8},
             "distance_tolerance":   {"default": 10.0,   "lower_boundary": 0} # 10 Meters based on the length of a truck
         }
