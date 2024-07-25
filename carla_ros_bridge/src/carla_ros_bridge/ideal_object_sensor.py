@@ -82,10 +82,11 @@ class IdealObjectSensor(ObjectSensor):
             "range":                {"default": 15.0,   "lower_boundary": 0},
             "left_fov":             {"default": -180.0, "lower_boundary": -180, "upper_boundary": 0},
             "right_fov":            {"default": 180.0,  "lower_boundary": 0,    "upper_boundary": 180},
-            "upper_fov":            {"default": 90.0,  "lower_boundary": 0,    "upper_boundary": 90},
-            "lower_fov":            {"default": -90.0, "lower_boundary": -90, "upper_boundary": 0},
+            "upper_fov":            {"default": 90.0,   "lower_boundary": 0,    "upper_boundary": 90},
+            "lower_fov":            {"default": -90.0,  "lower_boundary": -90,  "upper_boundary": 0},
             "min_corner_amount":    {"default": 3,      "lower_boundary": 1,    "upper_boundary": 8},
-            "distance_tolerance":   {"default": 10.0,   "lower_boundary": 0} # 10 Meters based on the length of a truck
+            "distance_tolerance":   {"default": 10.0,   "lower_boundary": 0}, # 10 Meters based on the length of a truck
+            "ignore_radius":        {"default": 0.25,   "lower_boundary": 0}
         }
 
         # Extract and check attributes and set default values if not available or values are not set in parameter boundaries
@@ -187,18 +188,18 @@ class IdealObjectSensor(ObjectSensor):
 
         for corner in corner_list_filter_3:
             hit = False
-            # Send ray from sensor to corner and check for objects
-            hit_points = self.world.cast_ray(carla_location_sensor_in_carla_map, corner)
+            # Send ray from corner to sensor and check for objects
+            hit_points = self.world.cast_ray(corner, carla_location_sensor_in_carla_map)
             if hit_points:
                 for hit_point in hit_points:
-                    # Skip hit points with the label "Roads" located directly next to bounding box of target
-                    if hit_point.label is carla.CityObjectLabel.Roads and hit_point.location.distance(corner) > 0.15:
+                    # Skip hit points with the label "Roads"
+                    if hit_point.label is carla.CityObjectLabel.Roads:
                         continue
                     # Skip hit points with the label "NONE"
                     if hit_point.label is carla.CityObjectLabel.NONE:
                         continue
-                    # Skip hit points with the label "Car" located directly next to the sensor
-                    if hit_point.label is carla.CityObjectLabel.Car and hit_point.location.distance(carla_location_sensor_in_carla_map) < 2.0:
+                    # Skip hit points with the label "Car" near to the sensor location within a defined ignore radius
+                    if hit_point.label is carla.CityObjectLabel.Car and hit_point.location.distance(carla_location_sensor_in_carla_map) <= self.ignore_radius:
                         continue
                     # All other hits are relevant --> current corner is not visible, continue with next corner
                     hit = True
