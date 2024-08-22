@@ -123,11 +123,11 @@ The following parameters can be set:
 | `upper_fov` | Degrees | `float` | <div style="text-align: right">90</div> | <div style="text-align: center">[0 , 90]</div> | Sensor's upper field of view |
 | `lower_fov` | Degrees | `float` | <div style="text-align: right">-90</div> | <div style="text-align: center">[-90 , 0]</div> | Sensor's lower field of view |
 | `min_corner_amount` | <div style="text-align: center">-</div> | `int` | <div style="text-align: right">3</div> | <div style="text-align: center">[1 , 8]</div> | Number of vertices required for a precise detection of the target |
-| `distance_tolerance` | Meters | `float` | <div style="text-align: right">10</div> | <div style="text-align: center">[0 , ∞]</div> | Distance tolerance for the distance measurement in FILTER 1 (10 m is chosen as default based on the length of a truck) |
+| `range_tolerance` | Meters | `float` | <div style="text-align: right">10</div> | <div style="text-align: center">[0 , ∞]</div> | Range tolerance for the distance measurement in FILTER 1 (10 m is chosen as default based on the length of a truck) |
 | `hit_point_blanking_radius` | Meters | `float` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Radius around the sensor where `hit_points` should be ignored (the default value is set very high due to probable discrepancies between the `ego_vehicle` mesh and `hit_points` occurring in the immediate vicinity of the sensor)  |
 
 The visibility of a target is evaluated using 4 filters:
-1. FILTER: Rough filtering of targets baded on the distance between the sensor an the target's center (including `distance_tolerance`)
+1. FILTER: Rough filtering of targets baded on the distance between the sensor an the target's center (including `range_tolerance`)
 2. FILTER: Distance meansurement from the sensor to all vertices of the target's `bounding_box`
 3. FILTER: Filtering vertices by checking their location in the sensor field of view using azimuth and elevation from the sensor to the vertex (in sensor frame)
 4. FILTER: Filtering vertices by sending a ray from the sensor location to the vertex location to check if vertices are covered by other objects
