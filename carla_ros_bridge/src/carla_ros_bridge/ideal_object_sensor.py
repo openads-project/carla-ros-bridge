@@ -79,14 +79,14 @@ class IdealObjectSensor(ObjectSensor):
 
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {
-            "range":                {"default": 15.0,   "lower_boundary": 0},
-            "left_fov":             {"default": -180.0, "lower_boundary": -180, "upper_boundary": 0},
-            "right_fov":            {"default": 180.0,  "lower_boundary": 0,    "upper_boundary": 180},
-            "upper_fov":            {"default": 90.0,   "lower_boundary": 0,    "upper_boundary": 90},
-            "lower_fov":            {"default": -90.0,  "lower_boundary": -90,  "upper_boundary": 0},
-            "min_corner_amount":    {"default": 1,      "lower_boundary": 1,    "upper_boundary": 8},
-            "distance_tolerance":   {"default": 10.0,   "lower_boundary": 0}, # 10 Meters based on the length of a truck
-            "ignore_radius":        {"default": 1.0,    "lower_boundary": 0} # 1 Meter based on hit_points directly next to the sensor
+            "range":                        {"default": 15.0,   "lower_boundary": 0},
+            "left_fov":                     {"default": -180.0, "lower_boundary": -180, "upper_boundary": 0},
+            "right_fov":                    {"default": 180.0,  "lower_boundary": 0,    "upper_boundary": 180},
+            "upper_fov":                    {"default": 90.0,   "lower_boundary": 0,    "upper_boundary": 90},
+            "lower_fov":                    {"default": -90.0,  "lower_boundary": -90,  "upper_boundary": 0},
+            "min_corner_amount":            {"default": 1,      "lower_boundary": 1,    "upper_boundary": 8},
+            "distance_tolerance":           {"default": 10.0,   "lower_boundary": 0}, # 10 Meters based on the length of a truck
+            "hit_point_blanking_radius":    {"default": 1.0,    "lower_boundary": 0} # 1 Meter based on hit_points directly next to the sensor
         }
 
         # Extract and check attributes and set default values if not available or values are not set in parameter boundaries
@@ -198,8 +198,8 @@ class IdealObjectSensor(ObjectSensor):
                     # Skip hit points with the label "NONE"
                     if hit_point.label is carla.CityObjectLabel.NONE:
                         continue
-                    # Skip hit points near to the sensor location within a defined ignore radius
-                    if hit_point.location.distance(carla_location_sensor_in_carla_map) <= self.ignore_radius:
+                    # Skip hit points near to the sensor location within a defined hit point blanking radius
+                    if hit_point.location.distance(carla_location_sensor_in_carla_map) <= self.hit_point_blanking_radius:
                         continue
                     # All other hits are relevant --> current corner is not visible, continue with next corner
                     hit = True
