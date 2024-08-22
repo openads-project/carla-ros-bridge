@@ -79,14 +79,14 @@ class IdealObjectSensor(ObjectSensor):
 
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {
-            "range":                        {"default": 15.0,   "lower_boundary": 0},
+            "range":                        {"default": 100.0,  "lower_boundary": 0},
             "left_fov":                     {"default": -180.0, "lower_boundary": -180, "upper_boundary": 0},
             "right_fov":                    {"default": 180.0,  "lower_boundary": 0,    "upper_boundary": 180},
             "upper_fov":                    {"default": 90.0,   "lower_boundary": 0,    "upper_boundary": 90},
             "lower_fov":                    {"default": -90.0,  "lower_boundary": -90,  "upper_boundary": 0},
             "min_corner_amount":            {"default": 1,      "lower_boundary": 1,    "upper_boundary": 8},
             "distance_tolerance":           {"default": 10.0,   "lower_boundary": 0}, # 10 Meters based on the length of a truck
-            "hit_point_blanking_radius":    {"default": 1.0,    "lower_boundary": 0} # 1 Meter based on hit_points directly next to the sensor
+            "hit_point_blanking_radius":    {"default": 100.0,  "lower_boundary": 0}
         }
 
         # Extract and check attributes and set default values if not available or values are not set in parameter boundaries
@@ -96,6 +96,12 @@ class IdealObjectSensor(ObjectSensor):
                 attribute = next((attribute for attribute in attributes if attribute.key == key), None)
                 setattr(self, key, float(attribute.value))
                 # Boundary check
+                if key == "hit_point_blanking_radius" and getattr(self, key) < current_dict.get("lower_boundary"):
+                    setattr(self, key, getattr(self, "range"))
+                    self.node.logwarn(
+                        "{} attribute of IdealObjectSensor is not in parameter boundaries! Using sensor range value as default ({}) to deactivate FILTER 4.".format(
+                            key, getattr(self, "range")))
+                    continue
                 if getattr(self, key) < current_dict.get("lower_boundary") or ("upper_boundary" in current_dict.keys() and getattr(self, key) > current_dict.get("upper_boundary")):
                     setattr(self, key, getattr(current_dict, "default"))
                     self.node.logwarn(
@@ -103,6 +109,12 @@ class IdealObjectSensor(ObjectSensor):
                             key, current_dict.get("default")))
             except:
                 # Attribute not available
+                if key == "hit_point_blanking_radius":
+                    setattr(self, key, getattr(self, "range")) # set hit_point_blanking_radius to the same value as sensor range, to deactivate FILTER 4 by default
+                    self.node.logwarn(
+                        "No {} attribute found for IdealObjectSensor. Using sensor range value as default ({}) to deactivate FILTER 4.".format(
+                            key, getattr(self, "range")))
+                    continue
                 setattr(self, key, current_dict.get("default"))
                 self.node.logwarn(
                     "No {} attribute found for IdealobjectSensor. Using default value of {}.".format(
