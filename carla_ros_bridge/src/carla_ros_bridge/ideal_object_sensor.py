@@ -25,6 +25,9 @@ from geometry_msgs.msg import Point, PointStamped
 import tf2_ros
 from tf2_geometry_msgs import do_transform_point
 
+if ROS_VERSION == 2:
+    from rclpy.time import Time
+    from rclpy.duration import Duration
 
 class IdealObjectSensor(ObjectSensor):
 
@@ -304,8 +307,8 @@ class IdealObjectSensor(ObjectSensor):
 
         # Get ROS transform from idealIbjectSensor to carla_map and vice versa
         sensor_frame = self.get_prefix()
-        time_latest_tf = rclpy.time.Time(seconds=0)
-        duration_timeout = rclpy.duration.Duration(seconds=0)
+        time_latest_tf = Time(seconds=0)
+        duration_timeout = Duration(seconds=0)
         try:
             ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map' , time_latest_tf, duration_timeout)
             ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
