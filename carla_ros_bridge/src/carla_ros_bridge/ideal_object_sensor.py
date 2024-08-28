@@ -57,12 +57,14 @@ class IdealObjectSensor(ObjectSensor):
                                                       node=node,
                                                       actor_list=actor_list, 
                                                       world=world)
+        self.node = node
 
         # Skip init if ROS_VERSION is 1
         if ROS_VERSION == 1:
+            self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
             return
 
-        self.node = node
+        # Global object publisher
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
@@ -290,6 +292,7 @@ class IdealObjectSensor(ObjectSensor):
 
         # Skip update if ROS_VERSION is 1
         if ROS_VERSION == 1:
+            self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
             return
 
         # Publish transform of idealObjectSensor at timestamp
