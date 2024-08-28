@@ -117,12 +117,12 @@ The following parameters can be set:
 
 | Parameter | Unit | Type | <div style="text-align: center">Default Value</div> | <div style="text-align: center">Range of Applicability</div> | Description |
 |-----------|------|------|---------------|------------------------|-------------|
-| `range` | Meters | `string` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Range of the sensor |
+| `range` | Meters | `float` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Range of the sensor |
 | `left_fov` | Degrees | `float` | <div style="text-align: right">-180</div> | <div style="text-align: center">[-180 , 0]</div> | Sensor's left field of view |
 | `right_fov` | Degrees | `float` | <div style="text-align: right">180</div> | <div style="text-align: center">[0 , 180]</div> | Sensor's right field of view |
 | `upper_fov` | Degrees | `float` | <div style="text-align: right">90</div> | <div style="text-align: center">[0 , 90]</div> | Sensor's upper field of view |
 | `lower_fov` | Degrees | `float` | <div style="text-align: right">-90</div> | <div style="text-align: center">[-90 , 0]</div> | Sensor's lower field of view |
-| `min_corner_amount` | <div style="text-align: center">-</div> | `int` | <div style="text-align: right">3</div> | <div style="text-align: center">[1 , 8]</div> | Number of vertices required for a precise detection of the target |
+| `min_corner_amount` | <div style="text-align: center">-</div> | `int` | <div style="text-align: right">1</div> | <div style="text-align: center">[1 , 8]</div> | Number of vertices required for a precise detection of the target |
 | `range_tolerance` | Meters | `float` | <div style="text-align: right">10</div> | <div style="text-align: center">[0 , ∞]</div> | Range tolerance for the distance measurement in FILTER 1 (10 m is chosen as default based on the length of a truck) |
 | `hit_point_blanking_radius` | Meters | `float` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Radius around the sensor where `hit_points` should be ignored (the default value is set very high due to probable discrepancies between the `ego_vehicle` mesh and `hit_points` occurring in the immediate vicinity of the sensor)  |
 
