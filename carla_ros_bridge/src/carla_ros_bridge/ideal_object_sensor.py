@@ -8,6 +8,9 @@
 """
 Handle an IdealObjectSensor
 """
+import ros_compatibility as roscomp
+ROS_VERSION = roscomp.get_ros_version()
+
 import math
 
 import carla
@@ -19,14 +22,9 @@ from carla_ros_bridge.object_sensor import ObjectSensor
 from derived_object_msgs.msg import ObjectArray
 from geometry_msgs.msg import Point, PointStamped
 
-from rclpy.time import Time
-from rclpy.duration import Duration
-import ros_compatibility as roscomp
-
 import tf2_ros
 from tf2_geometry_msgs import do_transform_point
 
-ROS_VERSION = roscomp.get_ros_version()
 
 class IdealObjectSensor(ObjectSensor):
 
@@ -60,6 +58,13 @@ class IdealObjectSensor(ObjectSensor):
                                                       actor_list=actor_list, 
                                                       world=world)
         self.node = node
+
+        # Skip init if ROS_VERSION is 1
+        if ROS_VERSION == 1:
+            self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
+            return
+
+        # Global object publisher
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
@@ -69,10 +74,7 @@ class IdealObjectSensor(ObjectSensor):
         self.tf_listener = tf2_ros.transform_listener.TransformListener(self.tf_buffer, node, spin_thread=False)
 
         # Set up TransformBroadcaster to publish sensor transform
-        if ROS_VERSION == 1:
-            self._tf_broadcaster = tf2_ros.TransformBroadcaster()
-        elif ROS_VERSION == 2:
-            self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
+        self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
         
         # Extract (relative) spawn pose
         self.relative_spawn_pose = relative_spawn_pose
@@ -287,6 +289,12 @@ class IdealObjectSensor(ObjectSensor):
         - tf global frame
         :return:
         """
+
+        # Skip update if ROS_VERSION is 1
+        if ROS_VERSION == 1:
+            self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
+            return
+
         # Publish transform of idealObjectSensor at timestamp
         self.publish_tf(timestamp)
 
@@ -296,8 +304,8 @@ class IdealObjectSensor(ObjectSensor):
 
         # Get ROS transform from idealIbjectSensor to carla_map and vice versa
         sensor_frame = self.get_prefix()
-        time_latest_tf = Time(seconds=0)
-        duration_timeout = Duration(seconds=0)
+        time_latest_tf = rclpy.time.Time(seconds=0)
+        duration_timeout = rclpy.duration.Duration(seconds=0)
         try:
             ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map' , time_latest_tf, duration_timeout)
             ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
