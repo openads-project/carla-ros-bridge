@@ -8,6 +8,12 @@
 """
 Handle an IdealObjectSensor
 """
+import ros_compatibility as roscomp
+ROS_VERSION = roscomp.get_ros_version()
+
+if ROS_VERSION == 1:
+    return;
+
 import math
 
 import carla
@@ -21,12 +27,10 @@ from geometry_msgs.msg import Point, PointStamped
 
 from rclpy.time import Time
 from rclpy.duration import Duration
-import ros_compatibility as roscomp
 
 import tf2_ros
 from tf2_geometry_msgs import do_transform_point
 
-ROS_VERSION = roscomp.get_ros_version()
 
 class IdealObjectSensor(ObjectSensor):
 
@@ -69,10 +73,7 @@ class IdealObjectSensor(ObjectSensor):
         self.tf_listener = tf2_ros.transform_listener.TransformListener(self.tf_buffer, node, spin_thread=False)
 
         # Set up TransformBroadcaster to publish sensor transform
-        if ROS_VERSION == 1:
-            self._tf_broadcaster = tf2_ros.TransformBroadcaster()
-        elif ROS_VERSION == 2:
-            self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
+        self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
         
         # Extract (relative) spawn pose
         self.relative_spawn_pose = relative_spawn_pose
