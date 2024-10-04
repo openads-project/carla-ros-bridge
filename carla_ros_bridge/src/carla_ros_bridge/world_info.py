@@ -120,22 +120,30 @@ class WorldInfo(object):
                     print("Publishing transform from {} to {}".format(self.world_frame, self.map_frame))
 
                     self.world_x, self.world_y = p(lon,lat)
+                    
                     self.world_set = True
 
-        # publish transform 
-        if self.world_set:
+            # if no geo reference found, use map frame as world frame
+            if not self.world_set:
+                self.world_frame = "map"
+                self.world_x = 0.0
+                self.world_y = 0.0
+                self.q_grid_convergence = quaternion_from_euler(0, 0, 0)
 
-            t = geometry_msgs.msg.TransformStamped()
-            t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
-            t.header.frame_id = self.world_frame
-            t.child_frame_id = self.map_frame
+        # create transform message
+        t = geometry_msgs.msg.TransformStamped()
+        t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
+        t.header.frame_id = self.world_frame
+        t.child_frame_id = self.map_frame
 
-            t.transform.translation.x = self.world_x
-            t.transform.translation.y = self.world_y
-            t.transform.translation.z = 0.0
-            t.transform.rotation.x = self.q_grid_convergence[0]
-            t.transform.rotation.y = self.q_grid_convergence[1]
-            t.transform.rotation.z = self.q_grid_convergence[2]
-            t.transform.rotation.w = self.q_grid_convergence[3]
+        t.transform.translation.x = self.world_x
+        t.transform.translation.y = self.world_y
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = self.q_grid_convergence[0]
+        t.transform.rotation.y = self.q_grid_convergence[1]
+        t.transform.rotation.z = self.q_grid_convergence[2]
+        t.transform.rotation.w = self.q_grid_convergence[3]
 
-            self._tf_broadcaster.sendTransform(t)
+
+        # publish transform message
+        self._tf_broadcaster.sendTransform(t)
