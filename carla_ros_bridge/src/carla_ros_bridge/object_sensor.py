@@ -84,7 +84,7 @@ class ObjectSensor(PseudoActor):
         obj = Object(header=self.get_msg_header("carla_map"))
         obj.id = ctypes.c_uint32(environment_object.id).value
         obj.pose = trans.carla_transform_to_ros_pose(environment_object.transform)
-        obj.pose.position.z = 0
+        obj.pose.position.z = 0.0
         # only static obj
         obj.twist = trans.carla_velocity_to_ros_twist(carla.Vector3D(0.0, 0.0, 0.0), carla.Vector3D(0.0, 0.0, 0.0))
         obj.accel = trans.carla_acceleration_to_ros_accel(carla.Vector3D(0.0, 0.0, 0.0))
