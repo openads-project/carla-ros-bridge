@@ -69,7 +69,7 @@ class TFSensor(PseudoActor):
         transform = None
         try:
             transform = self.parent.get_current_ros_transform()
-            transform.translation.z = 1.33  # autoshuttle height / 2
+            transform.translation.z = 0
         except AttributeError:
             # parent actor disappeared, do not send tf
             self.node.logwarn(
