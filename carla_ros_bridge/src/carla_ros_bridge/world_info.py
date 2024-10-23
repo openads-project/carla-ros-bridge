@@ -123,7 +123,7 @@ class WorldInfo(object):
                     
                     self.world_set = True
 
-            # if no geo reference found, use map frame as world frame
+            # if no geo reference found in OpenDRIVE, align 'carla_map' frame with 'map' frame
             if not self.world_set:
                 self.world_frame = "map"
                 self.world_x = 0.0
