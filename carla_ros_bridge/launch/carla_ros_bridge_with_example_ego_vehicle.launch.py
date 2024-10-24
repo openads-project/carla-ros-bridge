@@ -50,6 +50,10 @@ def generate_launch_description():
             name='publish_static_vehicles',
             default_value='True'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='ignore_altitude',
+            default_value='True'
+        ),
         launch.actions.IncludeLaunchDescription(
             launch.launch_description_sources.PythonLaunchDescriptionSource(
                 os.path.join(get_package_share_directory(
@@ -64,6 +68,7 @@ def generate_launch_description():
                 'synchronous_mode_wait_for_vehicle_control_command': launch.substitutions.LaunchConfiguration('synchronous_mode_wait_for_vehicle_control_command'),
                 'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds'),
                 'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
+                'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
             }.items()
         ),
         launch.actions.IncludeLaunchDescription(

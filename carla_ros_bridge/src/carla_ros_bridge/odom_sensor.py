@@ -65,7 +65,10 @@ class OdometrySensor(PseudoActor):
         odometry.child_frame_id = self.parent.get_prefix()
         try:
             odometry.pose.pose = self.parent.get_current_ros_pose()
-            odometry.pose.pose.position.z = 1.33 # autoshuttle height / 2
+
+            if self.node.parameters['ignore_altitude']:
+                odometry.pose.pose.position.z = 0.0
+    
             odometry.twist.twist = self.parent.get_current_ros_twist_rotated()
         except AttributeError:
             # parent actor disappeared, do not send tf

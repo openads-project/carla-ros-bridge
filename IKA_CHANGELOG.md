@@ -15,3 +15,4 @@
 - add blueprint and groups feature for sensor definitions (!26)
 - add ideal object sensor (!28)
 - publish utm -> carla_map tf based on OpenDrive header (!29)
+- additional parameter ignore_altitude to disable height information (!38)
