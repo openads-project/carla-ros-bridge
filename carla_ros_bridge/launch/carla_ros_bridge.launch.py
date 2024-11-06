@@ -75,6 +75,11 @@ def generate_launch_description():
             default_value='True',
             description='Enable/disable object list with static vehicles'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='ignore_altitude',
+            default_value='False',
+            description='Disable altitude information'
+        ),
         launch_ros.actions.Node(
             package='carla_ros_bridge',
             executable='bridge',
@@ -124,6 +129,9 @@ def generate_launch_description():
                 },
                 {
                     'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
+                },
+                {
+                    'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
                 }
             ]
         )

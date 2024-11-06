@@ -69,5 +69,10 @@ class Gnss(Sensor):
         navsatfix_msg.header = self.get_msg_header(timestamp=carla_gnss_measurement.timestamp)
         navsatfix_msg.latitude = carla_gnss_measurement.latitude
         navsatfix_msg.longitude = carla_gnss_measurement.longitude
-        navsatfix_msg.altitude = carla_gnss_measurement.altitude
+
+        if self.node.parameters['ignore_altitude']:
+            navsatfix_msg.altitude = 0.0
+        else:
+            navsatfix_msg.altitude = carla_gnss_measurement.altitude
+            
         self.gnss_publisher.publish(navsatfix_msg)

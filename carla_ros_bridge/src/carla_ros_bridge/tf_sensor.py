@@ -69,6 +69,10 @@ class TFSensor(PseudoActor):
         transform = None
         try:
             transform = self.parent.get_current_ros_transform()
+
+            if self.node.parameters['ignore_altitude']:
+                transform.translation.z = 0.0
+
         except AttributeError:
             # parent actor disappeared, do not send tf
             self.node.logwarn(

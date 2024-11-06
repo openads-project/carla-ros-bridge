@@ -75,6 +75,10 @@ class TrafficParticipant(Actor):
         obj.id = self.get_id()
         # Pose
         obj.pose = self.get_current_ros_pose()
+
+        if self.node.parameters['ignore_altitude']:
+            obj.pose.position.z = 0.0
+    
         # Twist
         obj.twist = self.get_current_ros_twist()
         # Acceleration
