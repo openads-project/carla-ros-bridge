@@ -77,7 +77,7 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='ignore_altitude',
-            default_value='True',
+            default_value='False',
             description='Disable altitude information'
         ),
         launch_ros.actions.Node(

@@ -52,7 +52,7 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='ignore_altitude',
-            default_value='True'
+            default_value='False'
         ),
         launch.actions.IncludeLaunchDescription(
             launch.launch_description_sources.PythonLaunchDescriptionSource(

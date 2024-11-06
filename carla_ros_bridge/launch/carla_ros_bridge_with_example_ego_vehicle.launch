@@ -24,7 +24,7 @@
   <arg name='publish_static_vehicles' default='True'/>
 
   <!-- Disable altitude information -->
-  <arg name='ignore_altitude' default='True'/>
+  <arg name='ignore_altitude' default='False'/>
 
   <include file="$(find carla_ros_bridge)/launch/carla_ros_bridge.launch">
     <arg name='host' value='$(arg host)'/>

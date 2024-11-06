@@ -31,7 +31,7 @@
   <!-- enable/disable object list with static vehicles -->
   <arg name='publish_static_vehicles' default='True'/>
   <!-- disable altitude information -->
-  <arg name='ignore_altitude' default='True'/>
+  <arg name='ignore_altitude' default='False'/>
       
   <node pkg="carla_ros_bridge" name="carla_ros_bridge" type="bridge.py" output="screen" required="true">
     <param name="host" value="$(arg host)" unless="$(eval host == '')"/>
