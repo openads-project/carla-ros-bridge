@@ -80,6 +80,8 @@ class CarlaRosBridge(CompatibleNode):
         self.ros_timestamp = roscomp.ros_timestamp(self.parameters["start_unix_time_stamp"], from_sec=True)
         self.callback_group = roscomp.callback_groups.ReentrantCallbackGroup()
 
+        self.last_loginfo = time.time()
+
         self.synchronous_mode_update_thread = None
         self.shutdown = Event()
 
@@ -167,8 +169,6 @@ class CarlaRosBridge(CompatibleNode):
             self.new_subscription(CarlaWeatherParameters, "/carla/weather_control",
                                   self.on_weather_changed, qos_profile=10, callback_group=self.callback_group)
         
-        self.last_loginfo = time.time()
-
     def spawn_object(self, req, response=None):
         response = roscomp.get_service_response(SpawnObject)
         if not self.shutdown.is_set():
