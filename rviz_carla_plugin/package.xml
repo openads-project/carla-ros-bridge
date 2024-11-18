@@ -27,6 +27,7 @@
   <exec_depend>libqt5-core</exec_depend>
   <exec_depend>libqt5-gui</exec_depend>
   <exec_depend>libqt5-widgets</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
   
   <export>
       <rviz condition="$ROS_VERSION == 1" plugin="${prefix}/plugin_description.xml"/> -->
