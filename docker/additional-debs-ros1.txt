@@ -3,9 +3,10 @@ python3-osrf-pycommon
 python3-rosdep
 python3-wstool
 python3-opencv
+python3-virtualenv
 python3-catkin-tools
 python3-catkin-pkg
-python3-catkin-pkg-modules"
+python3-catkin-pkg-modules
 ros-$ROS_DISTRO-ackermann-msgs
 ros-$ROS_DISTRO-cv-bridge
 ros-$ROS_DISTRO-vision-opencv

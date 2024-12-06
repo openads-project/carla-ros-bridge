@@ -1,5 +1,8 @@
 export DOCKER_ROS_FILES_PATH=/docker-ros/additional-files
 
+# Setup venv
+virtualenv -p python3 ./venv && touch ./venv/COLCON_IGNORE
+
 # Check if user provided CARLA PythonAPI. If not, download it as artifact from CARLA CI pipeline
 export PYTHON_VERSION_SHORT=$(python --version | awk -F'[ .]' '{print $2"."$3}')
 mkdir -p /opt/carla
