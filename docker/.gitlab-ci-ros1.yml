@@ -8,7 +8,6 @@ variables:
   PLATFORM: amd64
   IMAGE_TAG: ros1
   ADDITIONAL_DEBS_FILE: docker/additional-debs-ros1.txt
-  ADDITIONAL_PIP_FILE: docker/additional-pip-requirements-ros1.txt
   ENABLE_INDUSTRIAL_CI: 'true'
 
 .test:

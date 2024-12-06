@@ -9,7 +9,6 @@ variables:
   PLATFORM: amd64
   IMAGE_TAG: ros2
   ADDITIONAL_DEBS_FILE: docker/additional-debs-ros2.txt
-  ADDITIONAL_PIP_FILE: docker/additional-pip-requirements-ros2.txt
   ENABLE_INDUSTRIAL_CI: 'false' # ONLY TEMPORARY! Remove as soon as issue relating to Flake8 is fixed
   PUSH_AS_LATEST: 'true'
 
