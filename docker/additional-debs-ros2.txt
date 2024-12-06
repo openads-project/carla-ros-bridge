@@ -10,6 +10,8 @@ ros-$ROS_DISTRO-rqt-image-view
 ros-$ROS_DISTRO-rqt-gui-py
 ros-$ROS_DISTRO-derived-object-msgs
 ros-$ROS_DISTRO-pcl-conversions
+ros-$ROS_DISTRO-rviz2
+
 wget
 qtbase5-dev
 qt5-qmake
