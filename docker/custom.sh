@@ -7,11 +7,11 @@ echo "source $WORKSPACE/venv/bin/activate" /root/.bashrc
 source ./venv/bin/activate
 
 # Install Python dependencies
-if [ "$ROS_DISTRO" = "noetic" ]; then
-    pip$PYTHON_VERSION_SHORT install -r $DOCKER_ROS_FILES_PATH/requirements-ros1.txt
-else
-    pip$PYTHON_VERSION_SHORT install -r $DOCKER_ROS_FILES_PATH/requirements-ros2.txt
-fi
+# if [ "$ROS_DISTRO" = "noetic" ]; then
+#     pip$PYTHON_VERSION_SHORT install -r $DOCKER_ROS_FILES_PATH/requirements-ros1.txt
+# else
+#     pip$PYTHON_VERSION_SHORT install -r $DOCKER_ROS_FILES_PATH/requirements-ros2.txt
+# fi
 
 # Check if user provided CARLA PythonAPI. If not, download it as artifact from CARLA CI pipeline
 mkdir -p /opt/carla
