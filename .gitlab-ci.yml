@@ -1,14 +1,14 @@
-stages:
-  - Build
+include:
+  - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/refs/heads/rosdep-pip-ubuntu24/.gitlab-ci/docker-ros.yml'
 
-ros-bridge-ros1:
-  stage: Build
-  trigger:
-    include: docker/.gitlab-ci-ros1.yml
-    strategy: depend
+variables:
+  DOCKER_ROS_GIT_REF: rosdep-pip-ubuntu24
+  BASE_IMAGE: rwthika/ros2:jazzy
+  COMMAND: ros2 launch carla_ros_bridge carla_ros_bridge.launch.py
+  TARGET: dev,run
+  PLATFORM: amd64
+  ENABLE_INDUSTRIAL_CI: 'false' # ONLY TEMPORARY! Remove as soon as issue relating to Flake8 is fixed
 
-ros-bridge-ros2:
-  stage: Build
-  trigger:
-    include: docker/.gitlab-ci-ros2.yml
-    strategy: depend
+.test:
+  variables:
+    DOCKER_RUN_OPTS: -u root:root -e SCENARIO_RUNNER_PATH='.' # industrial_ci tests launch files which require this env var to at least be set
