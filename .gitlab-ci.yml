@@ -7,6 +7,7 @@ variables:
   COMMAND: ros2 launch carla_ros_bridge carla_ros_bridge.launch.py
   TARGET: dev,run
   PLATFORM: amd64
+  DISABLE_ROS_INSTALLATION: 'true'
   ENABLE_INDUSTRIAL_CI: 'false' # ONLY TEMPORARY! Remove as soon as issue relating to Flake8 is fixed
 
 .test:
