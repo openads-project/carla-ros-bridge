@@ -6,7 +6,8 @@ mv artifacts/PythonAPI /opt/carla
 rm -rf artifacts
 
 # Create a script to append necessary paths to PYTHONPATH and make .bashrc source it
-echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla/dist/$(ls /opt/carla/PythonAPI/carla/dist | grep py3.10.)" >> /opt/carla/setup.bash
+export PYTHON_VERSION_SHORT=$(python --version | awk -F'[ .]' '{print $2"."$3}')
+echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla/dist/$(ls /opt/carla/PythonAPI/carla/dist | grep py$PYTHON_VERSION_SHORT.)" >> /opt/carla/setup.bash
 echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla" >> /opt/carla/setup.bash
 echo "source /opt/carla/setup.bash" >> /root/.bashrc
 
