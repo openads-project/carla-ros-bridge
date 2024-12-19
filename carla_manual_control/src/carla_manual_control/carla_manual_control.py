@@ -9,7 +9,23 @@
 """
 Welcome to CARLA ROS manual control.
 
-Use ARROWS or WASD keys for control.
+If Xbox controller is connected, use the following trigger for control.
+
+    right trigger (RT)          : throttle
+    left trigger (LT)           : brake
+    left joystick (left right)  : steer left/right
+    left button (LB)            : toggle reverse
+    right button (RB)           : hand-brake
+    A button                    : toggle autopilot
+    Y button                    : toggle manual control
+
+    view button                 : change camera position
+    
+    Share button                : toggle help
+    Xbox button                 : quit
+
+
+If no Xbox controller is connected, use ARROWS or WASD keys for control.
 
     W            : throttle
     S            : brake
@@ -33,6 +49,7 @@ import math
 from threading import Thread
 
 import numpy
+import os
 from transforms3d.euler import quat2euler
 try:
     import pygame
@@ -85,11 +102,15 @@ class ManualControl(CompatibleNode):
     Handle the rendering
     """
 
-    def __init__(self, resolution):
+    def __init__(self, resolution, joystick):
         super(ManualControl, self).__init__("ManualControl")
         self._surface = None
         self.role_name = self.get_param("role_name", "ego_vehicle")
         self.hud = HUD(self.role_name, resolution['width'], resolution['height'], self)
+        if joystick:
+            self.xbox_controller = XboxControl(self.role_name, self.hud, self, joystick)
+        else:
+            self.xbox_controller = None
         self.controller = KeyboardControl(self.role_name, self.hud, self)
 
         self.image_subscriber = self.new_subscription(
@@ -146,6 +167,8 @@ class ManualControl(CompatibleNode):
 
         do_quit = self.controller.parse_events(game_clock)
         if do_quit:
+            return
+        if self.xbox_controller and self.xbox_controller.parse_events():
             return
         self.hud.tick(game_clock)
 
@@ -288,6 +311,205 @@ class KeyboardControl(object):
     @staticmethod
     def _is_quit_shortcut(key):
         return (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL)
+
+
+# ==============================================================================
+# -- XboxControl ---------------------------------------------------------------
+# ==============================================================================
+
+
+class XboxControl(object):
+    """
+    Handle input events
+    """
+
+    def __init__(self, role_name, hud, node, joystick):
+        self.role_name = role_name
+        self.hud = hud
+        self.node = node
+        self.joystick = joystick
+        
+        self._autopilot_enabled = False
+        self._control = CarlaEgoVehicleControl()
+        self._steer_cache = 0.0
+        self._throttle_cache = 0.0
+        self._brake_cache = 0.0
+        self._wcc = 0 # TODO: create infrastructure to set wireless controller connection
+
+        self._controller_layout = {
+            "steer":            [0,   0],
+            "throttle":         [5,   4],
+            "brake":            [2,   5],
+            "reverse":          [4,   6],
+            "hand_brake":       [5,   7],
+            "toggle_camera":    [6,  10],
+            "enable_autopilot": [0,   0],
+            "manual_control":   [3,   4],
+            "quit_shortcut":    [8,  12],
+            "Help":             [11, 15]
+        }
+        self._speed_limit = 36.0 # in kph
+        self._vehicle_status = CarlaEgoVehicleStatus()
+        
+        fast_qos = QoSProfile(depth=10)
+        fast_latched_qos = QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+
+        self.vehicle_control_manual_override_publisher = self.node.new_publisher(
+            Bool,
+            "/carla/{}/vehicle_control_manual_override".format(self.role_name),
+            qos_profile=fast_latched_qos)
+
+        self.vehicle_control_manual_override = False
+
+        self.auto_pilot_enable_publisher = self.node.new_publisher(
+            Bool,
+            "/carla/{}/enable_autopilot".format(self.role_name),
+            qos_profile=fast_qos)
+
+        self.vehicle_control_publisher = self.node.new_publisher(
+            CarlaEgoVehicleControl,
+            "/carla/{}/vehicle_control_cmd_manual".format(self.role_name),
+            qos_profile=fast_qos)
+
+        self.carla_status_subscriber = self.node.new_subscription(
+            CarlaStatus,
+            "/carla/status",
+            self._on_new_carla_frame,
+            qos_profile=10)
+
+        self.set_autopilot(self._autopilot_enabled)
+
+        self.set_vehicle_control_manual_override(
+            self.vehicle_control_manual_override)  # disable manual override
+
+    def set_vehicle_control_manual_override(self, enable):
+        """
+        Set the manual control override
+        """
+        self.hud.notification('Set vehicle control manual override to: {}'.format(enable))
+        self.vehicle_control_manual_override_publisher.publish((Bool(data=enable)))
+
+    def set_autopilot(self, enable):
+        """
+        enable/disable the autopilot
+        """
+        self.auto_pilot_enable_publisher.publish(Bool(data=enable))
+
+    def change_movement_direction(self, v_res):
+        if v_res < 2:
+            return True
+        else:
+            self.hud.notification('Gear change only possible while stationary!')
+            return False
+        pass
+
+    def parse_events(self):
+        v_res = 3.6 * self._vehicle_status.velocity
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return True
+            elif event.type == pygame.JOYBUTTONUP:
+                if self._is_quit_shortcut(self, event.button):
+                    return True
+                elif event.button == self._controller_layout["Help"][self._wcc]:
+                    self.hud.help.toggle()
+                elif event.button == self._controller_layout["manual_control"][self._wcc]:
+                    self.vehicle_control_manual_override = not self.vehicle_control_manual_override
+                    self.set_vehicle_control_manual_override(self.vehicle_control_manual_override)
+                elif event.button == self._controller_layout["enable_autopilot"][self._wcc]:
+                    self._autopilot_enabled = not self._autopilot_enabled
+                    self.set_autopilot(self._autopilot_enabled)
+                    self.hud.notification('Autopilot %s' %
+                                         ('On' if self._autopilot_enabled else 'Off'))
+                elif event.button == self._controller_layout["reverse"][self._wcc] and self.change_movement_direction(v_res):
+                    self._control.gear = 1 if self._control.reverse else -1
+                # toggle_camera
+        if not self._autopilot_enabled and self.vehicle_control_manual_override:
+            self._parse_vehicle_keys(v_res)
+            self._control.reverse = self._control.gear < 0
+
+    @staticmethod
+    def steering_charakteristic(joystick_position, velocity):
+        a = 1.2346  # Stretch parameter
+        b = 0.1     # Shift parameter
+        c = 2       # Exponent
+        if abs(joystick_position) > b and velocity < 10:
+            return math.copysign(1, joystick_position) * a * (abs(joystick_position) - b)**c
+        elif abs(joystick_position) > b:
+            return math.copysign(1, joystick_position) * a * math.e**(-velocity/100) * (abs(joystick_position) - b)**c
+        else: return 0.0
+
+    @staticmethod
+    def brake_charakteristic(joystick_position):
+        if joystick_position > - 0.75:
+            return 4/7 * joystick_position + 3/7
+        else: return 0.0
+
+    @staticmethod
+    def throttle_charakteristic(joystick_position):
+        if joystick_position > - 0.5:
+            return 2/3 * joystick_position + 1/3
+        else: return 0.0
+
+    def _on_new_carla_frame(self):
+        """
+        callback on new frame
+
+        As CARLA only processes one vehicle control command per tick,
+        send the current from within here (once per frame)
+        """
+        if not self._autopilot_enabled and self.vehicle_control_manual_override:
+            try:
+                self.vehicle_control_publisher.publish(self._control)
+            except Exception as error:
+                self.node.logwarn("Could not send vehicle control: {}".format(error))
+
+
+    def _parse_vehicle_keys(self, velocity):
+        throttle_axis = self._controller_layout["throttle"][self._wcc]
+        throttle_buffer = self._throttle_cache
+        # Throttle control
+        if self.joystick.get_axis(throttle_axis) and velocity <= self._speed_limit:
+            self._throttle_cache = self.throttle_charakteristic(self.joystick.get_axis(throttle_axis))
+        else:
+            self._throttle_cache = 0.0
+        self._control.throttle = round(self._throttle_cache, 3)
+
+        # Brake control
+        brake_axis = self._controller_layout["brake"][self._wcc]
+        brake_buffer = self._brake_cache
+        if self.joystick.get_axis(brake_axis):
+            self._brake_cache = self.brake_charakteristic(self.joystick.get_axis(brake_axis))
+        else:
+            self._brake_cache = 0.0
+        self._control.brake = round(self._brake_cache, 3)
+
+        # Steer control
+        steer_axis = self._controller_layout["steer"][self._wcc]
+        steer_buffer = self._steer_cache
+        if self.joystick.get_axis(steer_axis):
+            self._steer_cache = self.steering_charakteristic(self.joystick.get_axis(steer_axis), velocity)
+        else:
+            self._steer_cache = 0.0
+        self._control.steer = round(self._steer_cache, 3)
+
+        # Disable autopilot if controller input is detected
+        if self._autopilot_enabled and (
+            (abs(self._throttle_cache - throttle_buffer) > 0) or
+            (abs(self._brake_cache - brake_buffer) > 0) or
+            (abs(self._steer_cache - steer_buffer) > 0)):
+            self._autopilot_enabled = not self._autopilot_enabled
+            self.set_autopilot(self._autopilot_enabled)
+            self.hud.notification('Autopilot %s' %
+                                 ('On' if self._autopilot_enabled else 'Off'))
+        
+        # Set hand brake
+        if self.joystick.get_button(self._controller_layout["hand_brake"][self._wcc]):
+            self._control.hand_brake = True
+        else: self._control.hand_brake = False
+
+    def _is_quit_shortcut(self, button):
+        return (button == self._controller_layout["quit_shortcut"][self._wcc])
 
 
 # ==============================================================================
@@ -612,6 +834,8 @@ def main(args=None):
     """
     main function
     """
+    os.environ['SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS'] = '1'
+
     roscomp.init("manual_control", args=args)
 
     # resolution should be similar to spawned camera with role-name 'view'
@@ -620,12 +844,22 @@ def main(args=None):
     pygame.init()
     pygame.font.init()
     pygame.display.set_caption("CARLA ROS manual control")
+    pygame.joystick.init()
 
     try:
+        num_joysticks = pygame.joystick.get_count()
+        if num_joysticks > 0:
+            joystick = pygame.joystick.Joystick(0)
+            joystick.init()
+            roscomp.loginfo("Enabled joystick: {}".format(joystick.get_name()))
+        else:
+            joystick = None
+            roscomp.logwarn("No joystick found, using keyboard for control.")
+            
         display = pygame.display.set_mode((resolution['width'], resolution['height']),
                                           pygame.HWSURFACE | pygame.DOUBLEBUF)
 
-        manual_control_node = ManualControl(resolution)
+        manual_control_node = ManualControl(resolution, joystick)
         clock = pygame.time.Clock()
 
         executor = roscomp.executors.MultiThreadedExecutor()
