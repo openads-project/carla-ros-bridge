@@ -1,4 +1,0 @@
-python3-osrf-pycommon
-python3-virtualenv
-ros-$ROS_DISTRO-vision-opencv
-ros-$ROS_DISTRO-rqt-image-view
