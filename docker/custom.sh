@@ -17,3 +17,8 @@ echo "export PROJ_NETWORK=ON" >> /opt/carla/setup.bash
 # make sure to install the required transforms3d version
 apt-get remove -y python3-transforms3d
 pip install transforms3d==0.4.1
+
+apt-get install ros-$ROS_DISTRO-vision-opencv
+apt-get install ros-$ROS_DISTRO-rmw-zenoh-cpp
+apt-get install ros-$ROS_DISTRO-rqt-image-view
+apt-get install ros-$ROS_DISTRO-rqt-gui-py
