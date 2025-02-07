@@ -4,5 +4,4 @@ ros-$ROS_DISTRO-vision-opencv
 ros-$ROS_DISTRO-rmw-zenoh-cpp
 ros-$ROS_DISTRO-rqt-image-view
 ros-$ROS_DISTRO-rqt-gui-py
-ros-$ROS_DISTRO-derived-object-msgs
 ros-$ROS_DISTRO-pcl-conversions
