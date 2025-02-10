@@ -13,7 +13,3 @@ echo "source /opt/carla/setup.bash" >> /root/.bashrc
 
 # Allow proj to automatically download remote grids to interpret the projection string in OpenDRIVE maps
 echo "export PROJ_NETWORK=ON" >> /opt/carla/setup.bash
-
-# make sure to install the required transforms3d version
-apt-get remove -y python3-transforms3d
-pip install transforms3d==0.4.1
