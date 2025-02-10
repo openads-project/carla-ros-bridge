@@ -2,7 +2,7 @@ include:
   - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml'
 
 variables:
-  BASE_IMAGE: gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/carla-ros-bridge/base:ubuntu22-jazzy-not-from-src-amd64
+  BASE_IMAGE: gitlab.ika.rwth-aachen.de:5050/fb-fi/simulation/carla/carla-ros-bridge/base:ubuntu22-jazzy-amd64
   COMMAND: ros2 launch carla_ros_bridge carla_ros_bridge.launch.py
   TARGET: dev,run
   PLATFORM: amd64
