@@ -3,7 +3,3 @@ repositories:
     type: git
     url: https://github.com/astuff/astuff_sensor_msgs.git
     version: master
-  tf_transformations:
-    type: git
-    url: https://github.com/DLu/tf_transformations.git
-    version: main
