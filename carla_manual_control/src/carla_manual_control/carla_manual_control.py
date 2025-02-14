@@ -167,11 +167,10 @@ class ManualControl(CompatibleNode):
         render the current image
         """
 
-        do_quit = self.controller.parse_events(game_clock)
-        if do_quit:
-            return
+        if self.controller.parse_events(game_clock):
+            return True
         if self.xbox_controller and self.xbox_controller.parse_events():
-            return
+            return True
         self.hud.tick(game_clock)
 
         if self._surface is not None:
