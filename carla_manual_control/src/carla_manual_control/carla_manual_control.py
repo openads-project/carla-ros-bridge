@@ -107,6 +107,8 @@ class ManualControl(CompatibleNode):
         self._surface = None
         self.role_name = self.get_param("role_name", "ego_vehicle")
         self.hud = HUD(self.role_name, resolution['width'], resolution['height'], self)
+        self.vehicle_control_manual_override = False
+        self._autopilot_enabled = False
         if joystick:
             self.xbox_controller = XboxControl(self.role_name, self.hud, self, joystick)
         else:
@@ -191,7 +193,6 @@ class KeyboardControl(object):
         self.hud = hud
         self.node = node
 
-        self._autopilot_enabled = False
         self._control = CarlaEgoVehicleControl()
         self._steer_cache = 0.0
 
@@ -202,8 +203,6 @@ class KeyboardControl(object):
             Bool,
             "/carla/{}/vehicle_control_manual_override".format(self.role_name),
             qos_profile=fast_latched_qos)
-
-        self.vehicle_control_manual_override = False
 
         self.auto_pilot_enable_publisher = self.node.new_publisher(
             Bool,
@@ -221,10 +220,10 @@ class KeyboardControl(object):
             self._on_new_carla_frame,
             qos_profile=10)
 
-        self.set_autopilot(self._autopilot_enabled)
+        self.set_autopilot(self.node._autopilot_enabled)
 
         self.set_vehicle_control_manual_override(
-            self.vehicle_control_manual_override)  # disable manual override
+            self.node.vehicle_control_manual_override)  # disable manual override
 
     def set_vehicle_control_manual_override(self, enable):
         """
@@ -256,8 +255,8 @@ class KeyboardControl(object):
                                           pygame.key.get_mods() & KMOD_SHIFT):
                     self.hud.help.toggle()
                 elif event.key == K_b:
-                    self.vehicle_control_manual_override = not self.vehicle_control_manual_override
-                    self.set_vehicle_control_manual_override(self.vehicle_control_manual_override)
+                    self.node.vehicle_control_manual_override = not self.node.vehicle_control_manual_override
+                    self.set_vehicle_control_manual_override(self.node.vehicle_control_manual_override)
                 if event.key == K_q:
                     self._control.gear = 1 if self._control.reverse else -1
                 elif event.key == K_m:
@@ -270,11 +269,11 @@ class KeyboardControl(object):
                 elif self._control.manual_gear_shift and event.key == K_PERIOD:
                     self._control.gear = self._control.gear + 1
                 elif event.key == K_p:
-                    self._autopilot_enabled = not self._autopilot_enabled
-                    self.set_autopilot(self._autopilot_enabled)
+                    self.node._autopilot_enabled = not self.node._autopilot_enabled
+                    self.set_autopilot(self.node._autopilot_enabled)
                     self.hud.notification('Autopilot %s' %
-                                          ('On' if self._autopilot_enabled else 'Off'))
-        if not self._autopilot_enabled and self.vehicle_control_manual_override:
+                                          ('On' if self.node._autopilot_enabled else 'Off'))
+        if not self.node._autopilot_enabled and self.node.vehicle_control_manual_override:
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
             self._control.reverse = self._control.gear < 0
 
@@ -285,7 +284,7 @@ class KeyboardControl(object):
         As CARLA only processes one vehicle control command per tick,
         send the current from within here (once per frame)
         """
-        if not self._autopilot_enabled and self.vehicle_control_manual_override:
+        if not self.node._autopilot_enabled and self.node.vehicle_control_manual_override:
             try:
                 self.vehicle_control_publisher.publish(self._control)
             except Exception as error:
@@ -329,7 +328,6 @@ class XboxControl(object):
         self.node = node
         self.joystick = joystick
         
-        self._autopilot_enabled = False
         self._control = CarlaEgoVehicleControl()
         self._steer_cache = 0.0
         self._throttle_cache = 0.0
@@ -359,8 +357,6 @@ class XboxControl(object):
             "/carla/{}/vehicle_control_manual_override".format(self.role_name),
             qos_profile=fast_latched_qos)
 
-        self.vehicle_control_manual_override = False
-
         self.auto_pilot_enable_publisher = self.node.new_publisher(
             Bool,
             "/carla/{}/enable_autopilot".format(self.role_name),
@@ -377,10 +373,10 @@ class XboxControl(object):
             self._on_new_carla_frame,
             qos_profile=10)
 
-        self.set_autopilot(self._autopilot_enabled)
+        self.set_autopilot(self.node._autopilot_enabled)
 
         self.set_vehicle_control_manual_override(
-            self.vehicle_control_manual_override)  # disable manual override
+            self.node.vehicle_control_manual_override)  # disable manual override
 
     def set_vehicle_control_manual_override(self, enable):
         """
@@ -414,17 +410,17 @@ class XboxControl(object):
                 elif event.button == self._controller_layout["Help"][self._wcc]:
                     self.hud.help.toggle()
                 elif event.button == self._controller_layout["manual_control"][self._wcc]:
-                    self.vehicle_control_manual_override = not self.vehicle_control_manual_override
-                    self.set_vehicle_control_manual_override(self.vehicle_control_manual_override)
+                    self.node.vehicle_control_manual_override = not self.node.vehicle_control_manual_override
+                    self.set_vehicle_control_manual_override(self.node.vehicle_control_manual_override)
                 elif event.button == self._controller_layout["enable_autopilot"][self._wcc]:
-                    self._autopilot_enabled = not self._autopilot_enabled
-                    self.set_autopilot(self._autopilot_enabled)
+                    self.node._autopilot_enabled = not self.node._autopilot_enabled
+                    self.set_autopilot(self.node._autopilot_enabled)
                     self.hud.notification('Autopilot %s' %
-                                         ('On' if self._autopilot_enabled else 'Off'))
+                                         ('On' if self.node._autopilot_enabled else 'Off'))
                 elif event.button == self._controller_layout["reverse"][self._wcc] and self.change_movement_direction(v_res):
                     self._control.gear = 1 if self._control.reverse else -1
                 # toggle_camera
-        if self.vehicle_control_manual_override:
+        if self.node.vehicle_control_manual_override:
             self._parse_vehicle_keys(v_res)
             self._control.reverse = self._control.gear < 0
 
@@ -458,7 +454,7 @@ class XboxControl(object):
         As CARLA only processes one vehicle control command per tick,
         send the current from within here (once per frame)
         """
-        if not self._autopilot_enabled and self.vehicle_control_manual_override:
+        if not self.node._autopilot_enabled and self.node.vehicle_control_manual_override:
             try:
                 self.vehicle_control_publisher.publish(self._control)
             except Exception as error:
@@ -493,20 +489,21 @@ class XboxControl(object):
             self._steer_cache = 0.0
         self._control.steer = round(self._steer_cache, 3)
 
-        # Disable autopilot if controller input is detected
-        if self._autopilot_enabled and (
-            (abs(self._throttle_cache - throttle_buffer) > 0) or
-            (abs(self._brake_cache - brake_buffer) > 0) or
-            (abs(self._steer_cache - steer_buffer) > 0)):
-            self._autopilot_enabled = not self._autopilot_enabled
-            self.set_autopilot(self._autopilot_enabled)
-            self.hud.notification('Autopilot %s' %
-                                 ('On' if self._autopilot_enabled else 'Off'))
-        
         # Set hand brake
         if self.joystick.get_button(self._controller_layout["hand_brake"][self._wcc]):
             self._control.hand_brake = True
         else: self._control.hand_brake = False
+
+        # Disable autopilot if controller input is detected
+        if self.node._autopilot_enabled and (
+            (abs(self._throttle_cache - throttle_buffer) > 0) or
+            (abs(self._brake_cache - brake_buffer) > 0) or
+            (abs(self._steer_cache - steer_buffer) > 0) or
+            self._control.hand_brake):
+            self.node._autopilot_enabled = not self.node._autopilot_enabled
+            self.set_autopilot(self.node._autopilot_enabled)
+            self.hud.notification('Autopilot %s' %
+                                 ('On' if self.node._autopilot_enabled else 'Off'))
 
     def _is_quit_shortcut(self, button):
         return (button == self._controller_layout["quit_shortcut"][self._wcc])
