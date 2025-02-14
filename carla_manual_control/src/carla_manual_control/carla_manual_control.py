@@ -424,7 +424,7 @@ class XboxControl(object):
                 elif event.button == self._controller_layout["reverse"][self._wcc] and self.change_movement_direction(v_res):
                     self._control.gear = 1 if self._control.reverse else -1
                 # toggle_camera
-        if not self._autopilot_enabled and self.vehicle_control_manual_override:
+        if self.vehicle_control_manual_override:
             self._parse_vehicle_keys(v_res)
             self._control.reverse = self._control.gear < 0
 
