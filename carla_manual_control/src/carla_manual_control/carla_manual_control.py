@@ -447,7 +447,7 @@ class XboxControl(object):
             return 2/3 * joystick_position + 1/3
         else: return 0.0
 
-    def _on_new_carla_frame(self):
+    def _on_new_carla_frame(self, data):
         """
         callback on new frame
 
