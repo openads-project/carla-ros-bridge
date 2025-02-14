@@ -834,7 +834,7 @@ def main(args=None):
     """
     main function
     """
-    os.environ['SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS'] = '1'
+    os.environ['SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS'] = "1"
 
     roscomp.init("manual_control", args=args)
 
