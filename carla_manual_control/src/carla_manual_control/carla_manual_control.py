@@ -409,7 +409,7 @@ class XboxControl(object):
             if event.type == pygame.QUIT:
                 return True
             elif event.type == pygame.JOYBUTTONUP:
-                if self._is_quit_shortcut(self, event.button):
+                if self._is_quit_shortcut(event.button):
                     return True
                 elif event.button == self._controller_layout["Help"][self._wcc]:
                     self.hud.help.toggle()
