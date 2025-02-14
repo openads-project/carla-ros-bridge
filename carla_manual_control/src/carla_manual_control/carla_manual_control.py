@@ -334,7 +334,7 @@ class XboxControl(object):
         self._steer_cache = 0.0
         self._throttle_cache = 0.0
         self._brake_cache = 0.0
-        self._wcc = 0 # TODO: create infrastructure to set wireless controller connection
+        self._wcc = 1 # TODO: create infrastructure to set wireless controller connection
 
         self._controller_layout = {
             "steer":            [0,   0],
