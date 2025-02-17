@@ -108,7 +108,7 @@ class ManualControl(CompatibleNode):
         self.role_name = self.get_param("role_name", "ego_vehicle")
         self.hud = HUD(self.role_name, resolution['width'], resolution['height'], self)
         self.vehicle_control_manual_override = False
-        self._autopilot_enabled = False
+        self.autopilot_enabled = False
         if joystick:
             self.xbox_controller = XboxControl(self.role_name, self.hud, self, joystick)
         else:
@@ -219,7 +219,7 @@ class KeyboardControl(object):
             self._on_new_carla_frame,
             qos_profile=10)
 
-        self.set_autopilot(self.node._autopilot_enabled)
+        self.set_autopilot(self.node.autopilot_enabled)
 
         self.set_vehicle_control_manual_override(
             self.node.vehicle_control_manual_override)  # disable manual override
@@ -268,11 +268,11 @@ class KeyboardControl(object):
                 elif self._control.manual_gear_shift and event.key == K_PERIOD:
                     self._control.gear = self._control.gear + 1
                 elif event.key == K_p:
-                    self.node._autopilot_enabled = not self.node._autopilot_enabled
-                    self.set_autopilot(self.node._autopilot_enabled)
+                    self.node.autopilot_enabled = not self.node.autopilot_enabled
+                    self.set_autopilot(self.node.autopilot_enabled)
                     self.hud.notification('Autopilot %s' %
-                                          ('On' if self.node._autopilot_enabled else 'Off'))
-        if not self.node._autopilot_enabled and self.node.vehicle_control_manual_override:
+                                          ('On' if self.node.autopilot_enabled else 'Off'))
+        if not self.node.autopilot_enabled and self.node.vehicle_control_manual_override:
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
             self._control.reverse = self._control.gear < 0
 
@@ -283,7 +283,7 @@ class KeyboardControl(object):
         As CARLA only processes one vehicle control command per tick,
         send the current from within here (once per frame)
         """
-        if not self.node._autopilot_enabled and self.node.vehicle_control_manual_override:
+        if not self.node.autopilot_enabled and self.node.vehicle_control_manual_override:
             try:
                 self.vehicle_control_publisher.publish(self._control)
             except Exception as error:
@@ -372,7 +372,7 @@ class XboxControl(object):
             self._on_new_carla_frame,
             qos_profile=10)
 
-        self.set_autopilot(self.node._autopilot_enabled)
+        self.set_autopilot(self.node.autopilot_enabled)
 
         self.set_vehicle_control_manual_override(
             self.node.vehicle_control_manual_override)  # disable manual override
@@ -412,10 +412,10 @@ class XboxControl(object):
                     self.node.vehicle_control_manual_override = not self.node.vehicle_control_manual_override
                     self.set_vehicle_control_manual_override(self.node.vehicle_control_manual_override)
                 elif event.button == self._controller_layout["enable_autopilot"][self._wcc]:
-                    self.node._autopilot_enabled = not self.node._autopilot_enabled
-                    self.set_autopilot(self.node._autopilot_enabled)
+                    self.node.autopilot_enabled = not self.node.autopilot_enabled
+                    self.set_autopilot(self.node.autopilot_enabled)
                     self.hud.notification('Autopilot %s' %
-                                         ('On' if self.node._autopilot_enabled else 'Off'))
+                                         ('On' if self.node.autopilot_enabled else 'Off'))
                 elif event.button == self._controller_layout["reverse"][self._wcc] and self.change_movement_direction(v_res):
                     self._control.gear = 1 if self._control.reverse else -1
                 # toggle_camera
@@ -453,7 +453,7 @@ class XboxControl(object):
         As CARLA only processes one vehicle control command per tick,
         send the current from within here (once per frame)
         """
-        if not self.node._autopilot_enabled and self.node.vehicle_control_manual_override:
+        if not self.node.autopilot_enabled and self.node.vehicle_control_manual_override:
             try:
                 self.vehicle_control_publisher.publish(self._control)
             except Exception as error:
@@ -494,15 +494,15 @@ class XboxControl(object):
         else: self._control.hand_brake = False
 
         # Disable autopilot if controller input is detected
-        if self.node._autopilot_enabled and (
+        if self.node.autopilot_enabled and (
             (abs(self._throttle_cache - throttle_buffer) > 0) or
             (abs(self._brake_cache - brake_buffer) > 0) or
             (abs(self._steer_cache - steer_buffer) > 0) or
             self._control.hand_brake):
-            self.node._autopilot_enabled = not self.node._autopilot_enabled
-            self.set_autopilot(self.node._autopilot_enabled)
+            self.node.autopilot_enabled = not self.node.autopilot_enabled
+            self.set_autopilot(self.node.autopilot_enabled)
             self.hud.notification('Autopilot %s' %
-                                 ('On' if self.node._autopilot_enabled else 'Off'))
+                                 ('On' if self.node.autopilot_enabled else 'Off'))
 
     def _is_quit_shortcut(self, button):
         return (button == self._controller_layout["quit_shortcut"][self._wcc])
