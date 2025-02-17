@@ -561,8 +561,7 @@ class HUD(object):
             Odometry,
             "/carla/{}/odometry".format(self.role_name),
             self.odometry_updated,
-            qos_profile=10
-        )
+            qos_profile=10)
 
         self.manual_control_subscriber = node.new_subscription(
             Bool,
