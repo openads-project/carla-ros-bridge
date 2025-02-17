@@ -109,6 +109,7 @@ class ManualControl(CompatibleNode):
         self.hud = HUD(self.role_name, resolution['width'], resolution['height'], self)
         self.vehicle_control_manual_override = False
         self.autopilot_enabled = False
+        self.prio_publish = False
         if joystick:
             self.xbox_controller = XboxControl(self.role_name, self.hud, self, joystick)
         else:
@@ -283,7 +284,12 @@ class KeyboardControl(object):
         As CARLA only processes one vehicle control command per tick,
         send the current from within here (once per frame)
         """
-        if not self.node.autopilot_enabled and self.node.vehicle_control_manual_override:
+        self.node.prio_publish = False
+        if (self._control.throttle > 0.0 or self._control.brake > 0.0 or
+        self._control.steer != 0.0 or self._control.hand_brake):
+            self.node.prio_publish = True
+
+        if not self.node.autopilot_enabled and self.node.vehicle_control_manual_override and self.node.prio_publish:
             try:
                 self.vehicle_control_publisher.publish(self._control)
             except Exception as error:
@@ -453,7 +459,7 @@ class XboxControl(object):
         As CARLA only processes one vehicle control command per tick,
         send the current from within here (once per frame)
         """
-        if not self.node.autopilot_enabled and self.node.vehicle_control_manual_override:
+        if not self.node.autopilot_enabled and self.node.vehicle_control_manual_override and not self.node.prio_publish:
             try:
                 self.vehicle_control_publisher.publish(self._control)
             except Exception as error:
