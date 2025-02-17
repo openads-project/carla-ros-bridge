@@ -166,10 +166,10 @@ class ManualControl(CompatibleNode):
         """
         render the current image
         """
-
-        if self.controller.parse_events(game_clock):
+        events = pygame.event.get()
+        if self.controller.parse_events(game_clock, events):
             return True
-        if self.xbox_controller and self.xbox_controller.parse_events():
+        if self.xbox_controller and self.xbox_controller.parse_events(events):
             return True
         self.hud.tick(game_clock)
 
@@ -238,11 +238,11 @@ class KeyboardControl(object):
         self.auto_pilot_enable_publisher.publish(Bool(data=enable))
 
     # pylint: disable=too-many-branches
-    def parse_events(self, clock):
+    def parse_events(self, clock, events):
         """
         parse an input event
         """
-        for event in pygame.event.get():
+        for event in events:
             if event.type == pygame.QUIT:
                 return True
             elif event.type == pygame.KEYUP:
@@ -398,9 +398,9 @@ class XboxControl(object):
             return False
         pass
 
-    def parse_events(self):
+    def parse_events(self, events):
         v_res = 3.6 * self._vehicle_status.velocity
-        for event in pygame.event.get():
+        for event in events:
             if event.type == pygame.QUIT:
                 return True
             elif event.type == pygame.JOYBUTTONUP:
