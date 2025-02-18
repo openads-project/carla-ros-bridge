@@ -180,12 +180,8 @@ class ManualControl(CompatibleNode):
         """
         control = self.controller._control
         if self.xbox_controller and control.throttle == 0 and control.brake == 0 and control.steer == 0:
-            print("Debug: Xbox control")
             control = self.xbox_controller._control
-        else:
-            print("Debug: Keyboard control")
-        
-        print(control)
+
         input = ((control.throttle > 0) or (control.brake > 0) or (control.steer != 0))
 
         # Activate vehicle_control_manual_override if input detected
@@ -193,7 +189,7 @@ class ManualControl(CompatibleNode):
             self.vehicle_control_manual_override = True
             self.hud.notification('Vehicle control manual override activated')
             self.set_vehicle_control_manual_override(True)
-        
+
         # Disable autopilot if controller input is detected
         if input and self.autopilot_enabled:
             self.autopilot_enabled = False
