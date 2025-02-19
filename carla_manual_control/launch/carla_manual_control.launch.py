@@ -11,6 +11,10 @@ def generate_launch_description():
             name='role_name',
             default_value='ego_vehicle'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='wireless_controller',
+            default_value='False'
+        ),
         launch_ros.actions.Node(
             package='carla_manual_control',
             executable='carla_manual_control',
@@ -19,7 +23,8 @@ def generate_launch_description():
             emulate_tty=True,
             parameters=[
                 {
-                    'role_name': launch.substitutions.LaunchConfiguration('role_name')
+                    'role_name': launch.substitutions.LaunchConfiguration('role_name'),
+                    'wireless_controller': launch.substitutions.LaunchConfiguration('wireless_controller')
                 }
             ]
         )
