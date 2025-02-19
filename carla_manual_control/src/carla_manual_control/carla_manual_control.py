@@ -367,7 +367,6 @@ class XboxControl(object):
             "Help":             [11, 15]
         }
         self._speed_limit = 36.0 # in kph
-        self._vehicle_status = CarlaEgoVehicleStatus()
 
     def change_movement_direction(self, v_res):
         if v_res < 2:
@@ -378,7 +377,7 @@ class XboxControl(object):
         pass
 
     def parse_events(self, events):
-        v_res = 3.6 * self._vehicle_status.velocity
+        v_res = 3.6 * self.hud.vehicle_status.velocity
         for event in events:
             if event.type == pygame.QUIT:
                 return True
