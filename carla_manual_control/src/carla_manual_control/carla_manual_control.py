@@ -366,7 +366,6 @@ class XboxControl(object):
             "quit_shortcut":    [8,  12],
             "Help":             [11, 15]
         }
-        self._speed_limit = 36.0 # in kph
 
     def change_movement_direction(self, v_res):
         if v_res < 2:
@@ -428,7 +427,7 @@ class XboxControl(object):
     def _parse_vehicle_keys(self, velocity):
         throttle_axis = self._controller_layout["throttle"][self._wireless]
         # Throttle control
-        if self.joystick.get_axis(throttle_axis) and velocity <= self._speed_limit:
+        if self.joystick.get_axis(throttle_axis):
             self._throttle_cache = self.throttle_charakteristic(self.joystick.get_axis(throttle_axis))
         else:
             self._throttle_cache = 0.0
