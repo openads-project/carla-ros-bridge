@@ -179,10 +179,10 @@ class ManualControl(CompatibleNode):
         send the current from within here (once per frame)
         """
         control = self.controller._control
-        if self.xbox_controller and control.throttle == 0 and control.brake == 0 and control.steer == 0:
+        if self.xbox_controller and control.throttle == 0 and control.brake == 0 and control.steer == 0 and not control.hand_brake:
             control = self.xbox_controller._control
 
-        input = ((control.throttle > 0) or (control.brake > 0) or (control.steer != 0))
+        input = ((control.throttle > 0) or (control.brake > 0) or (control.steer != 0) or (control.hand_brake))
 
         # Activate vehicle_control_manual_override if input detected
         if input and not self.vehicle_control_manual_override:
