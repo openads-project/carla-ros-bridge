@@ -428,7 +428,6 @@ class XboxControl(object):
 
     def _parse_vehicle_keys(self, velocity):
         throttle_axis = self._controller_layout["throttle"][self._wireless]
-        throttle_buffer = self._throttle_cache
         # Throttle control
         if self.joystick.get_axis(throttle_axis) and velocity <= self._speed_limit:
             self._throttle_cache = self.throttle_charakteristic(self.joystick.get_axis(throttle_axis))
@@ -438,7 +437,6 @@ class XboxControl(object):
 
         # Brake control
         brake_axis = self._controller_layout["brake"][self._wireless]
-        brake_buffer = self._brake_cache
         if self.joystick.get_axis(brake_axis):
             self._brake_cache = self.brake_charakteristic(self.joystick.get_axis(brake_axis))
         else:
@@ -447,7 +445,6 @@ class XboxControl(object):
 
         # Steer control
         steer_axis = self._controller_layout["steer"][self._wireless]
-        steer_buffer = self._steer_cache
         if self.joystick.get_axis(steer_axis):
             self._steer_cache = self.steering_charakteristic(self.joystick.get_axis(steer_axis), velocity)
         else:
