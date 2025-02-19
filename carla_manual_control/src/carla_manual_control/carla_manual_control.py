@@ -18,9 +18,8 @@ If Xbox controller is connected, use the following trigger for control.
     right button (RB)           : hand-brake
     A button                    : toggle autopilot
     Y button                    : toggle manual control
-
-    view button                 : change camera position
     
+    view button                 : toggle HUD
     Share button                : toggle help
     Xbox button                 : quit
 
@@ -109,6 +108,7 @@ class ManualControl(CompatibleNode):
         self._surface = None
         self.role_name = self.get_param("role_name", "ego_vehicle")
         self.wireless_controller = self.get_param("wireless_controller", False)
+        self.joystick_available = True if joystick else False
 
         self.hud = HUD(self.role_name, resolution['width'], resolution['height'], self)
         self.vehicle_control_manual_override = False
@@ -360,7 +360,7 @@ class XboxControl(object):
             "brake":            [2,   5],
             "reverse":          [4,   6],
             "hand_brake":       [5,   7],
-            "toggle_camera":    [6,  10],
+            "toggle_HUD":       [6,  10],
             "enable_autopilot": [0,   0],
             "manual_control":   [3,   4],
             "quit_shortcut":    [8,  12],
@@ -385,6 +385,8 @@ class XboxControl(object):
             elif event.type == pygame.JOYBUTTONUP:
                 if self._is_quit_shortcut(event.button):
                     return True
+                elif event.button == self._controller_layout["toggle_HUD"][self._wireless]:
+                    self.hud.toggle_info()
                 elif event.button == self._controller_layout["Help"][self._wireless]:
                     self.hud.help.toggle()
                 elif event.button == self._controller_layout["manual_control"][self._wireless]:
@@ -482,7 +484,7 @@ class HUD(object):
         mono = pygame.font.match_font(mono)
         self._font_mono = pygame.font.Font(mono, 14)
         self._notifications = FadingText(font, (width, 40), (0, height - 40))
-        self.help = HelpText(pygame.font.Font(mono, 24), width, height)
+        self.help = HelpText(pygame.font.Font(mono, 14), width, height)
         self._show_info = True
         self._info_text = []
         self.vehicle_status = CarlaEgoVehicleStatus()
@@ -629,7 +631,10 @@ class HUD(object):
         self._info_text += [('Manual ctrl:', self.manual_control)]
         if self.carla_status.synchronous_mode:
             self._info_text += [('Sync mode running:', self.carla_status.synchronous_mode_running)]
-        self._info_text += ['', '', 'Press <H> for help']
+        if self.node.joystick_available:
+            self._info_text += ['', '', 'Press <H> on Keyboard or', '<Share Button> on Xbox' ,'Controller for help']
+        else:
+            self._info_text += ['', '', 'Press <H> for help']
 
     def toggle_info(self):
         """
@@ -654,7 +659,7 @@ class HUD(object):
         render the display
         """
         if self._show_info:
-            info_surface = pygame.Surface((220, self.dim[1]))
+            info_surface = pygame.Surface((250, self.dim[1]))
             info_surface.set_alpha(100)
             display.blit(info_surface, (0, 0))
             v_offset = 4
@@ -749,14 +754,15 @@ class HelpText(object):
     def __init__(self, font, width, height):
         lines = __doc__.split('\n')
         self.font = font
-        self.dim = (680, len(lines) * 22 + 12)
+        self.dim = (680, height)
         self.pos = (0.5 * width - 0.5 * self.dim[0], 0.5 * height - 0.5 * self.dim[1])
         self.seconds_left = 0
         self.surface = pygame.Surface(self.dim)
         self.surface.fill((0, 0, 0, 0))
         for n, line in enumerate(lines):
             text_texture = self.font.render(line, True, (255, 255, 255))
-            self.surface.blit(text_texture, (22, n * 22))
+            line_height = round((self.dim[1] - 12) / len(lines))
+            self.surface.blit(text_texture, (line_height, n * line_height))
             self._render = False
         self.surface.set_alpha(220)
 
