@@ -31,6 +31,7 @@ from carla_ros_bridge.carla_status_publisher import CarlaStatusPublisher
 from carla_ros_bridge.debug_helper import DebugHelper
 from carla_ros_bridge.ego_vehicle import EgoVehicle
 from carla_ros_bridge.world_info import WorldInfo
+from carla_ros_bridge.weather import Weather
 
 from carla_msgs.msg import CarlaControl, CarlaWeatherParameters
 from carla_msgs.srv import SpawnObject, DestroyObject, GetBlueprints
@@ -118,6 +119,8 @@ class CarlaRosBridge(CompatibleNode):
 
         # add world info
         self.world_info = WorldInfo(carla_world=self.carla_world, node=self)
+        # add weather
+        self.weather = Weather(carla_world=self.carla_world, node=self)
         # add debug helper
         self.debug_helper = DebugHelper(carla_world.debug, self)
 
