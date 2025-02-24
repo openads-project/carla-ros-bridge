@@ -7,7 +7,7 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 #
 """
-Class to handle the carla map
+Class to provide weather information
 """
 
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
@@ -31,7 +31,7 @@ class Weather(object):
         self.node = node
         self.world = carla_world
 
-        weather_timer = node.new_timer(1.0, self.update)
+        node.new_timer(1.0, self.update)
         self.weather_publisher = node.new_publisher(
             CarlaWeatherParameters,
             "/carla/weather",
@@ -42,7 +42,6 @@ class Weather(object):
         """
         Function (override) to destroy this object.
 
-        Remove reference to carla.Map object.
         Finally forward call to super class.
 
         :return:
