@@ -336,6 +336,7 @@ class CarlaRosBridge(CompatibleNode):
         :return:
         """
         self.world_info.update(frame_id, timestamp)
+        self.weather.update(frame_id, timestamp)
         self.actor_factory.update_actor_states(frame_id, timestamp)
 
     def _ego_vehicle_control_applied_callback(self, ego_vehicle_id):

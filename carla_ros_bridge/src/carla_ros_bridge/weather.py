@@ -11,7 +11,7 @@ Class to handle the carla map
 """
 
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
-from carla_msgs.msg import WeatherParameters
+from carla_msgs.msg import CarlaWeatherParameters
 
 
 class Weather(object):
@@ -34,7 +34,7 @@ class Weather(object):
 
         self.weather_published = False
         self.weather_publisher = node.new_publisher(
-            WeatherParameters,
+            CarlaWeatherParameters,
             "/carla/weather",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
@@ -49,7 +49,6 @@ class Weather(object):
         :return:
         """
         self.node.destroy_publisher(self.weather_publisher)
-        self.weather = None
 
 
     def update(self, frame, timestamp):
@@ -58,9 +57,18 @@ class Weather(object):
 
         :return:
         """
-        weather = WeatherParameters()
-        weather = self.world.get_weather()
-        print(weather)
+        weather = CarlaWeatherParameters()
+
+        carla_weather = self.world.get_weather()
+        weather.cloudiness = carla_weather.cloudiness
+        weather.precipitation = carla_weather.precipitation
+        weather.precipitation_deposits = carla_weather.precipitation_deposits
+        weather.wind_intensity = carla_weather.wind_intensity
+        weather.fog_density = carla_weather.fog_density
+        weather.fog_distance = carla_weather.fog_distance
+        weather.wetness = carla_weather.wetness
+        weather.sun_azimuth_angle = carla_weather.sun_azimuth_angle
+        weather.sun_altitude_angle = carla_weather.sun_altitude_angle
 
         if not self.weather_published:
 
