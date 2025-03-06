@@ -323,16 +323,17 @@ class TrafficLightsSensor(PseudoActor):
                 posDeltaZ = wp2.transform.location.z - posAbsZ
                 
                 node1 = NodeXY()
-                node1.delta.node_xy1.x.value = posAbsX * 100
-                node1.delta.node_xy1.y.value = posAbsY * 100
+                
+                node1.delta.node_xy1.x.value = (int)(posAbsX * 100)
+                node1.delta.node_xy1.y.value = (int)(posAbsY * 100)
                 node1.attributes.d_elevation_is_present = True
-                node1.attributes.d_elevation.value = posAbsZ * 100
+                node1.attributes.d_elevation.value = (int)(posAbsZ * 100)
                 
                 node2 = NodeXY()
-                node2.delta.node_xy1.x.value = posDeltaX * 100
-                node2.delta.node_xy1.y.value = posDeltaY * 100
+                node2.delta.node_xy1.x.value = (int)(posDeltaX * 100)
+                node2.delta.node_xy1.y.value = (int)(posDeltaY * 100)
                 node2.attributes.d_elevation_is_present = True
-                node2.attributes.d_elevation.value = posDeltaZ * 100
+                node2.attributes.d_elevation.value = (int)(posDeltaZ * 100)
 
                 generic_lane.node_list.nodes.array.append(node1)
                 generic_lane.node_list.nodes.array.append(node2)
