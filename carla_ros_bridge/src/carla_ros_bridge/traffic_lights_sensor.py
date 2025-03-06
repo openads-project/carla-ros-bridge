@@ -288,8 +288,8 @@ class TrafficLightsSensor(PseudoActor):
                 
                 generic_lane = GenericLane()
                 generic_lane.lane_id.value = waypoint.road_id   
-                generic_lane.maneuvers_is_present = waypoint.lane_change != LaneChange.NONE
-                generic_lane.maneuvers.value = waypoint.lane_change
+                #generic_lane.maneuvers_is_present = waypoint.lane_change != LaneChange.NONE
+                #generic_lane.maneuvers.value = waypoint.lane_change
                 generic_lane._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
                 
                 generic_lane.lane_attributes.directional_use.value.append(192)
@@ -375,7 +375,6 @@ class TrafficLightsSensor(PseudoActor):
         
         #publish messages
         print("Try to publish mapem")
-        mapemEmpty = MAPEM()
         self.etsi_mapem_publisher.publish(mapem)
         
         print ("Try to publish spatem")
