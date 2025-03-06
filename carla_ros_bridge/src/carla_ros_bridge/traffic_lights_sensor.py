@@ -290,7 +290,7 @@ class TrafficLightsSensor(PseudoActor):
                 generic_lane.lane_id.value = waypoint.road_id   
                 #generic_lane.maneuvers_is_present = waypoint.lane_change != LaneChange.NONE
                 #generic_lane.maneuvers.value = waypoint.lane_change
-                generic_lane._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
+                #generic_lane._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
                 
                 generic_lane.lane_attributes.directional_use.value.append(192)
                 generic_lane.lane_attributes.directional_use.bits_unused = 6
@@ -334,8 +334,8 @@ class TrafficLightsSensor(PseudoActor):
                 node2.attributes.d_elevation_is_present = True
                 node2.attributes.d_elevation.value = posDeltaZ * 100
 
-                #generic_lane.node_list.nodes.array.append(node1)
-                #generic_lane.node_list.nodes.array.append(node2)
+                generic_lane.node_list.nodes.array.append(node1)
+                generic_lane.node_list.nodes.array.append(node2)
                     
                 intersecion_geometry.lane_set.array.append(generic_lane)
                 
@@ -380,25 +380,3 @@ class TrafficLightsSensor(PseudoActor):
         print ("Try to publish spatem")
         self.etsi_spatem_publisher.publish(spatem)
         
-        
-        #for actor in traffic_light_actors:
-        #    if isinstance(actor, TrafficLight):
-        #        traffic_light = actor  # Now it's cast to TrafficLight
-        #        status = traffic_light.get_status()
-        #        
-        #        # Intersection State
-        #        intersection_state = IntersectionState()
-        #        intersection_state.revision.value = 0 # are we interested in getting a revision from the CARLA simulation, e.g. a version number of the scene?
-        #        
-        #        # Movement State
-        #        movement_state = MovementState()
-        #        movement_state.signal_group.value = traffic_light.uid
-        #        
-        #        # Movement event
-        #        movement_event = MovementEvent()
-        #        movement_event.event_state.value = TrafficLightsSensor.convert_traffic_light_state(status.state)
-        #        
-        #        # fill arrays
-        #        movement_state.state_time_speed.array.append(movement_event)
-        #        intersection_state.states.array.append(movement_state)
-        #        spatem.spat.intersections.array.append(intersection_state)
