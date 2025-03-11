@@ -9,6 +9,7 @@
 a sensor that reports the state of all traffic lights
 """
 
+import math
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
@@ -112,19 +113,35 @@ class TrafficLightsSensor(PseudoActor):
         return "sensor.pseudo.traffic_lights"
 
     @staticmethod
+    def get_lane_direction_vector(waypoint):
+        # Get the transform of the waypoint (position and rotation)
+        transform = waypoint.transform
+
+        # Extract the yaw (rotation around the Z-axis) to get the heading of the waypoint
+        yaw = transform.rotation.yaw
+
+        # Convert yaw to radians and calculate the direction vector
+        radian = math.radians(yaw)
+
+        # The direction vector in the xy-plane (forward direction of the car)
+        x, y = math.cos(radian), -math.sin(radian)
+
+        return x, y
+
+    @staticmethod
     def convert_lane_type(carla_lane_type : LaneType):
         lane_actions = {
             LaneType.NONE: 0,
-            LaneType.Driving: LaneTypeAttributes.vehicle,
+            LaneType.Driving: LaneTypeAttributes.CHOICE_VEHICLE,
             LaneType.Stop: 0,
             LaneType.Shoulder: 0,
-            LaneType.Biking: LaneTypeAttributes.bike_lane,
-            LaneType.Sidewalk: LaneTypeAttributes.sidewalk,
+            LaneType.Biking: LaneTypeAttributes.CHOICE_BIKE_LANE,
+            LaneType.Sidewalk: LaneTypeAttributes.CHOICE_SIDEWALK,
             LaneType.Border: 0,
             LaneType.Restricted: 0,
-            LaneType.Parking: LaneTypeAttributes.parking,
+            LaneType.Parking: LaneTypeAttributes.CHOICE_PARKING,
             LaneType.Bidirectional: 0,
-            LaneType.Median: LaneTypeAttributes.median,
+            LaneType.Median: LaneTypeAttributes.CHOICE_MEDIAN,
             LaneType.Special1: 0,
             LaneType.Special2: 0,
             LaneType.Special3: 0,
@@ -219,7 +236,7 @@ class TrafficLightsSensor(PseudoActor):
                             'waypoint_traffic_light_dict': {}
                         }
                         
-                        waypoints = junction_object.get_waypoints(LaneType.Any)
+                        waypoints = junction_object.get_waypoints(LaneType.Driving)
                         
                         for waypoint in waypoints:
                             junctions[junction_id]['waypoints_tuple'].append(waypoint)
@@ -267,7 +284,6 @@ class TrafficLightsSensor(PseudoActor):
                 
         # create mapem mesage
         mapem = MAPEM()
-        
         mapem.map.msg_issue_revision.value = 0
         
         for junctionKey in junctions:
@@ -282,106 +298,67 @@ class TrafficLightsSensor(PseudoActor):
             intersecion_geometry.ref_point.elevation_is_present = True
             intersecion_geometry.ref_point.elevation.value = 0
         
+            junctionPosX = 0
+            junctionPosY = 0
+            junctionCount = 0
+            
             for traffic_light in junctionContainer['traffic_lights'].values():
-                info = traffic_light.get_info()
-                waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
-                
-                generic_lane = GenericLane()
-                generic_lane.lane_id.value = waypoint.road_id   
-                
-                generic_lane.lane_attributes.directional_use.value.append(192)
-                generic_lane.lane_attributes.directional_use.bits_unused = 6
-                
-                connection = Connection()
+                    waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
+                    wp = waypoints[0]
                     
-                connection.signal_group_is_present = True
-                connection.signal_group.value = traffic_light.uid
-                
-                generic_lane.connects_to_is_present = True
-                generic_lane.connects_to.array.append(connection)
-                
-                # lane consists of a nodelist of 2 nodes
-                generic_lane.node_list = NodeListXY()
-                generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
-                
-                wp1 = waypoints[0]
-                wp2 = waypoints[1]
-                
-                posAbsX = wp1.transform.location.x
-                posAbsY = wp1.transform.location.y
-                posAbsZ = wp1.transform.location.z
-                
-                posAbsX = info.transform.position.x
-                posAbsY = info.transform.position.y
-                posAbsZ = info.transform.position.z
-                
-                posDeltaX = wp2.transform.location.x - posAbsX
-                posDeltaY = wp2.transform.location.y - posAbsY
-                posDeltaZ = wp2.transform.location.z - posAbsZ
-                
-                posDeltaX = info.trigger_volume.center.x
-                posDeltaY = info.trigger_volume.center.y
-                posDeltaZ = info.trigger_volume.center.z
-                
-                node1 = NodeXY()
-                
-                node1.delta.node_xy1.x.value = (int)(posAbsX * 100)
-                node1.delta.node_xy1.y.value = (int)(posAbsY * 100)
-                node1.attributes.d_elevation_is_present = True
-                node1.attributes.d_elevation.value = (int)(posAbsZ * 100)
-                
-                node2 = NodeXY()
-                node2.delta.node_xy1.x.value = (int)(posDeltaX * 100)
-                node2.delta.node_xy1.y.value = (int)(posDeltaY * 100)
-                node2.attributes.d_elevation_is_present = True
-                node2.attributes.d_elevation.value = (int)(posDeltaZ * 100)
-
-                generic_lane.node_list.nodes.array.append(node1)
-                generic_lane.node_list.nodes.array.append(node2)
+                    junctionPosX += wp.transform.location.x
+                    junctionPosY += -wp.transform.location.y
+                    junctionCount += 1
                     
-                intersecion_geometry.lane_set.array.append(generic_lane)
-                
-            if False:
-                for waypointTuple in junctionContainer['waypoints_tuple']:
-                    
-                    # create GenericLane
-                    waypoint = waypointTuple[0]
+            junctionPosX = junctionPosX / junctionCount
+            junctionPosY = junctionPosY / junctionCount 
+            
+            
+            #if junctionCount > 0:
+            #    intersecion_geometry.ref_point.lat.value = (int)(junctionPosX * 100)
+            #    intersecion_geometry.ref_point.lon.value = (int)(junctionPosY * 100)
+        
+            if True:
+                for traffic_light in junctionContainer['traffic_lights'].values():
+                    info = traffic_light.get_info()
+                    waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
                     
                     generic_lane = GenericLane()
                     generic_lane.lane_id.value = waypoint.road_id   
-                    #generic_lane.maneuvers_is_present = waypoint.lane_change != LaneChange.NONE
-                    #generic_lane.maneuvers.value = waypoint.lane_change
-                    #generic_lane._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
                     
                     generic_lane.lane_attributes.directional_use.value.append(192)
                     generic_lane.lane_attributes.directional_use.bits_unused = 6
                     
-                    # set connection to traffic light if available
-                    if waypoint.id in junctionContainer['waypoint_traffic_light_dict']:
-                        traffic_light = junctionContainer['waypoint_traffic_light_dict'][waypoint.id]
-                        connection = Connection()
+                    connection = Connection()
                         
-                        connection.signal_group_is_present = True
-                        connection.signal_group.value = traffic_light.uid
-                        
-                        generic_lane.connects_to_is_present = True
-                        generic_lane.connects_to.array.append(connection)
-                        # generic_lane.connections.append(connection) todo: where is the difference here?
-
-
+                    connection.signal_group_is_present = True
+                    connection.signal_group.value = traffic_light.uid
+                    
+                    generic_lane.connects_to_is_present = True
+                    generic_lane.connects_to.array.append(connection)
+                    
                     # lane consists of a nodelist of 2 nodes
                     generic_lane.node_list = NodeListXY()
                     generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
                     
-                    wp1, wp2 = waypointTuple
+                    wp1 = waypoints[0]
+                    wp2 = waypoints[1]
                     
                     posAbsX = wp1.transform.location.x
                     posAbsY = wp1.transform.location.y
                     posAbsZ = wp1.transform.location.z
                     
+                    posAbsX = info.transform.position.x
+                    posAbsY = info.transform.position.y
+                    posAbsZ = info.transform.position.z
+                    
                     posDeltaX = wp2.transform.location.x - posAbsX
                     posDeltaY = wp2.transform.location.y - posAbsY
                     posDeltaZ = wp2.transform.location.z - posAbsZ
+                    
+                    posDeltaX = 0#info.trigger_volume.center.x
+                    posDeltaY = 0#info.trigger_volume.center.y
+                    posDeltaZ = 0#info.trigger_volume.center.z
                     
                     node1 = NodeXY()
                     
@@ -400,6 +377,228 @@ class TrafficLightsSensor(PseudoActor):
                     generic_lane.node_list.nodes.array.append(node2)
                         
                     intersecion_geometry.lane_set.array.append(generic_lane)
+                    
+                    
+                    # add affected wps
+                    if True:
+                        generic_lane2 = GenericLane()
+                        generic_lane2.lane_id.value = waypoint.road_id   
+                        
+                        generic_lane2.lane_attributes.directional_use.value.append(192)
+                        generic_lane2.lane_attributes.directional_use.bits_unused = 6
+                    
+                        
+                        # lane consists of a nodelist of 2 nodes
+                        generic_lane2.node_list = NodeListXY()
+                        generic_lane2.node_list.choice = NodeListXY.CHOICE_NODES
+                        
+                        lastX = 0
+                        lastY = 0
+                        
+                        for wp in waypoints:
+                            posDeltaX = wp2.transform.location.x - lastX
+                            posDeltaY = -wp2.transform.location.y - lastY
+                            
+                            node1 = NodeXY()
+                        
+                            node1.delta.node_xy1.x.value = (int)(posDeltaX * 100)
+                            node1.delta.node_xy1.y.value = (int)(posDeltaY * 100)
+                            
+                            lastX = wp.transform.location.x
+                            lastY = -wp.transform.location.y
+                            
+                            generic_lane2.node_list.nodes.array.append(node1)
+
+                        intersecion_geometry.lane_set.array.append(generic_lane2)    
+                        
+            if True:
+                for waypointTuple in junctionContainer['waypoints_tuple']:
+                    
+                    # create GenericLane
+                    waypoint = waypointTuple[0]
+                    wp1, wp2 = waypointTuple
+                    
+                    generic_lane = GenericLane()
+                    generic_lane.lane_id.value = waypoint.road_id   
+                    #generic_lane.maneuvers_is_present = waypoint.lane_change != LaneChange.NONE
+                    #generic_lane.maneuvers.value = waypoint.lane_change
+                    generic_lane._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
+
+                    generic_lane.lane_attributes.directional_use.value.append(64)
+                    generic_lane.lane_attributes.directional_use.bits_unused = 6
+                    
+                    # set connection to traffic light if available
+                    is_traffic_light = False
+                    traffic_light = None
+                    
+                    for traffic_light in junctionContainer['traffic_lights'].values():
+                        waypoints = traffic_light.carla_actor.get_affected_lane_waypoints() 
+                    
+                        for wp in waypoints:
+                            if wp.id == wp1.id or wp.id == wp2.id:
+                                is_traffic_light = True
+                                break
+                    
+                    #if waypoint.id in junctionContainer['waypoint_traffic_light_dict']:
+                    if is_traffic_light and False:
+                        #traffic_light = junctionContainer['waypoint_traffic_light_dict'][waypoint.id]
+                        connection = Connection()
+                        
+                        connection.signal_group_is_present = True
+                        connection.signal_group.value = traffic_light.uid
+                        
+                        generic_lane.connects_to_is_present = True
+                        generic_lane.connects_to.array.append(connection)
+                        
+                        # generic_lane.connections.append(connection) todo: where is the difference here?
+
+
+                    # lane consists of a nodelist of 2 nodes
+                    generic_lane.node_list = NodeListXY()
+                    generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
+                    
+                    posAbsX = wp1.transform.location.x
+                    posAbsY = -wp1.transform.location.y
+                    posAbsZ = wp1.transform.location.z
+                    
+                    posDeltaX = wp2.transform.location.x - posAbsX
+                    posDeltaY = -wp2.transform.location.y - posAbsY
+                    posDeltaZ = wp2.transform.location.z - posAbsZ
+                    
+                    node1 = NodeXY()
+                    
+                    node1.delta.node_xy1.x.value = (int)(posAbsX * 100)
+                    node1.delta.node_xy1.y.value = (int)(posAbsY * 100)
+                    node1.attributes.d_elevation_is_present = True
+                    node1.attributes.d_elevation.value = (int)(posAbsZ * 100)
+                    
+                    node2 = NodeXY()
+                    node2.delta.node_xy1.x.value = (int)(posDeltaX * 100)
+                    node2.delta.node_xy1.y.value = (int)(posDeltaY * 100)
+                    node2.attributes.d_elevation_is_present = True
+                    node2.attributes.d_elevation.value = (int)(posDeltaZ * 100)
+
+                    generic_lane.node_list.nodes.array.append(node1)
+                    generic_lane.node_list.nodes.array.append(node2)
+                        
+                    #intersecion_geometry.lane_set.array.append(generic_lane)
+                    
+                    
+                    # create ingress line for
+                    generic_lane_ingress = GenericLane()
+                    generic_lane_ingress.lane_id.value = waypoint.road_id   
+                    generic_lane_ingress._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
+
+                    generic_lane_ingress.lane_attributes.directional_use.value.append(128)
+                    generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
+                    
+                    # lane consists of a nodelist of 2 nodes
+                    generic_lane_ingress.node_list = NodeListXY()
+                    generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
+                    
+                    direction_x, direction_y = TrafficLightsSensor.get_lane_direction_vector(wp1)
+                    posRelX = direction_x
+                    posRelY = direction_y
+                    
+                    posAbsX = wp1.transform.location.x
+                    posAbsY = -wp1.transform.location.y
+                    posAbsZ = wp1.transform.location.z
+                    
+                    node1 = NodeXY()
+                    
+                    node1.delta.node_xy1.x.value = (int)(posAbsX * 100)
+                    node1.delta.node_xy1.y.value = (int)(posAbsY * 100)
+
+                    node2 = NodeXY()
+                    node2.delta.node_xy1.x.value = (int)(direction_x * 500)
+                    node2.delta.node_xy1.y.value = (int)(direction_y * 500)
+
+                    generic_lane_ingress.node_list.nodes.array.append(node1)
+                    #generic_lane_ingress.node_list.nodes.array.append(node2)
+                        
+                    last_wp = wp1
+                    lastPosX = posAbsX
+                    lastPosY = posAbsY
+                    
+                    for i in range(10):
+                        next_wps = last_wp.previous(1.0)
+                        
+                        if len(next_wps) == 0:
+                            break
+                        
+                        next_wp = next_wps[0]
+                        posRelX = next_wp.transform.location.x - lastPosX
+                        posRelY = -next_wp.transform.location.y - lastPosY
+                        
+                        node = NodeXY()
+                        node.delta.node_xy1.x.value = (int)(posRelX * 100)
+                        node.delta.node_xy1.y.value = (int)(posRelY * 100)
+                        generic_lane_ingress.node_list.nodes.array.append(node)
+                        
+                        lastPosX = next_wp.transform.location.x
+                        lastPosY = -next_wp.transform.location.y
+                        last_wp = next_wp
+                        
+                        
+                    intersecion_geometry.lane_set.array.append(generic_lane_ingress)
+                    
+                    
+                    # create egress line for
+                    generic_lane_ingress = GenericLane()
+                    generic_lane_ingress.lane_id.value = waypoint.road_id   
+                    generic_lane_ingress._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
+
+                    generic_lane_ingress.lane_attributes.directional_use.value.append(64)
+                    generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
+                    
+                    # lane consists of a nodelist of 2 nodes
+                    generic_lane_ingress.node_list = NodeListXY()
+                    generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
+                    
+                    direction_x, direction_y = TrafficLightsSensor.get_lane_direction_vector(wp2)
+                    posRelX = direction_x
+                    posRelY = direction_y
+                    
+                    posAbsX = wp2.transform.location.x
+                    posAbsY = -wp2.transform.location.y
+                    posAbsZ = wp2.transform.location.z
+                    
+                    node1 = NodeXY()
+                    
+                    node1.delta.node_xy1.x.value = (int)(posAbsX * 100)
+                    node1.delta.node_xy1.y.value = (int)(posAbsY * 100)
+
+                    node2 = NodeXY()
+                    node2.delta.node_xy1.x.value = (int)(direction_x * 500)
+                    node2.delta.node_xy1.y.value = (int)(direction_y * 500)
+
+                    generic_lane_ingress.node_list.nodes.array.append(node1)
+                    #generic_lane_ingress.node_list.nodes.array.append(node2)
+
+                    last_wp = wp2
+                    lastPosX = posAbsX
+                    lastPosY = posAbsY
+                    
+                    for i in range(10):
+                        next_wps = last_wp.next(1.0)
+                        if len(next_wps) == 0:
+                            break
+                        
+                        next_wp = next_wps[0]
+                        posRelX = next_wp.transform.location.x - lastPosX
+                        posRelY = -next_wp.transform.location.y - lastPosY
+                        
+                        node = NodeXY()
+                        node.delta.node_xy1.x.value = (int)(posRelX * 100)
+                        node.delta.node_xy1.y.value = (int)(posRelY * 100)
+                        generic_lane_ingress.node_list.nodes.array.append(node)
+                        
+                        lastPosX = next_wp.transform.location.x
+                        lastPosY = -next_wp.transform.location.y
+                        last_wp = next_wp
+
+                    intersecion_geometry.lane_set.array.append(generic_lane_ingress)
+                    
                     
             mapem.map.intersections_is_present = True
             mapem.map.intersections.array.append(intersecion_geometry)
