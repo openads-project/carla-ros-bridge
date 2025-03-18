@@ -88,12 +88,12 @@ class TrafficLightsSensor(PseudoActor):
         
         self.etsi_mapem_publisher = node.new_publisher(
             MAPEM,
-            "/etsi_its_conversion/mapem_ts/out",
+            "/carla/etsi_mapem",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
         self.etsi_spatem_publisher = node.new_publisher(
             SPATEM,
-            "/etsi_its_conversion/spatem_ts/out",
+            "/carla/etsi_spatem",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         
         # Set up Buffer and TransformListener to lookup transforms between frames
