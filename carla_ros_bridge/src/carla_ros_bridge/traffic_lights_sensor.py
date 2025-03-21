@@ -294,17 +294,18 @@ class TrafficLightsSensor(PseudoActor):
                     
                     junctionPosX += wp.transform.location.x
                     junctionPosY += -wp.transform.location.y
-                    junctionPosZ += -wp.transform.location.z
+                    junctionPosZ += +wp.transform.location.z
                     junctionCount += 1
             
             if junctionCount > 0:
                 junctionPosX = junctionPosX / junctionCount
-                junctionPosY = junctionPosY / junctionCount 
+                junctionPosY = junctionPosY / junctionCount
+                junctionPosZ = junctionPosZ / junctionCount
                 
                 lat, lon = TrafficLightsSensor.transform_coordinates_utm_to_latlon(junctionPosX, junctionPosY)
                 intersecion_geometry.ref_point.lon.value = (int)(lon * 10 ** 7)
                 intersecion_geometry.ref_point.lat.value = (int)(lat * 10 ** 7)
-                intersecion_geometry.ref_point.elevation.value = (int)(junctionPosZ * 100)
+                intersecion_geometry.ref_point.elevation.value = (int)(junctionPosZ * 10 ** 1)
             
             # create traffic lights in a virtual lane
             for traffic_light in junctionContainer['traffic_lights'].values():
