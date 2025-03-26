@@ -80,6 +80,16 @@ def generate_launch_description():
             default_value='False',
             description='Disable altitude information'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='offset_lat',
+            default_value='0.0"',
+            description='Additional latitude offset to osm origin. Can be used to shift the map inside a single utm zone id utm borders are crossed with default values'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='offset_lon',
+            default_value='0.0"',
+            description='Additional longitude offset to osm origin. Can be used to shift the map inside a single utm zone id utm borders are crossed with default values'
+        ),
         launch_ros.actions.Node(
             package='carla_ros_bridge',
             executable='bridge',
@@ -132,6 +142,12 @@ def generate_launch_description():
                 },
                 {
                     'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
+                },
+                {
+                    'offset_lat': launch.substitutions.LaunchConfiguration('offset_lat')
+                },
+                {
+                    'offset_lon': launch.substitutions.LaunchConfiguration('offset_lon')
                 }
             ]
         )

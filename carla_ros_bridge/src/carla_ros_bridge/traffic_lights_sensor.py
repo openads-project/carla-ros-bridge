@@ -122,9 +122,10 @@ class TrafficLightsSensor(PseudoActor):
         return "sensor.pseudo.traffic_lights"
 
     @staticmethod
-    def transform_coordinates_utm_to_latlon(x, y):
-        offset_30_x = 833978.5569194595
-        offset_31_x = 166021.44308054057 
+    def transform_coordinates_multiple_utm_to_latlon(x, y):
+        # edge case, if the carla_map origin lies on lat,lon = 0,0 on the cordners of utm30N, utm30S, utm31S, utm31N
+        offset_30_x = 833978.557
+        offset_31_x = 166021.443
         offset_N_y = 0
         offset_S_y = 10000000
 
@@ -148,6 +149,29 @@ class TrafficLightsSensor(PseudoActor):
         else:
             utm_proj = pyproj.Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
         
+        # Define WGS84 projection (latitude, longitude)
+        latlon_proj = pyproj.Proj(proj='latlong', datum='WGS84')
+        
+        # Perform the transformation from UTM to Latitude/Longitude
+        longitude, latitude = pyproj.transform(utm_proj, latlon_proj, x, y)
+        
+        latitude, longitude
+
+    @staticmethod
+    def transform_coordinates_single_utm_to_latlon(x, y):
+        # assumption: the x, y - coordinates are located in the same utm frame as the carla_map origin 
+        world_info = TrafficLightsSensor.world_info
+        
+        x += world_info.world_x
+        y += world_info.world_y
+        
+        print("Add world x: ", world_info.world_x, ", add world y: ", world_info.world_y)
+        
+        if world_info.northp:
+            utm_proj = pyproj.Proj(proj='utm',zone=world_info.zone,ellps='WGS84', preserve_units=False)
+        else:
+            utm_proj = pyproj.Proj(proj='utm',zone=world_info.zone, south=True, ellps='WGS84', preserve_units=False)
+
         # Define WGS84 projection (latitude, longitude)
         latlon_proj = pyproj.Proj(proj='latlong', datum='WGS84')
         
@@ -302,7 +326,7 @@ class TrafficLightsSensor(PseudoActor):
                 junctionPosY = junctionPosY / junctionCount
                 junctionPosZ = junctionPosZ / junctionCount
                 
-                lat, lon = TrafficLightsSensor.transform_coordinates_utm_to_latlon(junctionPosX, junctionPosY)
+                lat, lon = TrafficLightsSensor.transform_coordinates_single_utm_to_latlon(junctionPosX, junctionPosY)
                 intersecion_geometry.ref_point.lon.value = (int)(lon * 10 ** 7)
                 intersecion_geometry.ref_point.lat.value = (int)(lat * 10 ** 7)
                 intersecion_geometry.ref_point.elevation.value = (int)(junctionPosZ * 10 ** 1)

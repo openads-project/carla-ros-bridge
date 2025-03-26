@@ -32,6 +32,7 @@ from carla_ros_bridge.debug_helper import DebugHelper
 from carla_ros_bridge.ego_vehicle import EgoVehicle
 from carla_ros_bridge.world_info import WorldInfo
 from carla_ros_bridge.weather import Weather
+from carla_ros_bridge.traffic_lights_sensor import TrafficLightsSensor
 
 from carla_msgs.msg import CarlaControl, CarlaWeatherParameters
 from carla_msgs.srv import SpawnObject, DestroyObject, GetBlueprints
@@ -123,6 +124,9 @@ class CarlaRosBridge(CompatibleNode):
         self.weather = Weather(carla_world=self.carla_world, node=self)
         # add debug helper
         self.debug_helper = DebugHelper(carla_world.debug, self)
+
+        # initialize traffic light sensor
+        TrafficLightsSensor.world_info = self.world_info
 
         # Communication topics
         self.clock_publisher = self.new_publisher(Clock, 'clock', 10)
@@ -429,6 +433,8 @@ def main(args=None):
     parameters['ego_vehicle'] = {'role_name': role_name}
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
+    parameters['offset_lat'] = carla_bridge.get_param('offset_lat', 0.0)
+    parameters['offset_lon'] = carla_bridge.get_param('offset_lon', 0.0)
 
     carla_bridge.loginfo("Trying to connect to {host}:{port}".format(
         host=parameters['host'], port=parameters['port']))

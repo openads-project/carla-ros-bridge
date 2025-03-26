@@ -53,6 +53,8 @@ class WorldInfo(object):
         self.map_published = False
         self.map_frame = "carla_map"
         self.world_set = False
+        self.offset_lat = self.node.parameters['offset_lat']
+        self.offset_lon = self.node.parameters['offset_lon']
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
@@ -101,23 +103,25 @@ class WorldInfo(object):
                     proj_xodr = pyproj.Proj(projparams=projection_string)
                     lon, lat = proj_xodr(0, 0, inverse=True)
 
+                    # add lat,lon offset from parameters if the map origin needs to be shifted
+                    lat += self.offset_lat
+                    lon += self.offset_lon
+                    
                     # derive utm zone and set frame id
-                    if lat >= 0.0: northp = True
-                    else: northp = False
-                    zone = int(math.floor((lon + 180.0)/6.0) + 1)
-                    if northp:
-                        p = pyproj.Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
-                        self.world_frame = "utm_" + str(zone) + "N"
+                    if lat >= 0.0: self.northp = True
+                    else: self.northp = False
+                    self.zone = int(math.floor((lon + 180.0)/6.0) + 1)
+                    if self.northp:
+                        p = pyproj.Proj(proj='utm',zone=self.zone,ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(self.zone) + "N"
                     else:
-                        p = pyproj.Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
-                        self.world_frame = "utm_" + str(zone) + "S"
+                        p = pyproj.Proj(proj='utm',zone=self.zone, south=True, ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(self.zone) + "S"
                     
                     # calculate grid convergence
-                    center_lon = 6.0 * float(zone) - 183.0
+                    center_lon = 6.0 * float(self.zone) - 183.0
                     grid_convergence = math.atan(math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) * math.sin(lat * math.pi / 180.0))
                     self.q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
-
-                    print("Publishing transform from {} to {}".format(self.world_frame, self.map_frame))
 
                     self.world_x, self.world_y = p(lon,lat)
                     
