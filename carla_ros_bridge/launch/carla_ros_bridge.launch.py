@@ -82,12 +82,12 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='offset_lat',
-            default_value='0.0"',
+            default_value='0.0',
             description='Additional latitude offset to osm origin. Can be used to shift the map inside a single utm zone id utm borders are crossed with default values'
         ),
         launch.actions.DeclareLaunchArgument(
             name='offset_lon',
-            default_value='0.0"',
+            default_value='0.0',
             description='Additional longitude offset to osm origin. Can be used to shift the map inside a single utm zone id utm borders are crossed with default values'
         ),
         launch_ros.actions.Node(

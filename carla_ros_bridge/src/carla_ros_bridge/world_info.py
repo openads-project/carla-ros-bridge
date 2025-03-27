@@ -53,8 +53,8 @@ class WorldInfo(object):
         self.map_published = False
         self.map_frame = "carla_map"
         self.world_set = False
-        self.offset_lat = self.node.parameters['offset_lat']
-        self.offset_lon = self.node.parameters['offset_lon']
+        self.offset_lat = (float)(self.node.parameters['offset_lat'])
+        self.offset_lon = (float)(self.node.parameters['offset_lon'])
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
