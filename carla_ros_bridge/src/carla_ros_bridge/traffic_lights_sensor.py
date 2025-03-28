@@ -162,8 +162,8 @@ class TrafficLightsSensor(PseudoActor):
         # assumption: the x, y - coordinates are located in the same utm frame as the carla_map origin 
         world_info = TrafficLightsSensor.world_info
         
-        x += world_info.world_x
-        y += world_info.world_y
+        x += world_info.world_x + world_info.etsi_offset_x
+        y += world_info.world_y + world_info.etsi_offset_y
         
         print("Add world x: ", world_info.world_x, ", add world y: ", world_info.world_y)
         

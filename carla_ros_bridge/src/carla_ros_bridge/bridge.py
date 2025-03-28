@@ -435,6 +435,8 @@ def main(args=None):
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
     parameters['offset_lat'] = carla_bridge.get_param('offset_lat', 0.0)
     parameters['offset_lon'] = carla_bridge.get_param('offset_lon', 0.0)
+    parameters['etsi_offset_x'] = carla_bridge.get_param('etsi_offset_x', 0.0)
+    parameters['etsi_offset_y'] = carla_bridge.get_param('etsi_offset_y', 0.0)
 
     carla_bridge.loginfo("Trying to connect to {host}:{port}".format(
         host=parameters['host'], port=parameters['port']))
