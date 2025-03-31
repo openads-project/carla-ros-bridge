@@ -104,6 +104,7 @@ class WorldInfo(object):
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
                     projection_string = geo.text
+                    self.node.loginfo("geoReference projection string: {}".format(geo.text))
 
                     # get lat and lon from projection string
                     proj_xodr = pyproj.Proj(projparams=projection_string)
