@@ -57,7 +57,8 @@ class WorldInfo(object):
         self.offset_lon = (float)(self.node.parameters['offset_lon'])
         self.etsi_offset_x = (float)(self.node.parameters['etsi_offset_x'])
         self.etsi_offset_y = (float)(self.node.parameters['etsi_offset_y'])
-
+        self.georeference_substitution = (self.node.parameters['georeference_substitution'])
+        
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
             "/carla/world_info",
@@ -97,8 +98,8 @@ class WorldInfo(object):
             #replace georeference inside te OpenDrive xml string
             geo_reference = root.find(".//geoReference")
             
-            if geo_reference.text != None and len(geo_reference.text) != 0:
-                geo_reference.text = self.node.parameters['georeference_substitution']
+            if geo_reference.text != None and self.georeference_substitution != None and len(self.georeference_substitution) != 0:
+                geo_reference.text = self.georeference_substitution
                 opendrive = ET.tostring(root, encoding="unicode", method="xml")
 
             for header in root.findall('header'):
