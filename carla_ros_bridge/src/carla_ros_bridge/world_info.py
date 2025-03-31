@@ -55,6 +55,8 @@ class WorldInfo(object):
         self.world_set = False
         self.offset_lat = (float)(self.node.parameters['offset_lat'])
         self.offset_lon = (float)(self.node.parameters['offset_lon'])
+        self.etsi_offset_x = (float)(self.node.parameters['etsi_offset_x'])
+        self.etsi_offset_y = (float)(self.node.parameters['etsi_offset_y'])
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
@@ -86,14 +88,18 @@ class WorldInfo(object):
         :return:
         """
         if not self.map_published:
-            open_drive_msg = CarlaWorldInfo()
-            open_drive_msg.map_name = self.carla_map.name
-            open_drive_msg.opendrive = self.carla_map.to_opendrive()
-            self.world_info_publisher.publish(open_drive_msg)
-            self.map_published = True
+
+            opendrive = self.carla_map.to_opendrive()
 
             # extract transform 
-            root = ET.fromstring(open_drive_msg.opendrive)
+            root = ET.fromstring(opendrive)
+
+            #replace georeference inside te OpenDrive xml string
+            geo_reference = root.find(".//geoReference")
+            
+            if geo_reference.text != None and len(geo_reference.text) != 0:
+                geo_reference.text = self.node.parameters['georeference_substitution']
+                opendrive = ET.tostring(root, encoding="unicode", method="xml")
 
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
@@ -102,10 +108,6 @@ class WorldInfo(object):
                     # get lat and lon from projection string
                     proj_xodr = pyproj.Proj(projparams=projection_string)
                     lon, lat = proj_xodr(0, 0, inverse=True)
-
-                    # add lat,lon offset from parameters if the map origin needs to be shifted
-                    lat += self.offset_lat
-                    lon += self.offset_lon
                     
                     # derive utm zone and set frame id
                     if lat >= 0.0: self.northp = True
@@ -126,6 +128,13 @@ class WorldInfo(object):
                     self.world_x, self.world_y = p(lon,lat)
                     
                     self.world_set = True
+
+            # publish world info
+            open_drive_msg = CarlaWorldInfo()
+            open_drive_msg.map_name = self.carla_map.name
+            open_drive_msg.opendrive = opendrive
+            self.world_info_publisher.publish(open_drive_msg)
+            self.map_published = True
 
             # if no geo reference found in OpenDRIVE, align 'carla_map' frame with 'map' frame
             if not self.world_set:

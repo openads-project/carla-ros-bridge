@@ -100,6 +100,12 @@ def generate_launch_description():
             default_value='0.0',
             description='Additional longitude offset to osm origin. Can be used to shift the map inside a single utm zone id utm borders are crossed with default values'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='georeference_substitution',
+            default_value='',
+            description='Substitutes the content of the georeference xml file from the Carla OpenDrive file if not empty. Can be used to set the origin of the WorldInfo without changing the original OpenDrive file.'
+        ),
+        
         launch_ros.actions.Node(
             package='carla_ros_bridge',
             executable='bridge',
@@ -164,6 +170,9 @@ def generate_launch_description():
                 },
                 {
                     'etsi_offset_y': launch.substitutions.LaunchConfiguration('etsi_offset_y')
+                },
+                {
+                    'georeference_substitution': launch.substitutions.LaunchConfiguration('georeference_substitution')
                 }
             ]
         )
