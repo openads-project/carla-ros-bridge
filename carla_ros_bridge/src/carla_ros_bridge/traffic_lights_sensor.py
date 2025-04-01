@@ -189,23 +189,43 @@ class TrafficLightsSensor(PseudoActor):
         longitude, latitude = transformer.transform(x, y)
         
         return latitude, longitude
-
-
+    
+    """
+    Convert CARLA coordinates to latitude/longitude using PyProj and a reference point.
+    
+    Args:
+        carla_x, carla_y: CARLA coordinates to convert
+        reference_carla_x, reference_carla_y: CARLA coordinates of a known reference point
+        reference_lat, reference_lon: Real-world latitude/longitude of the reference point
+        scale_factor: Factor to convert CARLA units to meters (default: 0.01 for cm to m)
+    
+    Returns:
+        latitude, longitude: WGS84 coordinates
+    """
     @staticmethod
-    def get_lane_direction_vector(waypoint):
-        # Get the transform of the waypoint (position and rotation)
-        transform = waypoint.transform
+    def carla_to_latlon(carla_x, carla_y, 
+                        reference_lat=0.0, reference_lon=0.0,
+                        reference_carla_x=0, reference_carla_y=0,                        
+                        scale_factor=1.0):
 
-        # Extract the yaw (rotation around the Z-axis) to get the heading of the waypoint
-        yaw = transform.rotation.yaw
-
-        # Convert yaw to radians and calculate the direction vector
-        radian = math.radians(yaw)
-
-        # The direction vector in the xy-plane (forward direction of the car)
-        x, y = math.cos(radian), -math.sin(radian)
-
-        return x, y
+        # Convert CARLA coordinates to meters relative to the reference point
+        x_meters = (carla_x - reference_carla_x) * scale_factor
+        y_meters = (carla_y - reference_carla_y) * scale_factor
+        
+        # Create a local East-North-Up (ENU) projection centered at the reference point
+        enu_crs = pyproj.CRS.from_proj4(f"+proj=tmerc +lat_0={reference_lat} +lon_0={reference_lon} +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs")
+        
+        # EPSG:4326 represents the standard latitude/longitude system
+        wgs84_crs = pyproj.CRS.from_epsg(4326)
+        
+        # Create transformer from ENU to WGS84
+        transformer = pyproj.Transformer.from_crs(enu_crs, wgs84_crs)
+        
+        # Transform coordinates
+        # Note: x is East, y is North in the ENU system
+        lat, lon = transformer.transform(x_meters, y_meters)
+        
+        return lat, lon
 
     @staticmethod
     def convert_lane_type(carla_lane_type : LaneType):
@@ -335,7 +355,7 @@ class TrafficLightsSensor(PseudoActor):
                 junctionPosY = junctionPosY / junctionCount
                 junctionPosZ = junctionPosZ / junctionCount
                 
-                lat, lon = TrafficLightsSensor.transform_coordinates_single_utm_to_latlon(junctionPosX, junctionPosY)
+                lat, lon = TrafficLightsSensor.carla_to_latlon(junctionPosX, junctionPosY)
                 intersecion_geometry.ref_point.lon.value = (int)(lon * 10 ** 7)
                 intersecion_geometry.ref_point.lat.value = (int)(lat * 10 ** 7)
                 intersecion_geometry.ref_point.elevation.value = (int)(junctionPosZ * 10 ** 1)
