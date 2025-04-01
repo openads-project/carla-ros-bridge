@@ -16,7 +16,6 @@ from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.traffic import TrafficLight
-import carla_ros_bridge.bridge
 import tf2_ros
 
 from carla_msgs.msg import (
@@ -29,6 +28,7 @@ from carla_msgs.msg import CarlaTrafficLightStatus, CarlaTrafficLightInfo
 from carla.libcarla import LaneType
 from carla.libcarla import LaneChange
 
+from visualization_msgs.msg import Marker, MarkerArray
 from etsi_its_mapem_ts_msgs.msg import MAPEM
 from etsi_its_mapem_ts_msgs.msg import IntersectionGeometry
 from etsi_its_mapem_ts_msgs.msg import GenericLane
@@ -95,6 +95,9 @@ class TrafficLightsSensor(PseudoActor):
             SPATEM,
             "/carla/etsi_spatem",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        
+        self.junction_test_publisher_ = node.new_publisher(MarkerArray, 'junction_test',
+                                                           qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         
         # Set up Buffer and TransformListener to lookup transforms between frames
         self.tf_buffer = tf2_ros.Buffer()
@@ -165,18 +168,29 @@ class TrafficLightsSensor(PseudoActor):
         x += world_info.world_x + world_info.etsi_offset_x
         y += world_info.world_y + world_info.etsi_offset_y
         
-        print("Add world x: ", world_info.world_x, ", add world y: ", world_info.world_y)
-        
+        # Define the UTM projection
         if world_info.northp:
-            utm_proj = pyproj.Proj(proj='utm',zone=world_info.zone,ellps='WGS84', preserve_units=False)
+            utm_crs = pyproj.CRS.from_dict({
+                'proj': 'utm',
+                'zone': world_info.zone,
+                'ellps': 'WGS84'
+            })
         else:
-            utm_proj = pyproj.Proj(proj='utm',zone=world_info.zone, south=True, ellps='WGS84', preserve_units=False)
+            utm_crs = pyproj.CRS.from_dict({
+                'proj': 'utm',
+                'zone': world_info.zone,
+                'south': True,
+                'ellps': 'WGS84'
+            })
 
         # Define WGS84 projection (latitude, longitude)
-        latlon_proj = pyproj.Proj(proj='latlong', datum='WGS84')
-        
+        latlon_crs = pyproj.CRS.from_epsg(4326)  # EPSG:4326 is the standard WGS84 lat/lon CRS
+
+        # Create a transformer to convert from UTM to lat/lon
+        transformer = pyproj.Transformer.from_crs(utm_crs, latlon_crs, always_xy=True)
+
         # Perform the transformation from UTM to Latitude/Longitude
-        longitude, latitude = pyproj.transform(utm_proj, latlon_proj, x, y)
+        longitude, latitude = transformer.transform(x, y)
         
         return latitude, longitude
 
@@ -225,6 +239,55 @@ class TrafficLightsSensor(PseudoActor):
         }
             
         return lane_actions[carla_lane_type]
+    
+    @staticmethod
+    def transform_latlon_to_carla(lat, lon):
+        if lat >= 0.0: northp = True
+        else: northp = False
+        zone = int(math.floor((lon + 180.0)/6.0) + 1)
+        if northp:
+            p = pyproj.Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
+            world_frame = "utm_" + str(zone) + "N"
+        else:
+            p = pyproj.Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
+            world_frame = "utm_" + str(zone) + "S"
+        
+        # calculate grid convergence
+        center_lon = 6.0 * float(zone) - 183.0
+        grid_convergence = math.atan(math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) * math.sin(lat * math.pi / 180.0))
+        #q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
+        
+        world_x, world_y = p(lon,lat)
+        print("backvonversion tests utm: x: ", world_x, ", y: ", world_y, ", frame: ", world_frame)
+        
+        offset_30_x = 833978.5569194595
+        offset_31_x = 166021.44308054057 
+        offset_N_y = 0
+        offset_S_y = 10000000
+
+        # Define UTM projection using the specified zone
+        x = world_x
+        y = world_y
+        
+        if zone == 31:
+            x -= offset_31_x
+        elif zone == 30:
+            x -= offset_30_x
+        else:
+            print("zone unknown: ", zone)
+        
+        if lat >= 0:
+            northp = True
+            y -= offset_N_y
+        else:
+            northp = False
+            y -= offset_S_y 
+            
+        print("backvonversion tests carla: x: ", x, ", y: ", y)
+        return x, y
+        
+        
+
     
     @staticmethod
     def convert_traffic_light_state(state : CarlaTrafficLightStatus):
@@ -283,21 +346,46 @@ class TrafficLightsSensor(PseudoActor):
     def publish_etsi_messages(self, traffic_light_actors):
         junctions = TrafficLightsSensor.get_junctions(traffic_light_actors)
         
-        print("Try to publish mapem")
-        mapem = TrafficLightsSensor.create_etsi_mapem_message(junctions, 10, 1.0)
+        (mapem, marker_arr) = TrafficLightsSensor.create_etsi_mapem_message(junctions, 10, 1.0)
         self.etsi_mapem_publisher.publish(mapem)
+        self.junction_test_publisher_.publish(marker_arr)
         
-        print ("Try to publish spatem")
         spatem = TrafficLightsSensor.create_tesi_spatem_message(junctions)
         self.etsi_spatem_publisher.publish(spatem)
         
     @staticmethod
     def create_etsi_mapem_message(junctions, lane_segments_count = 10, lane_segments_distance = 1.0):
+        marker_array = MarkerArray()
+        
         # create MAPEM data
         mapem = MAPEM()
         mapem.map.msg_issue_revision.value = 0
         
+        marker_id = 0
+        
         for junctionKey in junctions:
+            marker = Marker()
+            marker.header.frame_id = 'carla_map'
+            #marker.header.stamp = 0
+            marker.ns = 'positions'
+            marker.id = marker_id
+            marker_id += 1
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0.0
+            marker.pose.orientation.w = 1.0
+            marker.scale.x = 1.0
+            marker.scale.y = 1.0
+            marker.scale.z = 1.0
+            marker.color.r = 1.0
+            marker.color.g = 1.0
+            marker.color.b = 1.0
+            marker.color.a = 1.0  # Fully opaque
+            marker.lifetime.sec = 0
+            marker.lifetime.nanosec = 0
+            
             junctionContainer = junctions[junctionKey]
             junction = junctionContainer['junction_object']
             
@@ -448,7 +536,7 @@ class TrafficLightsSensor(PseudoActor):
             mapem.map.intersections_is_present = True
             mapem.map.intersections.array.append(intersecion_geometry)
             
-        return mapem
+        return (mapem, marker_array)
     
     @staticmethod
     def create_tesi_spatem_message(junctions):
@@ -487,7 +575,6 @@ class TrafficLightsSensor(PseudoActor):
         """
         Get the state of all known traffic lights
         """
-        print("Starting traffic sensor")
         traffic_light_status = CarlaTrafficLightStatusList()
         traffic_light_actors = []
         for actor_id in self.actor_list:
