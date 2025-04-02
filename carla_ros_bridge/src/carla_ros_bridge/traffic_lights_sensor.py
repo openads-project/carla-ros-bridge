@@ -131,6 +131,16 @@ class TrafficLightsSensor(PseudoActor):
         
         return lat, lon
 
+    """
+    Convert a CARLA LaneType into an Etsi LaneType
+    
+    Args:
+        carla_x, carla_y: CARLA coordinates to convert
+        projection_string: Projection string whichn is used to convert Carla coordinates to lat/lon coordinates
+    
+    Returns:
+        latitude, longitude: WGS84 coordinates
+    """
     @staticmethod
     def convert_lane_type(carla_lane_type : LaneType):
         lane_actions = {
@@ -179,14 +189,17 @@ class TrafficLightsSensor(PseudoActor):
         node.delta.node_xy1.y.value = (int)(y * 100)
         lane.node_list.nodes.array.append(node)
     
-    @staticmethod
-    def get_junctions(traffic_light_actors):
+    def get_junctions(self, traffic_light_actors):
         junctions = {}
         
         for actor in traffic_light_actors:
             if isinstance(actor, TrafficLight):
                 traffic_light = actor
-                waypoints_traffic_light = traffic_light.carla_actor.get_affected_lane_waypoints()
+                waypoints_traffic_light = traffic_light.carla_actor.get_stop_waypoints()
+                
+                if len(waypoints_traffic_light) == 0:
+                    self.node.loginfo("Traffic light actor with id: {} has no affected lane waypoint".format(traffic_light.uid))
+                    continue
                 
                 #for waypoint in waypoints:
                 waypoint = waypoints_traffic_light[0]
@@ -223,7 +236,7 @@ class TrafficLightsSensor(PseudoActor):
     def get_affected_traffic_light_waypoint(traffic_lights, road_id):
         
         for traffic_light in traffic_lights:
-            waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
+            waypoints = traffic_light.carla_actor.get_stop_waypoints()
             waypoint = waypoints[0]
             
             for waypoint in waypoints:
@@ -233,7 +246,7 @@ class TrafficLightsSensor(PseudoActor):
         return (None, None)
                     
     def publish_etsi_messages(self, traffic_light_actors):
-        junctions = TrafficLightsSensor.get_junctions(traffic_light_actors)
+        junctions = self.get_junctions(traffic_light_actors)
         
         mapem = TrafficLightsSensor.create_etsi_mapem_message(self.node.world_info.projection_string, junctions, 10, 1.0)
         self.etsi_mapem_publisher.publish(mapem)
@@ -367,7 +380,7 @@ class TrafficLightsSensor(PseudoActor):
         junctionCount = 0
         
         for traffic_light in traffic_lights:
-                waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
+                waypoints = traffic_light.carla_actor.get_stop_waypoints()
                 wp = waypoints[0]
                 
                 junctionPosX += wp.transform.location.x
@@ -381,7 +394,8 @@ class TrafficLightsSensor(PseudoActor):
             junctionPosZ = junctionPosZ / junctionCount    
             
         return (junctionPosX, junctionPosY, junctionPosZ)    
-        
+    
+    
     @staticmethod
     def create_etsi_mapem_message(projection_string, junctions, lane_segments_count = 10, lane_segments_distance = 1.0):
 
