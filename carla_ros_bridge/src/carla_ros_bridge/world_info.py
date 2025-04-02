@@ -53,10 +53,6 @@ class WorldInfo(object):
         self.map_published = False
         self.map_frame = "carla_map"
         self.world_set = False
-        self.offset_lat = (float)(self.node.parameters['offset_lat'])
-        self.offset_lon = (float)(self.node.parameters['offset_lon'])
-        self.etsi_offset_x = (float)(self.node.parameters['etsi_offset_x'])
-        self.etsi_offset_y = (float)(self.node.parameters['etsi_offset_y'])
         self.georeference_substitution = (self.node.parameters['georeference_substitution'])
         
         self.world_info_publisher = node.new_publisher(
@@ -104,11 +100,11 @@ class WorldInfo(object):
 
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
-                    projection_string = geo.text
+                    self.projection_string = geo.text
                     self.node.loginfo("geoReference projection string: {}".format(geo.text))
 
                     # get lat and lon from projection string
-                    proj_xodr = pyproj.Proj(projparams=projection_string)
+                    proj_xodr = pyproj.Proj(projparams=self.projection_string)
                     lon, lat = proj_xodr(0, 0, inverse=True)
                     
                     # derive utm zone and set frame id
@@ -158,7 +154,6 @@ class WorldInfo(object):
         t.transform.rotation.y = self.q_grid_convergence[1]
         t.transform.rotation.z = self.q_grid_convergence[2]
         t.transform.rotation.w = self.q_grid_convergence[3]
-
 
         # publish transform message
         self._tf_broadcaster.sendTransform(t)

@@ -71,7 +71,7 @@ class TrafficLightsSensor(PseudoActor):
                                                   name=name,
                                                   parent=parent,
                                                   node=node)
-
+        self.node = node
         self.actor_list = actor_list
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
@@ -95,11 +95,6 @@ class TrafficLightsSensor(PseudoActor):
             "/carla/etsi_spatem",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
-        # Set up Buffer and TransformListener to lookup transforms between frames
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.transform_listener.TransformListener(self.tf_buffer, node, spin_thread=False)
-        
-
     def destroy(self):
         """
         Function to destroy this object.
@@ -119,111 +114,20 @@ class TrafficLightsSensor(PseudoActor):
         :return: name
         """
         return "sensor.pseudo.traffic_lights"
-
-    @staticmethod
-    def transform_coordinates_multiple_utm_to_latlon(x, y):
-        # edge case, if the carla_map origin lies on lat,lon = 0,0 on the cordners of utm30N, utm30S, utm31S, utm31N
-        offset_30_x = 833978.557
-        offset_31_x = 166021.443
-        offset_N_y = 0
-        offset_S_y = 10000000
-
-        # Define UTM projection using the specified zone
-        if x >= 0:
-            zone = 31
-            x += offset_31_x
-        else:
-            zone = 30
-            x += offset_30_x
-
-        if y >= 0:
-            northp = True
-            y += offset_N_y
-        else:
-            northp = False
-            y += offset_S_y 
-        
-        if northp:
-            utm_proj = pyproj.Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
-        else:
-            utm_proj = pyproj.Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
-        
-        # Define WGS84 projection (latitude, longitude)
-        latlon_proj = pyproj.Proj(proj='latlong', datum='WGS84')
-        
-        # Perform the transformation from UTM to Latitude/Longitude
-        longitude, latitude = pyproj.transform(utm_proj, latlon_proj, x, y)
-        
-        latitude, longitude
-
-    @staticmethod
-    def transform_coordinates_single_utm_to_latlon(x, y):
-        # assumption: the x, y - coordinates are located in the same utm frame as the carla_map origin 
-        world_info = TrafficLightsSensor.world_info
-        
-        x += world_info.world_x + world_info.etsi_offset_x
-        y += world_info.world_y + world_info.etsi_offset_y
-        
-        # Define the UTM projection
-        if world_info.northp:
-            utm_crs = pyproj.CRS.from_dict({
-                'proj': 'utm',
-                'zone': world_info.zone,
-                'ellps': 'WGS84'
-            })
-        else:
-            utm_crs = pyproj.CRS.from_dict({
-                'proj': 'utm',
-                'zone': world_info.zone,
-                'south': True,
-                'ellps': 'WGS84'
-            })
-
-        # Define WGS84 projection (latitude, longitude)
-        latlon_crs = pyproj.CRS.from_epsg(4326)  # EPSG:4326 is the standard WGS84 lat/lon CRS
-
-        # Create a transformer to convert from UTM to lat/lon
-        transformer = pyproj.Transformer.from_crs(utm_crs, latlon_crs, always_xy=True)
-
-        # Perform the transformation from UTM to Latitude/Longitude
-        longitude, latitude = transformer.transform(x, y)
-        
-        return latitude, longitude
     
     """
     Convert CARLA coordinates to latitude/longitude using PyProj and a reference point.
     
     Args:
         carla_x, carla_y: CARLA coordinates to convert
-        reference_carla_x, reference_carla_y: CARLA coordinates of a known reference point
-        reference_lat, reference_lon: Real-world latitude/longitude of the reference point
-        scale_factor: Factor to convert CARLA units to meters (default: 0.01 for cm to m)
+        projection_string: Projection string whichn is used to convert Carla coordinates to lat/lon coordinates
     
     Returns:
         latitude, longitude: WGS84 coordinates
     """
-    @staticmethod
-    def carla_to_latlon(carla_x, carla_y, 
-                        reference_lat=0.0, reference_lon=0.0,
-                        reference_carla_x=0, reference_carla_y=0,                        
-                        scale_factor=1.0):
-
-        # Convert CARLA coordinates to meters relative to the reference point
-        x_meters = (carla_x - reference_carla_x) * scale_factor
-        y_meters = (carla_y - reference_carla_y) * scale_factor
-        
-        # Create a local East-North-Up (ENU) projection centered at the reference point
-        enu_crs = pyproj.CRS.from_proj4(f"+proj=tmerc +lat_0={reference_lat} +lon_0={reference_lon} +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs")
-        
-        # EPSG:4326 represents the standard latitude/longitude system
-        wgs84_crs = pyproj.CRS.from_epsg(4326)
-        
-        # Create transformer from ENU to WGS84
-        transformer = pyproj.Transformer.from_crs(enu_crs, wgs84_crs)
-        
-        # Transform coordinates
-        # Note: x is East, y is North in the ENU system
-        lat, lon = transformer.transform(x_meters, y_meters)
+    def carla_to_latlon(projection_string, carla_x, carla_y):
+        proj_xodr = pyproj.Proj(projparams=projection_string)
+        lon, lat = proj_xodr(carla_x, carla_y, inverse=True)
         
         return lat, lon
 
@@ -301,26 +205,185 @@ class TrafficLightsSensor(PseudoActor):
                             'waypoints_tuple': []
                         }
                         
-                        waypoints = junction_object.get_waypoints(LaneType.Driving)
+                        # get all waypoint tuples for a given junction
+                        # a tuple represents a driving line from the entrance to a junction ingress -first tuple element) 
+                        # to an exit (egress - second tuple element)
+                        # an ingress lane can have an attached traffic light 
+                        waypointTuples = junction_object.get_waypoints(LaneType.Driving)
                         
-                        for waypoint in waypoints:
-                            junctions[junction_id]['waypoints_tuple'].append(waypoint)
+                        for waypointTuple in waypointTuples:
+                            junctions[junction_id]['waypoints_tuple'].append(waypointTuple)
                         
                     junctions[junction_id]['traffic_lights'][traffic_light.uid] = traffic_light
                     
+                    
         return junctions
+    
+    @staticmethod
+    def get_affected_traffic_light_waypoint(traffic_lights, road_id):
         
+        for traffic_light in traffic_lights:
+            waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
+            waypoint = waypoints[0]
+            
+            for waypoint in waypoints:
+                if waypoint.road_id == road_id:
+                    return (waypoint, traffic_light)
+                
+        return (None, None)
+                    
     def publish_etsi_messages(self, traffic_light_actors):
         junctions = TrafficLightsSensor.get_junctions(traffic_light_actors)
         
-        mapem = TrafficLightsSensor.create_etsi_mapem_message(junctions, 10, 1.0)
+        mapem = TrafficLightsSensor.create_etsi_mapem_message(self.node.world_info.projection_string, junctions, 10, 1.0)
         self.etsi_mapem_publisher.publish(mapem)
         
-        spatem = TrafficLightsSensor.create_tesi_spatem_message(junctions)
+        spatem = TrafficLightsSensor.create_etsi_spatem_message(junctions)
         self.etsi_spatem_publisher.publish(spatem)
         
+    @staticmethod 
+    def create_junction_lane(is_ingress, waypoint, junctionPosX, junctionPosY, lane_segments_count, lane_segments_distance):
+        # create ingress line for
+        generic_lane_ingress = GenericLane()
+        generic_lane_ingress.lane_id.value = waypoint.road_id   
+        generic_lane_ingress._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
+
+        # build the bitstring for ingress line: 128 encodes ingress and 192 encodes egress in big endian format
+        generic_lane_ingress.lane_attributes.directional_use.value.append(128 if is_ingress else 64)
+        generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
+        
+        # lane consists of a nodelist of 2 nodes
+        generic_lane_ingress.node_list = NodeListXY()
+        generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
+
+        pos_abs_x = waypoint.transform.location.x
+        pos_abs_y = -waypoint.transform.location.y # convert y carla into ros frame
+        
+        pos_rel_junction_x = pos_abs_x - junctionPosX
+        pos_rel_junction_y = pos_abs_y - junctionPosY
+
+        TrafficLightsSensor.add_node(generic_lane_ingress, pos_rel_junction_x, pos_rel_junction_y)
+            
+        last_wp = waypoint
+        last_pos_x = pos_abs_x
+        last_pos_y = pos_abs_y
+        
+        # create an egress/ingress line with a given length
+        for i in range(lane_segments_count):
+            next_wps = last_wp.previous(lane_segments_distance) if is_ingress else last_wp.next(lane_segments_distance)
+            
+            if len(next_wps) == 0:
+                break
+            
+            next_wp = next_wps[0]
+            posRelX = next_wp.transform.location.x - last_pos_x
+            posRelY = -next_wp.transform.location.y - last_pos_y # convert y carla into ros frame
+
+            TrafficLightsSensor.add_node(generic_lane_ingress, posRelX, posRelY)
+            
+            last_pos_x = next_wp.transform.location.x
+            last_pos_y = -next_wp.transform.location.y # convert y carla into ros frame
+            last_wp = next_wp
+            
+        return generic_lane_ingress
+        
+    @staticmethod 
+    def create_traffic_light_lane(traffic_light_position, junction_pos):
+        generic_lane = GenericLane()
+        generic_lane.lane_attributes.directional_use.value.append(192)
+        generic_lane.lane_attributes.directional_use.bits_unused = 6
+        
+        connection = Connection()
+            
+        connection.signal_group_is_present = True
+        connection.signal_group.value = traffic_light.uid
+        
+        generic_lane.connects_to_is_present = True
+        generic_lane.connects_to.array.append(connection)
+        
+        # lane consists of a nodelist of 2 nodes
+        generic_lane.node_list = NodeListXY()
+        generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
+        
+        posAbsX = info.transform.position.x - junctionPosX
+        posAbsY = info.transform.position.y - junctionPosY # y does not need to be converted because traffic-info is already in ros frame
+        
+        TrafficLightsSensor.add_node(generic_lane, posAbsX, posAbsY)
+        TrafficLightsSensor.add_node(generic_lane, 0, 0)
+                
     @staticmethod
-    def create_etsi_mapem_message(junctions, lane_segments_count = 10, lane_segments_distance = 1.0):
+    def create_traffic_light_affected_lane_waypoints(traffic_light, junctionPosX, junctionPosY):
+        waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
+        waypoint = waypoints[0]
+        print("waypoint road id: ", waypoint.road_id, ", section id: ", waypoint.section_id)
+        
+        # create ingress line for
+        generic_lane_ingress = GenericLane()
+        generic_lane_ingress.lane_id.value = waypoint.road_id   
+        generic_lane_ingress._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
+
+        # build the bitstring for ingress line: 128 encodes ingress and 192 encodes egress in big endian format
+        generic_lane_ingress.lane_attributes.directional_use.value.append(128)
+        generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
+        
+        # lane consists of a nodelist of 2 nodes
+        generic_lane_ingress.node_list = NodeListXY()
+        generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
+
+        pos_abs_x = waypoint.transform.location.x
+        pos_abs_y = -waypoint.transform.location.y # convert y carla into ros frame
+        
+        pos_rel_junction_x = pos_abs_x - junctionPosX
+        pos_rel_junction_y = pos_abs_y - junctionPosY
+
+        TrafficLightsSensor.add_node(generic_lane_ingress, pos_rel_junction_x, pos_rel_junction_y)
+            
+        last_pos_x = pos_abs_x
+        last_pos_y = pos_abs_y
+        
+        # create an egress/ingress line with a given length
+        for i in range(len(waypoints)):
+            if i <= 0: 
+                i = 1
+                
+            next_wp = waypoints[i]
+            posRelX = next_wp.transform.location.x - last_pos_x
+            posRelY = -next_wp.transform.location.y - last_pos_y # convert y carla into ros frame
+            print("waypoint road id: ", next_wp.road_id, ", section id: ", next_wp.section_id)
+            TrafficLightsSensor.add_node(generic_lane_ingress, posRelX, posRelY)
+            
+            last_pos_x = next_wp.transform.location.x
+            last_pos_y = -next_wp.transform.location.y # convert y carla into ros frame
+            
+        return generic_lane_ingress              
+       
+        
+    @staticmethod
+    def calculate_junction_mean(traffic_lights):
+        # set the lat/lon coordinates of junction as mean of correpsonding traffic light positions
+        junctionPosX = 0
+        junctionPosY = 0
+        junctionPosZ = 0
+        junctionCount = 0
+        
+        for traffic_light in traffic_lights:
+                waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
+                wp = waypoints[0]
+                
+                junctionPosX += wp.transform.location.x
+                junctionPosY += -wp.transform.location.y # convert y carla into ros frame
+                junctionPosZ += +wp.transform.location.z
+                junctionCount += 1
+        
+        if junctionCount > 0:
+            junctionPosX = junctionPosX / junctionCount
+            junctionPosY = junctionPosY / junctionCount
+            junctionPosZ = junctionPosZ / junctionCount    
+            
+        return (junctionPosX, junctionPosY, junctionPosZ)    
+        
+    @staticmethod
+    def create_etsi_mapem_message(projection_string, junctions, lane_segments_count = 10, lane_segments_distance = 1.0):
 
         # create MAPEM data
         mapem = MAPEM()
@@ -329,6 +392,7 @@ class TrafficLightsSensor(PseudoActor):
         for junctionKey in junctions:
             junctionContainer = junctions[junctionKey]
             junction = junctionContainer['junction_object']
+            traffic_lights = junctionContainer['traffic_lights'].values()
             
             # Create intersection geometry
             intersecion_geometry = IntersectionGeometry()
@@ -336,57 +400,13 @@ class TrafficLightsSensor(PseudoActor):
             intersecion_geometry.ref_point.elevation_is_present = True
         
             # set the lat/lon coordinates of junction as mean of correpsonding traffic light positions
-            junctionPosX = 0
-            junctionPosY = 0
-            junctionPosZ = 0
-            junctionCount = 0
+            junctionPosX, junctionPosY, junctionPosZ = TrafficLightsSensor.calculate_junction_mean(traffic_lights)
             
-            for traffic_light in junctionContainer['traffic_lights'].values():
-                    waypoints = traffic_light.carla_actor.get_affected_lane_waypoints()
-                    wp = waypoints[0]
-                    
-                    junctionPosX += wp.transform.location.x
-                    junctionPosY += -wp.transform.location.y
-                    junctionPosZ += +wp.transform.location.z
-                    junctionCount += 1
+            lat, lon = TrafficLightsSensor.carla_to_latlon(projection_string, junctionPosX, junctionPosY)
             
-            if junctionCount > 0:
-                junctionPosX = junctionPosX / junctionCount
-                junctionPosY = junctionPosY / junctionCount
-                junctionPosZ = junctionPosZ / junctionCount
-                
-                lat, lon = TrafficLightsSensor.carla_to_latlon(junctionPosX, junctionPosY)
-                intersecion_geometry.ref_point.lon.value = (int)(lon * 10 ** 7)
-                intersecion_geometry.ref_point.lat.value = (int)(lat * 10 ** 7)
-                intersecion_geometry.ref_point.elevation.value = (int)(junctionPosZ * 10 ** 1)
-            
-            # create traffic lights in a virtual lane
-            for traffic_light in junctionContainer['traffic_lights'].values():
-                info = traffic_light.get_info()
-                
-                generic_lane = GenericLane()
-                generic_lane.lane_attributes.directional_use.value.append(192)
-                generic_lane.lane_attributes.directional_use.bits_unused = 6
-                
-                connection = Connection()
-                    
-                connection.signal_group_is_present = True
-                connection.signal_group.value = traffic_light.uid
-                
-                generic_lane.connects_to_is_present = True
-                generic_lane.connects_to.array.append(connection)
-                
-                # lane consists of a nodelist of 2 nodes
-                generic_lane.node_list = NodeListXY()
-                generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
-                
-                posAbsX = info.transform.position.x - junctionPosX
-                posAbsY = info.transform.position.y - junctionPosY
-                
-                TrafficLightsSensor.add_node(generic_lane, posAbsX, posAbsY)
-                TrafficLightsSensor.add_node(generic_lane, 0, 0)
-                
-                intersecion_geometry.lane_set.array.append(generic_lane)
+            intersecion_geometry.ref_point.lat.value = (int)(lat * 10 ** 7)
+            intersecion_geometry.ref_point.lon.value = (int)(lon * 10 ** 7)
+            intersecion_geometry.ref_point.elevation.value = (int)(junctionPosZ * 10 ** 1)
                 
             # create ingress and egress into and out of the junction
             for waypointTuple in junctionContainer['waypoints_tuple']:
@@ -395,84 +415,24 @@ class TrafficLightsSensor(PseudoActor):
                 wp1, wp2 = waypointTuple
 
                 # create ingress line for
-                generic_lane_ingress = GenericLane()
-                generic_lane_ingress.lane_id.value = wp1.road_id   
-                generic_lane_ingress._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(wp1.lane_type)
-
-                generic_lane_ingress.lane_attributes.directional_use.value.append(128)
-                generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
-                
-                # lane consists of a nodelist of 2 nodes
-                generic_lane_ingress.node_list = NodeListXY()
-                generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
-
-                posAbsX = wp1.transform.location.x
-                posAbsY = -wp1.transform.location.y
-
-                TrafficLightsSensor.add_node(generic_lane_ingress, posAbsX - junctionPosX, posAbsY - junctionPosY)
-                    
-                last_wp = wp1
-                lastPosX = posAbsX
-                lastPosY = posAbsY
-                
-                # 
-                for i in range(lane_segments_count):
-                    next_wps = last_wp.previous(lane_segments_distance)
-                    
-                    if len(next_wps) == 0:
-                        break
-                    
-                    next_wp = next_wps[0]
-                    posRelX = next_wp.transform.location.x - lastPosX
-                    posRelY = -next_wp.transform.location.y - lastPosY
-
-                    TrafficLightsSensor.add_node(generic_lane_ingress, posRelX, posRelY)
-                    
-                    lastPosX = next_wp.transform.location.x
-                    lastPosY = -next_wp.transform.location.y
-                    last_wp = next_wp
-                    
+                generic_lane_ingress = TrafficLightsSensor.create_junction_lane(True, wp1, junctionPosX, junctionPosY, lane_segments_count, lane_segments_distance)
                 intersecion_geometry.lane_set.array.append(generic_lane_ingress)
                 
+                # create mapem signal group (traffic light) connection to spatem:
+                (traffic_waypoint, traffic_light) = TrafficLightsSensor.get_affected_traffic_light_waypoint(traffic_lights, wp1.road_id)
+                
+                if traffic_waypoint != None and traffic_light != None:
+                    connection = Connection()
+                    
+                    connection.signal_group_is_present = True
+                    connection.signal_group.value = traffic_light.uid
+                    
+                    generic_lane_ingress.connects_to_is_present = True
+                    generic_lane_ingress.connects_to.array.append(connection)
                 
                 # create egress line for
-                generic_lane_egress = GenericLane()
-                generic_lane_egress.lane_id.value = wp2.road_id   
-                generic_lane_egress._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(wp2.lane_type)
-
-                generic_lane_egress.lane_attributes.directional_use.value.append(64)
-                generic_lane_egress.lane_attributes.directional_use.bits_unused = 6
-                
-                # lane consists of a nodelist of 2 nodes
-                generic_lane_egress.node_list = NodeListXY()
-                generic_lane_egress.node_list.choice = NodeListXY.CHOICE_NODES
-                
-                posAbsX = wp2.transform.location.x
-                posAbsY = -wp2.transform.location.y
-            
-                TrafficLightsSensor.add_node(generic_lane_egress, posAbsX - junctionPosX, posAbsY - junctionPosY)
-
-                last_wp = wp2
-                lastPosX = posAbsX
-                lastPosY = posAbsY
-                
-                for i in range(lane_segments_count):
-                    next_wps = last_wp.next(lane_segments_distance)
-                    if len(next_wps) == 0:
-                        break
-                    
-                    next_wp = next_wps[0]
-                    posRelX = next_wp.transform.location.x - lastPosX
-                    posRelY = -next_wp.transform.location.y - lastPosY
-                    
-                    TrafficLightsSensor.add_node(generic_lane_egress, posRelX, posRelY)
-                    
-                    lastPosX = next_wp.transform.location.x
-                    lastPosY = -next_wp.transform.location.y
-                    last_wp = next_wp
-
+                generic_lane_egress = TrafficLightsSensor.create_junction_lane(False, wp2, junctionPosX, junctionPosY, lane_segments_count, lane_segments_distance)
                 intersecion_geometry.lane_set.array.append(generic_lane_egress)
-                    
                     
             mapem.map.intersections_is_present = True
             mapem.map.intersections.array.append(intersecion_geometry)
@@ -480,7 +440,7 @@ class TrafficLightsSensor(PseudoActor):
         return mapem
     
     @staticmethod
-    def create_tesi_spatem_message(junctions):
+    def create_etsi_spatem_message(junctions):
         spatem = SPATEM()
         spatem.spat.name_is_present = True
         spatem.spat.name.value = "Carla traffic light status"

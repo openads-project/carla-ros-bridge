@@ -1,1 +1,2 @@
 ros-$ROS_DISTRO-rmw-zenoh-cpp
+ros-$ROS_DISTRO-etsi-its-messages

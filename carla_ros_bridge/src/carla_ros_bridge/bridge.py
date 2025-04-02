@@ -125,9 +125,6 @@ class CarlaRosBridge(CompatibleNode):
         # add debug helper
         self.debug_helper = DebugHelper(carla_world.debug, self)
 
-        # initialize traffic light sensor
-        TrafficLightsSensor.world_info = self.world_info
-
         # Communication topics
         self.clock_publisher = self.new_publisher(Clock, 'clock', 10)
 
@@ -433,10 +430,6 @@ def main(args=None):
     parameters['ego_vehicle'] = {'role_name': role_name}
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
-    parameters['offset_lat'] = carla_bridge.get_param('offset_lat', 0.0)
-    parameters['offset_lon'] = carla_bridge.get_param('offset_lon', 0.0)
-    parameters['etsi_offset_x'] = carla_bridge.get_param('etsi_offset_x', 0.0)
-    parameters['etsi_offset_y'] = carla_bridge.get_param('etsi_offset_y', 0.0)
     parameters['georeference_substitution'] = carla_bridge.get_param('georeference_substitution', "")
 
     carla_bridge.loginfo("Trying to connect to {host}:{port}".format(
