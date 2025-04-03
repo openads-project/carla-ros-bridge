@@ -51,7 +51,9 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='town',
-            default_value='town10hd',
+            #default_value='Town01',
+            #default_value='Town10HD',
+            default_value='/Game/aldenhoven/Maps/aldenhoven/aldenhoven',
             description='Either use an available CARLA town (eg. "Town01") or an OpenDRIVE file (ending in .xodr)'
         ),
         launch.actions.DeclareLaunchArgument(
@@ -79,26 +81,6 @@ def generate_launch_description():
             name='ignore_altitude',
             default_value='False',
             description='Disable altitude information'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='etsi_offset_x',
-            default_value='0.0',
-            description='Added offset in cartesian x before conversion into lat/lon variables for Etsi Messages'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='etsi_offset_y',
-            default_value='0.0',
-            description='Added offset in cartesian y before conversion into lat/lon variables for Etsi Messages'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='offset_lat',
-            default_value='0.0',
-            description='Additional latitude offset to osm origin. Can be used to shift the map inside a single utm zone id utm borders are crossed with default values'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='offset_lon',
-            default_value='0.0',
-            description='Additional longitude offset to osm origin. Can be used to shift the map inside a single utm zone id utm borders are crossed with default values'
         ),
         launch.actions.DeclareLaunchArgument(
             name='georeference_substitution',
@@ -158,18 +140,6 @@ def generate_launch_description():
                 },
                 {
                     'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
-                },
-                {
-                    'offset_lat': launch.substitutions.LaunchConfiguration('offset_lat')
-                },
-                {
-                    'offset_lon': launch.substitutions.LaunchConfiguration('offset_lon')
-                },
-                {
-                    'etsi_offset_x': launch.substitutions.LaunchConfiguration('etsi_offset_x')
-                },
-                {
-                    'etsi_offset_y': launch.substitutions.LaunchConfiguration('etsi_offset_y')
                 },
                 {
                     'georeference_substitution': launch.substitutions.LaunchConfiguration('georeference_substitution')
