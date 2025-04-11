@@ -423,7 +423,7 @@ def main(args=None):
     parameters['start_unix_time_stamp'] = carla_bridge.get_param('start_unix_time_stamp', 0)
     parameters['register_all_sensors'] = carla_bridge.get_param('register_all_sensors', True)
     parameters['town'] = carla_bridge.get_param('town', None)
-    parameters['load_town'] = carla_bridge.get_param('load_town', None)
+    parameters['load_town'] = carla_bridge.get_param('load_town', True)
     parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 'inf')
     role_name = carla_bridge.get_param('ego_vehicle_role_name',
                                        ["hero", "ego_vehicle", "hero1", "hero2", "hero3"])
@@ -456,9 +456,8 @@ def main(args=None):
 
         carla_world = carla_client.get_world()
 
-        if "town" in parameters and parameters["town"] != "" and parameters["load_town"] is not False:
-
-            if parameters["passive"] and parameters["load_town"] is not True:
+        if "town" in parameters and parameters["town"] and parameters["load_town"]:
+            if parameters["passive"] and not parameters["load_town"]:
                 pass # skip if passive mode is enabled and load_town not specified
             else:
                 if parameters["town"].endswith(".xodr"):
