@@ -457,21 +457,18 @@ def main(args=None):
         carla_world = carla_client.get_world()
 
         if "town" in parameters and parameters["town"] and parameters["load_town"]:
-            if parameters["passive"] and not parameters["load_town"]:
-                pass # skip if passive mode is enabled and load_town not specified
+            if parameters["town"].endswith(".xodr"):
+                carla_bridge.loginfo(
+                    "Loading opendrive world from file '{}'".format(parameters["town"]))
+                with open(parameters["town"]) as od_file:
+                    data = od_file.read()
+                carla_world = carla_client.generate_opendrive_world(str(data))
             else:
-                if parameters["town"].endswith(".xodr"):
-                    carla_bridge.loginfo(
-                        "Loading opendrive world from file '{}'".format(parameters["town"]))
-                    with open(parameters["town"]) as od_file:
-                        data = od_file.read()
-                    carla_world = carla_client.generate_opendrive_world(str(data))
-                else:
-                    if carla_world.get_map().name != parameters["town"]:
-                        carla_bridge.loginfo("Loading town '{}' (previous: '{}').".format(
-                            parameters["town"], carla_world.get_map().name))
-                        carla_world = carla_client.load_world(parameters["town"])
-                carla_world.tick()
+                if carla_world.get_map().name != parameters["town"]:
+                    carla_bridge.loginfo("Loading town '{}' (previous: '{}').".format(
+                        parameters["town"], carla_world.get_map().name))
+                    carla_world = carla_client.load_world(parameters["town"])
+            carla_world.tick()
 
         carla_bridge.initialize_bridge(carla_client.get_world(), parameters)
 
