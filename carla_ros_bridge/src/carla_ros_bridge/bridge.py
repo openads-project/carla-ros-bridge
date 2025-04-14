@@ -456,7 +456,7 @@ def main(args=None):
 
         carla_world = carla_client.get_world()
 
-        if "town" in parameters and parameters["town"] and parameters["load_town"]:
+        if parameters["town"] is not None:
             if parameters["town"].endswith(".xodr"):
                 carla_bridge.loginfo(
                     "Loading opendrive world from file '{}'".format(parameters["town"]))
