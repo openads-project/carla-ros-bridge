@@ -80,6 +80,7 @@ class TrafficLightsSensor(PseudoActor):
         self.lane_waypoints_distance = 0.5
         self.lane_waypoints_count = 10
         self.taffic_light_junction_max_search_count = 100
+        self.debug_traffic_light_information = True
         
         traffic_light_actors = self.get_traffic_light_actors()
         self.initialize_junctions(traffic_light_actors)       
@@ -107,6 +108,19 @@ class TrafficLightsSensor(PseudoActor):
             MarkerArray,
             "/carla/traffic_light_triggers",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        
+        # spatem publisher calllback
+        timer_period = 1.0  # seconds
+        self.timer = self.create_timer(timer_period, self.publish_etsi_mapem_message)
+        
+        # mapem publisher calllback
+        timer_period = 0.1  # seconds
+        self.timer = self.create_timer(timer_period, self.publish_etsi_spatem_message)
+        
+        if self.debug_traffic_light_information == True:
+            # publish debug information
+            timer_period = 1.0  # seconds
+            self.timer = self.create_timer(timer_period, self.debug_publish_traffic_information)
     
     
 
@@ -554,10 +568,7 @@ class TrafficLightsSensor(PseudoActor):
             self.traffic_light_status = traffic_light_status
             self.traffic_lights_status_publisher.publish(traffic_light_status)
         
-        # create Etsi data structure
-        self.publish_etsi_mapem_message()
-        self.publish_etsi_spatem_message()
-        self.debug_publish_traffic_information()
+        
         
         
         
