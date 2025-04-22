@@ -77,11 +77,6 @@ class TrafficLightsSensor(PseudoActor):
         self.actor_list = actor_list
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
-        self.lane_waypoints_distance = 0.5
-        self.lane_waypoints_count = 10
-        
-        traffic_light_actors = self.get_traffic_light_actors()
-        self.initialize_junctions(traffic_light_actors)       
 
         self.traffic_lights_info_publisher = node.new_publisher(
             CarlaTrafficLightInfoList,
@@ -107,16 +102,16 @@ class TrafficLightsSensor(PseudoActor):
             "/carla/traffic_light_triggers",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
     
-    
+        self.initialize_junctions()
 
-    def get_traffic_light_actors(self):
-        traffic_light_actors = []
+    def initialize_junctions(self):
+        self.traffic_light_actors = []
         for actor_id in self.actor_list:
             actor = self.actor_list[actor_id]
             if isinstance(actor, TrafficLight):
-                traffic_light_actors.append(actor)
+                self.traffic_light_actors.append(actor)
                 
-        return traffic_light_actors
+        self.junctions = self.get_junctions(self.traffic_light_actors)       
         
 
     def destroy(self):
@@ -139,41 +134,6 @@ class TrafficLightsSensor(PseudoActor):
         """
         return "sensor.pseudo.traffic_lights"
     
-    def get_junction(self, junction_id):
-        return self.junctions[junction_id]['junction_object']
-        
-    def get_junction_traffic_lights(self, junction_id):
-        return self.junctions[junction_id]['traffic_lights'].values()
-        
-    def get_junction_waypoints(self, junction_id):
-        return self.junctions[junction_id]['waypoints_tuple']
-        
-    def get_junction_position(self, junction_id):
-        return self.junctions[junction_id]['position']        
-        
-    def set_junction(self, junction_id, value):
-        self.junctions[junction_id]['junction_object'] = value
-        
-    def set_junction_traffic_lights(self, junction_id, value):
-        self.junctions[junction_id]['traffic_lights'] = value
-        
-    def set_junction_waypoints(self, junction_id, value):
-        self.junctions[junction_id]['waypoints_tuple'] = value
-        
-    def set_junction_position(self, junction_id, value):
-        self.junctions[junction_id]['position'] = value
-    
-    @staticmethod
-    def set_etsi_lat_lon_junction(etsi_junction, lat, lon, z):
-        etsi_junction.ref_point.lat.value = (int)(lat * 10 ** 7)
-        etsi_junction.ref_point.lon.value = (int)(lon * 10 ** 7)
-        etsi_junction.ref_point.elevation.value = (int)(z * 10 ** 1)  
-    
-    @staticmethod
-    def convert_carla_location_to_ros_vector3(location):
-        return np.array([location.x, -location.y, location.z])
-
-    
     """
     Convert CARLA coordinates to latitude/longitude using PyProj and a reference point.
     
@@ -184,7 +144,6 @@ class TrafficLightsSensor(PseudoActor):
     Returns:
         latitude, longitude: WGS84 coordinates
     """
-    @staticmethod
     def carla_to_latlon(projection_string, carla_x, carla_y):
         proj_xodr = pyproj.Proj(projparams=projection_string)
         lon, lat = proj_xodr(carla_x, carla_y, inverse=True)
@@ -243,58 +202,133 @@ class TrafficLightsSensor(PseudoActor):
         return state_dictionary[state]
 
     @staticmethod
-    def add_lane_node(lane, position):
+    def add_node(lane, x, y):
         node = NodeXY()
-        node.delta.node_xy1.x.value = (int)(position[0] * 100)
-        node.delta.node_xy1.y.value = (int)(position[1] * 100)
+        node.delta.node_xy1.x.value = (int)(x * 100)
+        node.delta.node_xy1.y.value = (int)(y * 100)
         lane.node_list.nodes.array.append(node)
     
-    def initialize_junctions(self, traffic_lights):
-        self.junctions = {}
+    def get_junctions(self, traffic_lights):
+        junctions = {}
         map = self.node.carla_world.get_map()
-        all_waypoints = map.generate_waypoints(self.lane_waypoints_distance)
+        all_waypoints = map.generate_waypoints(0.5)
         
-        # iterate through all waypoints inside the carla map and save all found junctions
         for waypoint in all_waypoints:
             if waypoint.is_junction:
                 # build the junction data structure with all it's traffic lights and in- and outgoing driving lanes
                 junction_id = waypoint.junction_id
                 
-                if junction_id not in self.junctions:
+                if junction_id not in junctions:
+                    print("Created junction with id: ", junction_id)
+                    
+                    # Try to get the actual junction object
+                    junction_object = waypoint.get_junction()
+                            
+                    junctions[junction_id] = {
+                        'junction_object': junction_object,
+                        'traffic_lights': {},
+                        'waypoints_tuple': []
+                    }
                     
                     # get all waypoint tuples for a given junction
                     # a tuple represents a driving line from the entrance to a junction ingress -first tuple element) 
                     # to an exit (egress - second tuple element)
                     # an ingress lane can have an attached traffic light 
-                    junction_object = waypoint.get_junction()
-                    waypoint_tuples = junction_object.get_waypoints(LaneType.Driving)
-                    waypoint_tuples_traffic_lights = []
-                    junction_traffic_lights = {}
-                    junction_position = TrafficLightsSensor.calculate_junction_mean(waypoint_tuples)
+                    waypointTuples = junction_object.get_waypoints(LaneType.Driving)
                     
-                    # connect traffic light with corresponding ingress lane waypoint if available
-                    for waypointTuple in waypoint_tuples:
+                    for waypointTuple in waypointTuples:
+                        junctions[junction_id]['waypoints_tuple'].append(waypointTuple)
                         wp1, wp2 = waypointTuple
                         
                         (waypoint, traffic_light) = TrafficLightsSensor.get_affected_traffic_light_waypoint(traffic_lights, wp1.road_id)
                         
                         if (waypoint, traffic_light) != (None, None):
-                            junction_traffic_lights[traffic_light.id] = traffic_light
-                            
-                        waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
+                            junctions[junction_id]['traffic_lights'][traffic_light.id] = traffic_light
+                                            
+        return junctions 
+              
+    
+    def get_junctions_old(self, traffic_light_actors):
+        junctions = {}
+        count = 0
+        print("____ Length of traffic light acotrs arr: ", len(traffic_light_actors))
+        for actor in traffic_light_actors:
+            if isinstance(actor, TrafficLight):
+                traffic_light = actor
+                # find a waypoint which is part of the junction
+                waypoints_traffic_light = TrafficLightsSensor.get_waypoints_from_traffic_light(traffic_light) 
+                
+                if len(waypoints_traffic_light) == 0:
+                    self.node.loginfo("Traffic light actor with id: {} has no affected lane waypoint".format(traffic_light.uid))
+                    continue
+                
+                junction_waypoint = None
+                
+                for affected_waypoint in waypoints_traffic_light:
+                    if affected_waypoint.is_junction:
+                        junction_waypoint = affected_waypoint
+                        break
                     
-                    # fill junction data structure
-                    self.junctions[junction_id] = {}
-                    self.set_junction(junction_id, junction_object)
-                    self.set_junction_traffic_lights(junction_id, junction_traffic_lights)
-                    self.set_junction_waypoints(junction_id, waypoint_tuples_traffic_lights)
-                    self.set_junction_position(junction_id, junction_position)
-                                        
+                
+                nearest_junction = None
+                
+                if junction_waypoint == None:
+                # If still no junction found, try to find the nearest junction
+                    all_junctions = []
+                    all_waypoints = self.node.carla_world.get_map().generate_waypoints(2.0)
+                    min_distance = float('inf')
+                    
+                    for wp in all_waypoints:
+                        if wp.is_junction and wp.get_junction() not in all_junctions:
+                            all_junctions.append(wp.get_junction())
+                            j = wp.get_junction()
+                            tl_location = actor.get_info().transform.position
+                            distance = (tl_location.x - j.bounding_box.location.x) ** 2 + (tl_location.y - j.bounding_box.location.y) ** 2
+                            if distance < min_distance:
+                                min_distance = distance
+                                junction_waypoint = wp
+                    
+                if junction_waypoint != None:
+                    count = count +1
+                    # build the junction data structure with all it's traffic lights and in- and outgoing driving lanes
+                    junction_id = junction_waypoint.junction_id
+                    
+                    # Create new junction entry if it doesn't exist
+                    if junction_id not in junctions:
+                        # Try to get the actual junction object
+                        junction_object = junction_waypoint.get_junction()
+                        
+                        junctions[junction_id] = {
+                            'junction_object': junction_object,
+                            'traffic_lights': {},
+                            'waypoints_tuple': []
+                        }
+                        
+                        # get all waypoint tuples for a given junction
+                        # a tuple represents a driving line from the entrance to a junction ingress -first tuple element) 
+                        # to an exit (egress - second tuple element)
+                        # an ingress lane can have an attached traffic light 
+                        waypointTuples = junction_object.get_waypoints(LaneType.Driving)
+                        
+                        for waypointTuple in waypointTuples:
+                            junctions[junction_id]['waypoints_tuple'].append(waypointTuple)
+                        
+                    junctions[junction_id]['traffic_lights'][traffic_light.uid] = traffic_light
+                    
+        print("final traffic light count: ", count)      
+        return junctions
     
     @staticmethod
     def get_waypoints_from_traffic_light(traffic_light):
         return traffic_light.get_stop_waypoints()
-
+        waypoints = traffic_light.get_affected_lane_waypoints()
+        
+        if (len(waypoints) == 0):
+            waypoints = traffic_light.get_stop_waypoints()
+        
+        return waypoints
+    
+    
     @staticmethod
     def get_affected_traffic_light_waypoint(traffic_lights, road_id):
         
@@ -311,12 +345,24 @@ class TrafficLightsSensor(PseudoActor):
                 
                 # Get the next waypoint in the list
                 waypoint = waypoint.next(0.5)[0]
+            
+            #for waypoint in waypoints:
+            #    if waypoint.road_id == road_id:
+            #        return (waypoint, traffic_light)
                 
         return (None, None)
                     
+    def publish_etsi_messages(self, traffic_light_actors):
+        #junctions = self.get_junctions(traffic_light_actors)
+        #self.debug_publish_traffic_information(junctions)
+        mapem = TrafficLightsSensor.create_etsi_mapem_message(self.node.world_info.projection_string, self.junctions, traffic_light_actors, 10, 1.0)
+        self.etsi_mapem_publisher.publish(mapem)
         
-    def create_junction_lane(self, is_ingress, waypoint, junction_position):
-
+        spatem = TrafficLightsSensor.create_etsi_spatem_message(self.junctions)
+        self.etsi_spatem_publisher.publish(spatem)
+        
+    @staticmethod 
+    def create_junction_lane(is_ingress, waypoint, junctionPosX, junctionPosY, lane_segments_count, lane_segments_distance):
         # create ingress line for
         generic_lane_ingress = GenericLane()
         generic_lane_ingress.lane_id.value = waypoint.road_id   
@@ -330,31 +376,88 @@ class TrafficLightsSensor(PseudoActor):
         generic_lane_ingress.node_list = NodeListXY()
         generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
 
-        pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(waypoint.transform.location)        
-        pos_rel_junction = pos_abs - junction_position
+        pos_abs_x = waypoint.transform.location.x
+        pos_abs_y = -waypoint.transform.location.y # convert y carla into ros frame
         
-        TrafficLightsSensor.add_lane_node(generic_lane_ingress, pos_rel_junction)
-        
+        pos_rel_junction_x = pos_abs_x - junctionPosX
+        pos_rel_junction_y = pos_abs_y - junctionPosY
+
+        TrafficLightsSensor.add_node(generic_lane_ingress, pos_rel_junction_x, pos_rel_junction_y)
+            
         last_wp = waypoint
-        last_pos = pos_abs
+        last_pos_x = pos_abs_x
+        last_pos_y = pos_abs_y
         
         # create an egress/ingress line with a given length
-        for i in range(self.lane_waypoints_count):
-            next_wps = last_wp.previous(self.lane_waypoints_distance) if is_ingress else last_wp.next(self.lane_waypoints_distance)
+        for i in range(lane_segments_count):
+            next_wps = last_wp.previous(lane_segments_distance) if is_ingress else last_wp.next(lane_segments_distance)
             
             if len(next_wps) == 0:
                 break
             
             next_wp = next_wps[0]
-            next_wp_position = TrafficLightsSensor.convert_carla_location_to_ros_vector3(next_wp.transform.location)
+            posRelX = next_wp.transform.location.x - last_pos_x
+            posRelY = -next_wp.transform.location.y - last_pos_y # convert y carla into ros frame
+
+            TrafficLightsSensor.add_node(generic_lane_ingress, posRelX, posRelY)
             
-            pos_rel = next_wp_position - last_pos
-            TrafficLightsSensor.add_lane_node(generic_lane_ingress, pos_rel)
-            last_pos = next_wp_position
+            last_pos_x = next_wp.transform.location.x
+            last_pos_y = -next_wp.transform.location.y # convert y carla into ros frame
             last_wp = next_wp
             
         return generic_lane_ingress
-    
+      
+    @staticmethod
+    def create_traffic_light_affected_lane_waypoints(traffic_light, junctionPosX, junctionPosY):
+        waypoints = TrafficLightsSensor.get_waypoints_from_traffic_light(traffic_light)
+        waypoint = waypoints[0]
+        print("waypoint road id: ", waypoint.road_id, ", section id: ", waypoint.section_id)
+        
+        # create ingress line for
+        generic_lane_ingress = GenericLane()
+        generic_lane_ingress.lane_id.value = waypoint.road_id   
+        generic_lane_ingress._lane_attributes.lane_type.choice = TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
+
+        # build the bitstring for ingress line: 128 encodes ingress and 192 encodes egress in big endian format
+        generic_lane_ingress.lane_attributes.directional_use.value.append(128)
+        generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
+        
+        # lane consists of a nodelist of 2 nodes
+        generic_lane_ingress.node_list = NodeListXY()
+        generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
+
+        pos_abs_x = waypoint.transform.location.x
+        pos_abs_y = -waypoint.transform.location.y # convert y carla into ros frame
+        
+        pos_rel_junction_x = pos_abs_x - junctionPosX
+        pos_rel_junction_y = pos_abs_y - junctionPosY
+
+        TrafficLightsSensor.add_node(generic_lane_ingress, pos_rel_junction_x, pos_rel_junction_y)
+            
+        last_pos_x = pos_abs_x
+        last_pos_y = pos_abs_y
+        
+        # create an egress/ingress line with a given length
+        for i in range(len(waypoints)):
+            if i <= 0: 
+                i = 1
+                
+            next_wp = waypoints[i]
+            posRelX = next_wp.transform.location.x - last_pos_x
+            posRelY = -next_wp.transform.location.y - last_pos_y # convert y carla into ros frame
+
+            TrafficLightsSensor.add_node(generic_lane_ingress, posRelX, posRelY)
+            
+            last_pos_x = next_wp.transform.location.x
+            last_pos_y = -next_wp.transform.location.y # convert y carla into ros frame
+            
+        return generic_lane_ingress              
+       
+        
+    @staticmethod
+    def convert_carla_location_to_ros_vector3(location):
+        return np.array([location.x, -location.y, location.z])
+
     @staticmethod
     def calculate_junction_mean(junction_waypoint_tuples):
         position = np.array([0.0, 0.0, 0.0])
@@ -362,27 +465,30 @@ class TrafficLightsSensor(PseudoActor):
         
         # set the lat/lon coordinates of junction as mean of correpsonding traffic light positions
         for waypoint_tuple in junction_waypoint_tuples:
-            position = position + TrafficLightsSensor.convert_carla_location_to_ros_vector3(waypoint_tuple[0].transform.location)
-            position = position + TrafficLightsSensor.convert_carla_location_to_ros_vector3(waypoint_tuple[1].transform.location)
+            wp1, wp2 = waypoint_tuple
+            
+            position = position + TrafficLightsSensor.convert_carla_location_to_ros_vector3(wp1.transform.location)
+            position = position + TrafficLightsSensor.convert_carla_location_to_ros_vector3(wp2.transform.location)
 
             waypoint_count += 2
         
         if waypoint_count > 0:
             position = position / waypoint_count
  
-        return (position)
-
-
-    def publish_etsi_mapem_message(self):
+        return (position[0], position[1], position[2])
+    
+    
+    @staticmethod
+    def create_etsi_mapem_message(projection_string, junctions, traffic_light_actors, lane_segments_count = 10, lane_segments_distance = 1.0):
 
         # create MAPEM data
         mapem = MAPEM()
         mapem.map.msg_issue_revision.value = 0
         
-        for junction_id in self.junctions:
-            junction = self.get_junction(junction_id)
-            junction_position = self.get_junction_position(junction_id)
-            waypoint_tuples = self.get_junction_waypoints(junction_id)
+        for junctionKey in junctions:
+            junctionContainer = junctions[junctionKey]
+            junction = junctionContainer['junction_object']
+            traffic_lights = junctionContainer['traffic_lights'].values()
             
             # Create intersection geometry
             intersecion_geometry = IntersectionGeometry()
@@ -390,20 +496,34 @@ class TrafficLightsSensor(PseudoActor):
             intersecion_geometry.ref_point.elevation_is_present = True
         
             # set the lat/lon coordinates of junction as mean of correpsonding traffic light positions
-            projection_string = self.node.world_info.projection_string
-            lat, lon = TrafficLightsSensor.carla_to_latlon(projection_string, junction_position[0], junction_position[1])
-            TrafficLightsSensor.set_etsi_lat_lon_junction(intersecion_geometry, lat, lon, junction_position[2])
+            junctionPosX, junctionPosY, junctionPosZ = TrafficLightsSensor.calculate_junction_mean(junctionContainer['waypoints_tuple'])
+            
+            lat, lon = TrafficLightsSensor.carla_to_latlon(projection_string, junctionPosX, junctionPosY)
+            
+            intersecion_geometry.ref_point.lat.value = (int)(lat * 10 ** 7)
+            intersecion_geometry.ref_point.lon.value = (int)(lon * 10 ** 7)
+            intersecion_geometry.ref_point.elevation.value = (int)(junctionPosZ * 10 ** 1)
+                
+            for traffic_light in traffic_lights:
+                pass
+                #helper_lane = TrafficLightsSensor.create_traffic_light_affected_lane_waypoints(traffic_light, junctionPosX, junctionPosY)    
+                #intersecion_geometry.lane_set.array.append(helper_lane)
                 
             # create ingress and egress into and out of the junction
-            for waypointTuple in waypoint_tuples:
+            for waypointTuple in junctionContainer['waypoints_tuple']:
+                
+                # create GenericLane
+                wp1, wp2 = waypointTuple
+                #print("waypoint with road_id: ", wp1.road_id)
                 
                 # create ingress line for first waypoint of the tuple which lead into the junction
-                generic_lane_ingress = self.create_junction_lane(True, waypointTuple[0], junction_position)
+                generic_lane_ingress = TrafficLightsSensor.create_junction_lane(True, wp1, junctionPosX, junctionPosY, lane_segments_count, lane_segments_distance)
                 intersecion_geometry.lane_set.array.append(generic_lane_ingress)
                 
-                # if the ingress lane is affected by a traffic light, connect it to the traffic light
-                if waypointTuple[2] != None:
-                    traffic_light = waypointTuple[2]
+                # create mapem signal group (traffic light) connection to spatem:
+                (traffic_waypoint, traffic_light) = TrafficLightsSensor.get_affected_traffic_light_waypoint(traffic_light_actors, wp1.road_id)
+                
+                if traffic_waypoint != None and traffic_light != None:
                     connection = Connection()
                     
                     connection.signal_group_is_present = True
@@ -413,24 +533,32 @@ class TrafficLightsSensor(PseudoActor):
                     generic_lane_ingress.connects_to.array.append(connection)
                     
                 # create egress line for
-                generic_lane_egress = self.create_junction_lane(False, waypointTuple[1], junction_position)
+                generic_lane_egress = TrafficLightsSensor.create_junction_lane(False, wp2, junctionPosX, junctionPosY, lane_segments_count, lane_segments_distance)
                 intersecion_geometry.lane_set.array.append(generic_lane_egress)
                     
             mapem.map.intersections_is_present = True
             mapem.map.intersections.array.append(intersecion_geometry)
             
-        self.etsi_mapem_publisher.publish(mapem)
+        return mapem
     
-    def debug_publish_traffic_information(self):
+    def debug_publish_traffic_information(self, traffic_light_actors):
         marker_array = MarkerArray()
         marker_id = 0
         
+        
         current_time = self.node.get_clock().now().to_msg()
         
-        for traffic_light_actor in self.traffic_light_actors:
+        for traffic_light_actor in traffic_light_actors:
             stop_waypoints = traffic_light_actor.carla_actor.get_stop_waypoints()
+            road_ids = {}
             
+            print("Number of stop points:", len(stop_waypoints))
             for stop_waypoint in stop_waypoints:
+                #if stop_waypoint.road_id in road_ids:
+                #    continue
+                
+                #road_ids[stop_waypoint.road_id] = 1
+
                 next_waypoint = stop_waypoint
                 
                 for i in range(50):
@@ -439,6 +567,7 @@ class TrafficLightsSensor(PseudoActor):
                     marker = Marker()
                     marker.header.frame_id = "carla_map"  # Adjust if using a different frame
                     marker.header.stamp = current_time
+                    #marker.ns = "traffic_light_stop_waypoints"
                     marker.id = marker_id
                     marker_id += 1
                     
@@ -450,6 +579,9 @@ class TrafficLightsSensor(PseudoActor):
                     marker.pose.position.y = -next_waypoint.transform.location.y
                     
                     marker.pose.orientation.w = 1.0 
+                    #print("Position: ", marker.pose.position.x, marker.pose.position.y, marker.pose.position.z)
+                    
+                    #print("Jucntion: ", stop_waypoint.is_junction)
 
                     # Set marker scale (use the extent from trigger box)
                     marker.scale.x = 1.0
@@ -460,6 +592,7 @@ class TrafficLightsSensor(PseudoActor):
                     if next_waypoint.is_junction:
                         junction = next_waypoint.get_junction()
                         
+                        print(" Road id: ", stop_waypoint.road_id, ", junction id: ", junction.id, "segment id: ", stop_waypoint.section_id)
                         found = False
                         
                         for wp1, wp2 in junction.get_waypoints(LaneType.Driving):
@@ -495,24 +628,78 @@ class TrafficLightsSensor(PseudoActor):
                     
                     next_waypoint = next_waypoint.next(1)[0]
                     
+    
+            
+            if False:
+                for tl in stop_waypoints:
+                    # Get traffic light transform
+                    tl_transform = tl.get_info().transform
+                    tl_location = tl_transform.position
+                    tl_rotation = tl_transform.orientation
+                    print("Create marker before")
+                    # Get trigger box (bounding box) - in CARLA this is the 'trigger_volume'
+                    trigger_box = tl.get_info().trigger_volume
+                    if trigger_box is None:
+                        print("No trigger volume for traffic light ")
+                        continue
+                    print("Create marker")
+                    extent = trigger_box.size
+                    box_transform_location = trigger_box.center
+                    
+                    # Create marker for this traffic light trigger box
+                    marker = Marker()
+                    marker.header.frame_id = "carla_map"  # Adjust if using a different frame
+                    marker.header.stamp = current_time
+                    marker.ns = "traffic_light_triggers"
+                    marker.id = marker_id
+                    marker_id += 1
+                    
+                    marker.type = Marker.CUBE
+                    marker.action = Marker.ADD
+                    
+                    # Set marker position
+                    marker.pose.position.x = tl_location.x + box_transform_location.x
+                    marker.pose.position.y = tl_location.y + box_transform_location.y
+                    marker.pose.position.z = tl_location.z + box_transform_location.z
+
+                    
+                    # Set marker scale (use the extent from trigger box)
+                    marker.scale.x = extent.x * 2.0  # CARLA uses half-dimensions for extent
+                    marker.scale.y = extent.y * 2.0
+                    marker.scale.z = extent.z * 2.0
+                    
+                    # Set marker color based on traffic light state
+                    marker.color.r = 1.0
+                    marker.color.g = 0.0
+                    marker.color.b = 0.0
+                        
+                    marker.color.a = 0.3  # Semi-transparent
+                    marker.lifetime = rclpy.duration.Duration(seconds=0.2).to_msg()  # Short lifetime until next update
+                    
+                    # Add to marker array
+                    marker_array.markers.append(marker)
+            
         # Publish the marker array
         self.marker_publisher.publish(marker_array)
 
 
-    def publish_etsi_spatem_message(self):
+    
+    @staticmethod
+    def create_etsi_spatem_message(junctions):
         spatem = SPATEM()
         spatem.spat.name_is_present = True
         spatem.spat.name.value = "Carla traffic light status"
         
-        for junction_id in self.junctions:
-            junction = self.get_junction(junction_id)
-            traffic_lights = self.get_junction_traffic_lights(junction_id)
+        for junctionKey in junctions:
+            junctionContainer = junctions[junctionKey]
+            junction = junctionContainer['junction_object']
             
             # Create intersection geometry
             intersection_state = IntersectionState()
             intersection_state.id.id.value = junction.id
             
-            for traffic_light in traffic_lights:
+            for traffic_light in junctionContainer['traffic_lights'].values():
+                print("Spatem withn raffic light id: ", traffic_light.id)
                 # Movement State
                 movement_state = MovementState()
                 movement_state.signal_group.value = traffic_light.id
@@ -527,19 +714,20 @@ class TrafficLightsSensor(PseudoActor):
                 
             spatem.spat.intersections.array.append(intersection_state)
             
-        self.etsi_spatem_publisher.publish(spatem)
+        return spatem
 
     def update(self, frame, timestamp):
         """
         Get the state of all known traffic lights
         """
-        traffic_light_actors = self.get_traffic_light_actors()
         traffic_light_status = CarlaTrafficLightStatusList()
+        traffic_light_actors = []
+        for actor_id in self.actor_list:
+            actor = self.actor_list[actor_id]
+            if isinstance(actor, TrafficLight):
+                traffic_light_actors.append(actor)
+                traffic_light_status.traffic_lights.append(actor.get_status())
 
-        for traffic_light in traffic_light_actors:
-            traffic_light_status.traffic_lights.append(traffic_light.get_status())
-
-        # publish traffic light info
         if traffic_light_actors != self.traffic_light_actors:
             self.traffic_light_actors = traffic_light_actors
             traffic_light_info_list = CarlaTrafficLightInfoList()
@@ -547,15 +735,14 @@ class TrafficLightsSensor(PseudoActor):
                 traffic_light_info_list.traffic_lights.append(traffic_light.get_info())
             self.traffic_lights_info_publisher.publish(traffic_light_info_list)
 
-        # publish traffic light status
         if traffic_light_status != self.traffic_light_status:
             self.traffic_light_status = traffic_light_status
             self.traffic_lights_status_publisher.publish(traffic_light_status)
+
         
         # create Etsi data structure
-        self.publish_etsi_mapem_message()
-        self.publish_etsi_spatem_message()
-        self.debug_publish_traffic_information()
+        self.publish_etsi_messages(traffic_light_actors)
+        self.debug_publish_traffic_information(traffic_light_actors)
         
         
         
