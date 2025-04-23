@@ -289,16 +289,18 @@ class TrafficLightsSensor(PseudoActor):
                     junction_position = TrafficLightsSensor.calculate_junction_mean(waypoint_tuples)
                     
                     # connect traffic light with corresponding ingress lane waypoint if available
-                    for waypointTuple in waypoint_tuples:
-                        wp1, wp2 = waypointTuple
-                        
-                        (waypoint, traffic_light) = self.get_affected_traffic_light_waypoint(traffic_lights, wp1.road_id)
-                        
-                        if (waypoint, traffic_light) != (None, None):
-                            junction_traffic_lights[traffic_light.id] = traffic_light
+                    # hack for testing 
+                    if junction_id != 195:
+                        for waypointTuple in waypoint_tuples:
+                            wp1, wp2 = waypointTuple
                             
-                        waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
-                    
+                            (waypoint, traffic_light) = self.get_affected_traffic_light_waypoint(traffic_lights, wp1.road_id)
+                            
+                            if (waypoint, traffic_light) != (None, None):
+                                junction_traffic_lights[traffic_light.id] = traffic_light
+                                
+                            waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
+                        
                     # fill junction data structure
                     if self.integrate_junctions_without_traffic_lights or len(junction_traffic_lights) > 0:
                         self.junctions[junction_id] = {}
@@ -333,7 +335,7 @@ class TrafficLightsSensor(PseudoActor):
                     # this prvents the the lane to be counted multiple times for the same junction
                     for test_waypoint in stop_waypoints:
                         if test_waypoint.id == waypoint.id:
-                            return (None, None)
+                            break
                 
         return (None, None)
                     
