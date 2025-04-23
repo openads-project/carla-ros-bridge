@@ -114,7 +114,7 @@ class TrafficLightsSensor(PseudoActor):
         self.timer_mapem = node.create_timer(timer_period, self.publish_etsi_mapem_message)
         
         # mapem publisher calllback
-        timer_period = 0.1  # seconds
+        timer_period = 0.01  # seconds
         self.timer_spatem = node.create_timer(timer_period, self.publish_etsi_spatem_message)
         
         if self.debug_traffic_light_information == True:
