@@ -329,11 +329,16 @@ class TrafficLightsSensor(PseudoActor):
                     
                     # Get the next waypoint in the list
                     waypoint = waypoint.next(1.0)[0]
+                    
+                    # this prvents the the lane to be counted multiple times for the same junction
+                    for test_waypoint in stop_waypoints:
+                        if test_waypoint.id == waypoint.id:
+                            return (None, None)
                 
         return (None, None)
                     
         
-    def create_junction_lane(self, is_ingress, waypoint, junction_position, ignore_waypoints):
+    def create_junction_lane(self, is_ingress, waypoint, junction_position):
 
         # create ingress line for
         generic_lane_ingress = GenericLane()
@@ -361,14 +366,9 @@ class TrafficLightsSensor(PseudoActor):
             next_wps = last_wp.previous(self.lane_waypoints_distance) if is_ingress else last_wp.next(self.lane_waypoints_distance)
             
             if len(next_wps) == 0:
-                return None
+                break
             
             next_wp = next_wps[0]
-            
-            # this check prevents a lane to be counted several times
-            if next_wp in ignore_waypoints:
-                return None
-            
             next_wp_position = TrafficLightsSensor.convert_carla_location_to_ros_vector3(next_wp.transform.location)
             
             pos_rel = next_wp_position - last_pos
@@ -418,19 +418,11 @@ class TrafficLightsSensor(PseudoActor):
             TrafficLightsSensor.set_etsi_lat_lon_junction(intersecion_geometry, lat, lon, junction_position[2])
                 
             # create ingress and egress into and out of the junction
-            ignore_waypoints = []
             
-            for waypointTuple in waypoint_tuples:
-                ignore_waypoints.append(waypointTuple[0])
-                        
             for waypointTuple in waypoint_tuples:
                 
                 # create ingress line for first waypoint of the tuple which lead into the junction
-                generic_lane_ingress = self.create_junction_lane(True, waypointTuple[0], junction_position, ignore_waypoints)
-                
-                if generic_lane_ingress == None:
-                    continue
-                
+                generic_lane_ingress = self.create_junction_lane(True, waypointTuple[0], junction_position)
                 intersecion_geometry.lane_set.array.append(generic_lane_ingress)
                 
                 # if the ingress lane is affected by a traffic light, connect it to the traffic light
