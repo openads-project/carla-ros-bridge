@@ -81,6 +81,7 @@ class TrafficLightsSensor(PseudoActor):
         self.lane_waypoints_count = 10
         self.taffic_light_junction_max_search_count = 100
         self.debug_traffic_light_information = True
+        self.integrate_junctions_without_traffic_lights = False
         
         traffic_light_actors = self.get_traffic_light_actors()
         self.initialize_junctions(traffic_light_actors)       
@@ -299,11 +300,12 @@ class TrafficLightsSensor(PseudoActor):
                         waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
                     
                     # fill junction data structure
-                    self.junctions[junction_id] = {}
-                    self.set_junction(junction_id, junction_object)
-                    self.set_junction_traffic_lights(junction_id, junction_traffic_lights)
-                    self.set_junction_waypoints(junction_id, waypoint_tuples_traffic_lights)
-                    self.set_junction_position(junction_id, junction_position)
+                    if self.integrate_junctions_without_traffic_lights or len(junction_traffic_lights) > 0:
+                        self.junctions[junction_id] = {}
+                        self.set_junction(junction_id, junction_object)
+                        self.set_junction_traffic_lights(junction_id, junction_traffic_lights)
+                        self.set_junction_waypoints(junction_id, waypoint_tuples_traffic_lights)
+                        self.set_junction_position(junction_id, junction_position)
                                         
     
     @staticmethod
