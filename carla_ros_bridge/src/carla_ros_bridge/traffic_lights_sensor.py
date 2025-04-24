@@ -79,7 +79,7 @@ class TrafficLightsSensor(PseudoActor):
         self.traffic_light_actors = []
         self.lane_waypoints_distance = 0.5
         self.lane_waypoints_count = 10
-        self.taffic_light_junction_max_search_count = 100
+        self.taffic_light_junction_max_search_count = 15
         self.debug_traffic_light_information = True
         self.integrate_junctions_without_traffic_lights = False
         self.traffic_light_junction_search_ignored_ids = [195, 328]
@@ -332,13 +332,16 @@ class TrafficLightsSensor(PseudoActor):
                                 ignore_junction = True
                                 break
                         
-                        if ignore_junction == False and road_id == waypoint.road_id:
+                        if ignore_junction == True:
+                            break
+                        
+                        if road_id == waypoint.road_id:
                             return (waypoint, traffic_light.carla_actor)
                     
                     # Get the next waypoint in the list
                     waypoint = waypoint.next(1.0)[0]
                     
-                    # this prvents the the lane to be counted multiple times for the same junction
+                    # this prevents the the lane to be counted multiple times for the same junction
                     for test_waypoint in stop_waypoints:
                         if test_waypoint.id == waypoint.id:
                             break
@@ -465,11 +468,11 @@ class TrafficLightsSensor(PseudoActor):
             for stop_waypoint in stop_waypoints:
                 next_waypoint = stop_waypoint
                 
-                for i in range(50):
+                for i in range(self.taffic_light_junction_max_search_count):
                 
                     # Create marker for this traffic light trigger box
                     marker = Marker()
-                    marker.header.frame_id = "carla_map"  # Adjust if using a different frame
+                    marker.header.frame_id = "carla_map"
                     marker.header.stamp = current_time
                     marker.id = marker_id
                     marker_id += 1
