@@ -82,6 +82,7 @@ class TrafficLightsSensor(PseudoActor):
         self.taffic_light_junction_max_search_count = 100
         self.debug_traffic_light_information = True
         self.integrate_junctions_without_traffic_lights = False
+        self.traffic_light_junction_search_ignored_ids = [195, 328]
         
         traffic_light_actors = self.get_traffic_light_actors()
         self.initialize_junctions(traffic_light_actors)       
@@ -321,11 +322,18 @@ class TrafficLightsSensor(PseudoActor):
                 waypoint = stop_waypoint
                 
                 for i in range(self.taffic_light_junction_max_search_count):
-                    if waypoint.is_junction and waypoint.get_junction().id != 195 and waypoint.get_junction().id != 328:
-                        if road_id == waypoint.road_id:
-                            return (waypoint, traffic_light.carla_actor)
+                    if waypoint.is_junction:
+                        # a junction has been found
+                        # ignore junctions from the blacklist
+                        ignore_junction = False
                         
-                        break
+                        for ignored_junction_id in self.traffic_light_junction_search_ignored_ids:
+                            if waypoint.get_junction().id == ignored_junction_id:
+                                ignore_junction = True
+                                break
+                        
+                        if ignore_junction == False and road_id == waypoint.road_id:
+                            return (waypoint, traffic_light.carla_actor)
                     
                     # Get the next waypoint in the list
                     waypoint = waypoint.next(1.0)[0]
