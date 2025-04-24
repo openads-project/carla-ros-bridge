@@ -289,17 +289,15 @@ class TrafficLightsSensor(PseudoActor):
                     junction_position = TrafficLightsSensor.calculate_junction_mean(waypoint_tuples)
                     
                     # connect traffic light with corresponding ingress lane waypoint if available
-                    # hack for testing 
-                    if junction_id != 195:
-                        for waypointTuple in waypoint_tuples:
-                            wp1, wp2 = waypointTuple
+                    for waypointTuple in waypoint_tuples:
+                        wp1, wp2 = waypointTuple
+                        
+                        (waypoint, traffic_light) = self.get_affected_traffic_light_waypoint(traffic_lights, wp1.road_id)
+                        
+                        if (waypoint, traffic_light) != (None, None):
+                            junction_traffic_lights[traffic_light.id] = traffic_light
                             
-                            (waypoint, traffic_light) = self.get_affected_traffic_light_waypoint(traffic_lights, wp1.road_id)
-                            
-                            if (waypoint, traffic_light) != (None, None):
-                                junction_traffic_lights[traffic_light.id] = traffic_light
-                                
-                            waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
+                        waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
                         
                     # fill junction data structure
                     if self.integrate_junctions_without_traffic_lights or len(junction_traffic_lights) > 0:
@@ -323,7 +321,7 @@ class TrafficLightsSensor(PseudoActor):
                 waypoint = stop_waypoint
                 
                 for i in range(self.taffic_light_junction_max_search_count):
-                    if waypoint.is_junction:    
+                    if waypoint.is_junction and waypoint.get_junction().id != 195:
                         if road_id == waypoint.road_id:
                             return (waypoint, traffic_light.carla_actor)
                         
