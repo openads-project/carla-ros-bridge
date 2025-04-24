@@ -321,7 +321,7 @@ class TrafficLightsSensor(PseudoActor):
                 waypoint = stop_waypoint
                 
                 for i in range(self.taffic_light_junction_max_search_count):
-                    if waypoint.is_junction and waypoint.get_junction().id != 195:
+                    if waypoint.is_junction and waypoint.get_junction().id != 195 and waypoint.get_junction().id != 328:
                         if road_id == waypoint.road_id:
                             return (waypoint, traffic_light.carla_actor)
                         
