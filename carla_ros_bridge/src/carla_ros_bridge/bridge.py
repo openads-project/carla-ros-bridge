@@ -431,6 +431,19 @@ def main(args=None):
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
     parameters['georeference_substitution'] = carla_bridge.get_param('georeference_substitution', "")
+    
+    # etsi traffic_light parametes
+    parameters['publish_etsi_messages'] = carla_bridge.get_param('publish_etsi_messages', False)
+    parameters['waypoints_search_distance'] = carla_bridge.get_param('waypoints_search_distance', 1.0)
+    parameters['lane_waypoints_count'] = carla_bridge.get_param('lane_waypoints_count', 10)
+    parameters['taffic_light_junction_max_search_count'] = carla_bridge.get_param('taffic_light_junction_max_search_count', 15)
+    parameters['debug_traffic_light_information'] = carla_bridge.get_param('debug_traffic_light_information', True)
+    parameters['integrate_junctions_without_traffic_lights'] = carla_bridge.get_param('integrate_junctions_without_traffic_lights', False)
+    parameters['traffic_light_junction_search_ignored_ids'] = carla_bridge.get_param('traffic_light_junction_search_ignored_ids', [])
+    parameters['publisher_mapem_timer_period'] = carla_bridge.get_param('publisher_mapem_timer_period', 1.0)
+    parameters['publisher_spatem_timer_period'] = carla_bridge.get_param('publisher_spatem_timer_period', 1.0)
+    parameters['publisher_debug_traffic_light_information_timer_period'] = carla_bridge.get_param('publisher_debug_traffic_light_information_timer_period', 1.0)
+
 
     carla_bridge.loginfo("Trying to connect to {host}:{port}".format(
         host=parameters['host'], port=parameters['port']))

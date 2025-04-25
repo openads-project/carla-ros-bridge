@@ -88,6 +88,67 @@ def generate_launch_description():
             description='Substitutes the content of the georeference xml file from the Carla OpenDrive file if not empty. Can be used to set the origin of the WorldInfo without changing the original OpenDrive file.'
         ),
         
+        # etsi traffic_light parameters
+        launch.actions.DeclareLaunchArgument(
+            name='publish_etsi_messages',
+            default_value='False',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='waypoints_search_distance',
+            default_value='1.0',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='lane_waypoints_count',
+            default_value='10',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='taffic_light_junction_max_search_count',
+            default_value='15',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='debug_traffic_light_information',
+            default_value='False',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='integrate_junctions_without_traffic_lights',
+            default_value='False',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='traffic_light_junction_search_ignored_ids',
+            default_value='[]',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='publisher_mapem_timer_period',
+            default_value='1.0',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='publisher_spatem_timer_period',
+            default_value='0.1',
+            description=''
+        ),
+        
+        launch.actions.DeclareLaunchArgument(
+            name='publisher_debug_traffic_light_information_timer_period',
+            default_value='1.0',
+            description=''
+        ),
+        
         launch_ros.actions.Node(
             package='carla_ros_bridge',
             executable='bridge',
