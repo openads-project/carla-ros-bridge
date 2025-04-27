@@ -123,18 +123,6 @@ class TrafficLightsSensor(PseudoActor):
             # publish debug information
             timer_period = node.parameters['publisher_debug_traffic_light_information_timer_period'] # seconds
             self.timer_traffic_lights_debug = node.create_timer(timer_period, self.debug_publish_traffic_information)
-    
-    
-
-    def get_traffic_light_actors(self):
-        traffic_light_actors = []
-        for actor_id in self.actor_list:
-            actor = self.actor_list[actor_id]
-            if isinstance(actor, TrafficLight):
-                traffic_light_actors.append(actor)
-                
-        return traffic_light_actors
-        
 
     def destroy(self):
         """
@@ -156,13 +144,42 @@ class TrafficLightsSensor(PseudoActor):
         """
         return "sensor.pseudo.traffic_lights"
     
+    def get_traffic_light_actors(self):
+        """
+        Returns an array of Carla actors of the derived type TrafficLight
+        :return array of all TrafficLight Actor objects inside the Carla world
+        :rtype array(carla.TrafficLight)
+        """
+        traffic_light_actors = []
+        for actor_id in self.actor_list:
+            actor = self.actor_list[actor_id]
+            if isinstance(actor, TrafficLight):
+                traffic_light_actors.append(actor)
+                
+        return traffic_light_actors
+
     def get_junction(self, junction_id):
+        """
+        Returns a junction with the given id. The id of the carla.Juction corresponds to the id of the junction in the OpenDrive file.
+        :return Carla junction from the Carla world object
+        :rtype carla.Junction
+        """
         return self.junctions[junction_id]['junction_object']
         
     def get_junction_traffic_lights(self, junction_id):
+        """
+        Returns all traffic lights that belong to a junction with a given id
+        :return Traffic lights of a junction
+        :rtype array(carla.Junction)
+        """
         return self.junctions[junction_id]['traffic_lights'].values()
         
     def get_junction_waypoints(self, junction_id):
+        """
+        Returns a list of waypoint tuples (a waypoint tuple describes the start- and end waypoint of a lane inside a junction) and the corresponding traffic light if available
+        :return a tuple with the fomat (waypoint ingoing, waypoint outgoing, traffic light for ingoing waypoint if available)
+        :rtype tuple(carla.Waypoint, carla.Waypoint, carla.TrafficLight)
+        """
         return self.junctions[junction_id]['waypoints_tuple']
         
     def get_junction_position(self, junction_id):
@@ -191,35 +208,34 @@ class TrafficLightsSensor(PseudoActor):
         return np.array([location.x, -location.y, location.z])
 
     
-    """
-    Convert CARLA coordinates to latitude/longitude using PyProj and a reference point.
-    
-    Args:
-        carla_x, carla_y: CARLA coordinates to convert
-        projection_string: Projection string whichn is used to convert Carla coordinates to lat/lon coordinates
-    
-    Returns:
-        latitude, longitude: WGS84 coordinates
-    """
     @staticmethod
     def carla_to_latlon(projection_string, carla_x, carla_y):
+        """
+        Convert CARLA coordinates to latitude/longitude using PyProj and a reference point.
+        
+        Args:
+            carla_x, carla_y: CARLA coordinates to convert
+            projection_string: Projection string whichn is used to convert Carla coordinates to lat/lon coordinates
+        
+        Returns:
+            latitude, longitude: WGS84 coordinates
+        """
         proj_xodr = pyproj.Proj(projparams=projection_string)
         lon, lat = proj_xodr(carla_x, carla_y, inverse=True)
         
         return lat, lon
 
-    """
-    Convert a CARLA LaneType into an Etsi LaneType
-    
-    Args:
-        carla_x, carla_y: CARLA coordinates to convert
-        projection_string: Projection string whichn is used to convert Carla coordinates to lat/lon coordinates
-    
-    Returns:
-        latitude, longitude: WGS84 coordinates
-    """
     @staticmethod
     def convert_lane_type(carla_lane_type : LaneType):
+        """
+        Convert a CARLA LaneType into an Etsi LaneType
+        
+        Args:
+            carla_lane_type: LaneType as Carla Type
+        
+        Returns:
+            LaneType as Etsi type
+        """
         lane_actions = {
             LaneType.NONE: 0,
             LaneType.Driving: LaneTypeAttributes.CHOICE_VEHICLE,
@@ -249,6 +265,15 @@ class TrafficLightsSensor(PseudoActor):
     
     @staticmethod
     def convert_traffic_light_state(state : CarlaTrafficLightStatus):
+        """
+        Convert the type CarlaTrafficLightStatus into the corresponding Etsi type
+        
+        Args:
+            state: Carla status as type CarlaTrafficLightStatus
+        
+        Returns:
+            LaneType as Etsi type
+        """
         state_dictionary = {
             CarlaTrafficLightStatus.RED: MovementPhaseState.STOP_THEN_PROCEED,
             CarlaTrafficLightStatus.YELLOW: MovementPhaseState.PRE_MOVEMENT,
@@ -311,10 +336,27 @@ class TrafficLightsSensor(PseudoActor):
     
     @staticmethod
     def get_waypoints_from_traffic_light(traffic_light):
+        """
+        Returns a single waypoint for each lane affected by the given traffic light.
+        The given implementation performs a brute force search for all affected lanes within the Carla c++ implementation.
+        For each traffic light, all waypoints within the corresponding traffic light trigger box are searched. If the lane associated with the waypoint is not in the output array, it is added.
+        
+        :return List of waypoints, each corresponding to a different lane.
+        :rtype list(carla.Waypoint)
+        """
         return traffic_light.get_stop_waypoints()
 
     def get_affected_traffic_light_waypoint(self, traffic_lights, road_id):
-        
+        """
+        Given an id of a road inside a junction, this method returns the corresponding traffic light for the stop line leading into the junction to the given road id.
+        :param traffic_lights: all traffic light actors from the carla world
+        :type traffic_lights: array(carla.TrafficLight)
+        :param road_id: OpenDRIVE road's id
+        :type road_id: int
+        :return a tuple of the first edge intersection waypoint which leads into the intersection and is part of the road with the given road_id and the Traffic Light
+        :rtype tuple(carla.Waypoint, carla.TrafficLight) 
+        """
+
         for traffic_light in traffic_lights:
             stop_waypoints = TrafficLightsSensor.get_waypoints_from_traffic_light(traffic_light.carla_actor)
             
@@ -347,6 +389,18 @@ class TrafficLightsSensor(PseudoActor):
                     
         
     def create_junction_lane(self, is_ingress, waypoint, junction_position):
+        """
+        Creates an Ingress or Egress lane.
+        The lane is part of an Etsi Mapem message.
+        :param is_ingress: The lane is an Ingress lane (true, enters the intersection) or an Egress lane (false, exits the intersection)
+        :type is_ingress: bool
+        :param waypoint: the waypoint corresponding to the lane at the start/end of the intersection
+        :type waypoint: carla.Waypoint
+        :param junction_position: position of the junction
+        :type junction_position: numpy.array(3)
+        :return Etsi Mapem lane (Ingress or Egress)
+        :rtype GenericLane
+        """
 
         # create ingress line for
         generic_lane_ingress = GenericLane()
@@ -388,6 +442,12 @@ class TrafficLightsSensor(PseudoActor):
     
     @staticmethod
     def calculate_junction_mean(junction_waypoint_tuples):
+        """
+        Calculates the position of a junction by using the mean position of all edge waypoints.
+        :param junction_waypoint_tuples: all driving lane waypoints from the edge of the junction (ingoing and outgoing)
+        :return mean position of all positions from the dribing lane intersetion tuples
+        :rtype numpy.array(3)
+        """
         position = np.array([0.0, 0.0, 0.0])
         waypoint_count = 0
         
@@ -405,7 +465,9 @@ class TrafficLightsSensor(PseudoActor):
 
 
     def publish_etsi_mapem_message(self):
-
+        """
+        Creates and publishes an Etsi Mapem message
+        """
         # create MAPEM data
         mapem = MAPEM()
         mapem.map.msg_issue_revision.value = 0
@@ -454,6 +516,9 @@ class TrafficLightsSensor(PseudoActor):
         self.etsi_mapem_publisher.publish(mapem)
     
     def debug_publish_traffic_information(self):
+        """
+        Publishes a debug MarkerArray which visualizes the steps of the method get_affected_traffic_light_waypoint()
+        """
         marker_array = MarkerArray()
         marker_id = 0
         
@@ -532,6 +597,9 @@ class TrafficLightsSensor(PseudoActor):
 
 
     def publish_etsi_spatem_message(self):
+        """
+        Creates and publishes an Etsi Spatem message
+        """
         spatem = SPATEM()
         spatem.spat.name_is_present = True
         spatem.spat.name.value = "Carla traffic light status"
