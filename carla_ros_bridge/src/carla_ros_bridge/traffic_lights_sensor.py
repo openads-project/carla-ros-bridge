@@ -77,6 +77,7 @@ class TrafficLightsSensor(PseudoActor):
         self.actor_list = actor_list
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
+        self.publish_etsi_messages = node.parameters['publish_etsi_messages']
         self.waypoints_search_distance = node.parameters['waypoints_search_distance']
         self.lane_waypoints_count = node.parameters['lane_waypoints_count']
         self.taffic_light_junction_max_search_count = node.parameters['taffic_light_junction_max_search_count']
@@ -111,18 +112,19 @@ class TrafficLightsSensor(PseudoActor):
             "/carla/traffic_light_triggers",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         
-        # spatem publisher calllback
-        timer_period = node.parameters['publisher_spatem_timer_period'] # seconds
-        self.timer_mapem = node.create_timer(timer_period, self.publish_etsi_mapem_message)
-        
-        # mapem publisher calllback
-        timer_period = node.parameters['publisher_mapem_timer_period'] # seconds
-        self.timer_spatem = node.create_timer(timer_period, self.publish_etsi_spatem_message)
-        
-        if self.debug_traffic_light_information == True:
-            # publish debug information
-            timer_period = node.parameters['publisher_debug_traffic_light_information_timer_period'] # seconds
-            self.timer_traffic_lights_debug = node.create_timer(timer_period, self.debug_publish_traffic_information)
+        if self.publish_etsi_messages:
+            # spatem publisher calllback
+            timer_period = node.parameters['publisher_spatem_timer_period'] # seconds
+            self.timer_mapem = node.create_timer(timer_period, self.publish_etsi_mapem_message)
+            
+            # mapem publisher calllback
+            timer_period = node.parameters['publisher_mapem_timer_period'] # seconds
+            self.timer_spatem = node.create_timer(timer_period, self.publish_etsi_spatem_message)
+            
+            if self.debug_traffic_light_information == True:
+                # publish debug information
+                timer_period = node.parameters['publisher_debug_traffic_light_information_timer_period'] # seconds
+                self.timer_traffic_lights_debug = node.create_timer(timer_period, self.debug_publish_traffic_information)
 
     def destroy(self):
         """

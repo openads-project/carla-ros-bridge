@@ -127,7 +127,7 @@ def generate_launch_description():
         
         launch.actions.DeclareLaunchArgument(
             name='traffic_light_junction_search_ignored_ids',
-            default_value='[]',
+            default_value='[-1]', # list can not be empty
             description=''
         ),
         
@@ -204,6 +204,33 @@ def generate_launch_description():
                 },
                 {
                     'georeference_substitution': launch.substitutions.LaunchConfiguration('georeference_substitution')
+                },
+                {
+                    'publish_etsi_messages': launch.substitutions.LaunchConfiguration('publish_etsi_messages')
+                },
+                {
+                    'waypoints_search_distance': launch.substitutions.LaunchConfiguration('waypoints_search_distance')
+                },
+                {
+                    'lane_waypoints_count': launch.substitutions.LaunchConfiguration('lane_waypoints_count')
+                },
+                {
+                    'taffic_light_junction_max_search_count': launch.substitutions.LaunchConfiguration('taffic_light_junction_max_search_count')
+                },
+                {
+                    'debug_traffic_light_information': launch.substitutions.LaunchConfiguration('debug_traffic_light_information')
+                },
+                {
+                    'integrate_junctions_without_traffic_lights': launch.substitutions.LaunchConfiguration('integrate_junctions_without_traffic_lights')
+                },
+                {
+                    'traffic_light_junction_search_ignored_ids': launch.substitutions.LaunchConfiguration('traffic_light_junction_search_ignored_ids')
+                },
+                {
+                    'publisher_mapem_timer_period': launch.substitutions.LaunchConfiguration('publisher_mapem_timer_period')
+                },
+                {
+                    'publisher_debug_traffic_light_information_timer_period': launch.substitutions.LaunchConfiguration('publisher_debug_traffic_light_information_timer_period')
                 }
             ]
         )
