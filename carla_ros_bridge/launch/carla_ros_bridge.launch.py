@@ -108,14 +108,14 @@ def generate_launch_description():
         ),
         
         launch.actions.DeclareLaunchArgument(
-            name='taffic_light_junction_max_search_count',
-            default_value='15',
+            name='traffic_light_junction_max_search_count',
+            default_value='12',
             description=''
         ),
         
         launch.actions.DeclareLaunchArgument(
             name='debug_traffic_light_information',
-            default_value='False',
+            default_value='True',
             description=''
         ),
         
@@ -215,7 +215,7 @@ def generate_launch_description():
                     'lane_waypoints_count': launch.substitutions.LaunchConfiguration('lane_waypoints_count')
                 },
                 {
-                    'taffic_light_junction_max_search_count': launch.substitutions.LaunchConfiguration('taffic_light_junction_max_search_count')
+                    'traffic_light_junction_max_search_count': launch.substitutions.LaunchConfiguration('traffic_light_junction_max_search_count')
                 },
                 {
                     'debug_traffic_light_information': launch.substitutions.LaunchConfiguration('debug_traffic_light_information')

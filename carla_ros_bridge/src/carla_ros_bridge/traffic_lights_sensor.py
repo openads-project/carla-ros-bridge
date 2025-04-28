@@ -80,7 +80,7 @@ class TrafficLightsSensor(PseudoActor):
         self.publish_etsi_messages = node.parameters['publish_etsi_messages']
         self.waypoints_search_distance = node.parameters['waypoints_search_distance']
         self.lane_waypoints_count = node.parameters['lane_waypoints_count']
-        self.taffic_light_junction_max_search_count = node.parameters['taffic_light_junction_max_search_count']
+        self.taffic_light_junction_max_search_count = node.parameters['traffic_light_junction_max_search_count']
         self.debug_traffic_light_information = node.parameters['debug_traffic_light_information']
         self.integrate_junctions_without_traffic_lights = node.parameters['integrate_junctions_without_traffic_lights']
         self.traffic_light_junction_search_ignored_ids = node.parameters['traffic_light_junction_search_ignored_ids']
