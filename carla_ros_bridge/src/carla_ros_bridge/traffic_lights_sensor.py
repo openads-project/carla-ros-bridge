@@ -85,11 +85,6 @@ class TrafficLightsSensor(PseudoActor):
         self.integrate_junctions_without_traffic_lights = node.parameters['integrate_junctions_without_traffic_lights']
         self.traffic_light_junction_search_ignored_ids = node.parameters['traffic_light_junction_search_ignored_ids']
         
-        print("Publish etsi messages: ", self.publish_etsi_messages)
-        
-        traffic_light_actors = self.get_traffic_light_actors()
-        self.initialize_junctions(traffic_light_actors)       
-
         self.traffic_lights_info_publisher = node.new_publisher(
             CarlaTrafficLightInfoList,
             self.get_topic_prefix() + "/info",
@@ -100,6 +95,9 @@ class TrafficLightsSensor(PseudoActor):
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
                 
         if self.publish_etsi_messages:
+            traffic_light_actors = self.get_traffic_light_actors()
+            self.initialize_junctions(traffic_light_actors)       
+        
             self.etsi_mapem_publisher = node.new_publisher(
                 MAPEM,
                 "/carla/etsi_mapem",
