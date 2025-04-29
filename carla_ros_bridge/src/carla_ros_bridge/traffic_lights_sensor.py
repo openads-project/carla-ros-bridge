@@ -379,6 +379,45 @@ class TrafficLightsSensor(PseudoActor):
         map = self.node.carla_world.get_map()
         all_waypoints = map.generate_waypoints(self.waypoints_search_distance)
         
+        junction_candites = self.get_traffic_light_junction_candidates(traffic_lights)
+        
+        for junction in junction_candites.values():
+            junction_id = junction.id
+            
+            if junction_id not in self.junctions and junction_id not in self.traffic_light_junction_search_ignored_ids:
+                    
+                # get all waypoint tuples for a given junction
+                # a tuple represents a driving line from the entrance to a junction ingress -first tuple element) 
+                # to an exit (egress - second tuple element)
+                # an ingress lane can have an attached traffic light 
+                junction_object = waypoint.get_junction()
+                waypoint_tuples = junction_object.get_waypoints(LaneType.Driving)
+                waypoint_tuples_traffic_lights = []
+                junction_traffic_lights = {}
+                junction_position = TrafficLightsSensor.calculate_junction_mean(waypoint_tuples)
+                
+                # connect traffic light with corresponding ingress lane waypoint if available
+                for waypointTuple in waypoint_tuples:
+                    wp1, wp2 = waypointTuple
+                    
+                    (waypoint, traffic_light) = self.get_affected_traffic_light_waypoint(traffic_lights, wp1.road_id)
+                    
+                    if (waypoint, traffic_light) != (None, None):
+                        junction_traffic_lights[traffic_light.id] = traffic_light
+                        
+                    waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
+                    
+                # fill junction data structure
+                if self.integrate_junctions_without_traffic_lights or len(junction_traffic_lights) > 0:
+                    self.junctions[junction_id] = {}
+                    self.set_junction(junction_id, junction_object)
+                    self.set_junction_traffic_lights(junction_id, junction_traffic_lights)
+                    self.set_junction_waypoints(junction_id, waypoint_tuples_traffic_lights)
+                    self.set_junction_position(junction_id, junction_position)
+                    
+        return                
+                    
+        
         # iterate through all waypoints inside the carla map and save all found junctions
         for waypoint in all_waypoints:
             if waypoint.is_junction:
@@ -430,6 +469,33 @@ class TrafficLightsSensor(PseudoActor):
             self.traffic_light_stop_waypoints[traffic_light.id] = traffic_light.get_stop_waypoints()
         
         return self.traffic_light_stop_waypoints[traffic_light.id]
+
+    def get_traffic_light_junction_candidates(self, traffic_lights):
+        """
+        Returns a list of junction ids which are candidates for the given traffic lights. 
+        :param traffic_lights: all traffic light actors from the carla world
+        :type traffic_lights: array(carla.TrafficLight)
+        :return list of ids of all junctions which are candidates for the given traffic lights
+        :rtype list(int)
+        """
+        
+        junction_candidates = {}
+        
+        for traffic_light in traffic_lights:
+            stop_waypoints = self.get_waypoints_from_traffic_light(traffic_light.carla_actor)
+            
+            for stop_waypoint in stop_waypoints:
+                waypoint = stop_waypoint
+                
+                for i in range(self.taffic_light_junction_max_search_count):
+                    if waypoint.is_junction:     
+                        junction = waypoint.get_junction()                   
+                        if junction.id not in junction_candidates:
+                            junction_candidates[junction.id] = junction
+                            break
+                    
+                    # Get the next waypoint in the list
+                    waypoint = waypoint.next(1.0)[0]
 
     def get_affected_traffic_light_waypoint(self, traffic_lights, road_id):
         """
