@@ -77,6 +77,7 @@ class TrafficLightsSensor(PseudoActor):
         self.actor_list = actor_list
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
+        self.traffic_light_stop_waypoints = {} # cache for traffic light stop waypoints
         self.publish_etsi_messages = node.parameters['publish_etsi_messages']
         self.waypoints_search_distance = node.parameters['waypoints_search_distance']
         self.lane_waypoints_count = node.parameters['lane_waypoints_count']
@@ -416,8 +417,7 @@ class TrafficLightsSensor(PseudoActor):
                         self.set_junction_position(junction_id, junction_position)
                                         
     
-    @staticmethod
-    def get_waypoints_from_traffic_light(traffic_light):
+    def get_waypoints_from_traffic_light(self, traffic_light):
         """
         Returns a single waypoint for each lane affected by the given traffic light.
         The given implementation performs a brute force search for all affected lanes within the Carla c++ implementation.
@@ -426,7 +426,10 @@ class TrafficLightsSensor(PseudoActor):
         :return List of waypoints, each corresponding to a different lane.
         :rtype list(carla.Waypoint)
         """
-        return traffic_light.get_stop_waypoints()
+        if traffic_light.id not in self.traffic_light_stop_waypoints:
+            self.traffic_light_stop_waypoints[traffic_light.id] = traffic_light.get_stop_waypoints()
+        
+        return self.traffic_light_stop_waypoints[traffic_light.id]
 
     def get_affected_traffic_light_waypoint(self, traffic_lights, road_id):
         """
@@ -440,7 +443,7 @@ class TrafficLightsSensor(PseudoActor):
         """
 
         for traffic_light in traffic_lights:
-            stop_waypoints = TrafficLightsSensor.get_waypoints_from_traffic_light(traffic_light.carla_actor)
+            stop_waypoints = self.get_waypoints_from_traffic_light(traffic_light.carla_actor)
             
             for stop_waypoint in stop_waypoints:
                 waypoint = stop_waypoint
