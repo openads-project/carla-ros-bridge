@@ -17,7 +17,7 @@
   <!-- set the fixed timestep length -->
   <arg name='fixed_delta_seconds' default='0.05'/>
   <arg name='start_unix_time_stamp' default='0'/>
-  <arg name='town' default='Town01'/>
+  <arg name='town' default=''/>
   <arg name='rt_factor' default='inf'/>
   <!-- enable/disable the registration of all sensors. If disabled, only sensors
   spawned by the bridge are registered -->
