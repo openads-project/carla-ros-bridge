@@ -468,7 +468,7 @@ class TrafficLightsSensor(PseudoActor):
                             break
                     
                     # Get the next waypoint in the list
-                    waypoint = waypoint.next(1.0)[0]
+                    waypoint = waypoint.next(self.waypoints_search_distance)[0]
                     
         return junction_candidates
 
@@ -504,7 +504,7 @@ class TrafficLightsSensor(PseudoActor):
                             return (waypoint, traffic_light.carla_actor)
                     
                     # Get the next waypoint in the list
-                    waypoint = waypoint.next(1.0)[0]
+                    waypoint = waypoint.next(self.waypoints_search_distance)[0]
                     
                     # this prevents the the lane to be counted multiple times for the same junction
                     for test_waypoint in stop_waypoints:
