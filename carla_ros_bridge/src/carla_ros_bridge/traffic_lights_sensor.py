@@ -72,10 +72,10 @@ class TrafficLightsSensor(PseudoActor):
         self.actor_list = actor_list
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
-        self.traffic_light_stop_waypoints = {} # cache for traffic light stop waypoints
+        self.traffic_light_stop_waypoints = {}  # cache for traffic light stop waypoints
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
-        
+
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
         self.lane_waypoints_count = node.parameters["lane_waypoints_count"]
         self.taffic_light_junction_max_search_count = node.parameters[
@@ -522,7 +522,7 @@ class TrafficLightsSensor(PseudoActor):
 
     def get_affected_traffic_light_waypoint(self, traffic_lights, road_id):
         """
-        Given an id of a road inside a junction, this method returns the corresponding traffic light for the stop line leading into the junction to the given road id.
+        Given an id of a road inside a junction, this method returns the corresponding stop line waypoint and the traffic light leading into the junction to the given road id.
         :param traffic_lights: all traffic light actors from the carla world
         :type traffic_lights: array(carla.TrafficLight)
         :param road_id: OpenDRIVE road's id
@@ -552,13 +552,13 @@ class TrafficLightsSensor(PseudoActor):
                                 ignore_junction = True
                                 break
 
-                        if ignore_junction == False and road_id == waypoint.road_id:
+                        if not ignore_junction and road_id == waypoint.road_id:
                             return (waypoint, traffic_light.carla_actor)
 
-                    # Get the next waypoint in the list
+                    # get the next waypoint in the list
                     waypoint = waypoint.next(self.waypoints_search_distance)[0]
 
-                    # this prevents the the lane to be counted multiple times for the same junction
+                    # this prevents the lane to be counted multiple times for the same junction
                     for test_waypoint in stop_waypoints:
                         if test_waypoint.id == waypoint.id:
                             break
@@ -592,7 +592,7 @@ class TrafficLightsSensor(PseudoActor):
         )
         generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
 
-        # lane consists of a nodelist of 2 nodes
+        # lane consists of a nodelist of two nodes
         generic_lane_ingress.node_list = NodeListXY()
         generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
 
@@ -608,11 +608,10 @@ class TrafficLightsSensor(PseudoActor):
 
         # create an egress/ingress line with a given length
         for i in range(self.lane_waypoints_count):
-            next_wps = (
-                last_wp.previous(self.waypoints_search_distance)
-                if is_ingress
-                else last_wp.next(self.waypoints_search_distance)
-            )
+            if is_ingress:
+                next_wps = last_wp.previous(self.waypoints_search_distance)
+            else:
+                next_wps = last_wp.next(self.waypoints_search_distance)
 
             if len(next_wps) == 0:
                 break
@@ -636,7 +635,7 @@ class TrafficLightsSensor(PseudoActor):
         """
         Calculates the position of a junction by using the mean position of all edge waypoints.
         :param junction_waypoint_tuples: all driving lane waypoints from the edge of the junction (ingoing and outgoing)
-        :return mean position of all positions from the dribing lane intersetion tuples
+        :return mean position of all positions from the dribing lane intersection tuples
         :rtype numpy.array(3)
         """
         position = np.array([0.0, 0.0, 0.0])
@@ -677,12 +676,12 @@ class TrafficLightsSensor(PseudoActor):
             junction_position = self.get_junction_position(junction_id)
             waypoint_tuples = self.get_junction_waypoints(junction_id)
 
-            # Create intersection geometry
+            # create intersection geometry
             intersecion_geometry = IntersectionGeometry()
             intersecion_geometry.id.id.value = junction.id
             intersecion_geometry.ref_point.elevation_is_present = True
 
-            # set the lat/lon coordinates of junction as mean of correpsonding traffic light positions
+            # set the lat/lon coordinates of junction as mean of corresponding traffic light positions
             projection_string = self.node.world_info.projection_string
             lat, lon = TrafficLightsSensor.carla_to_latlon(
                 projection_string, junction_position[0], junction_position[1]
@@ -692,7 +691,6 @@ class TrafficLightsSensor(PseudoActor):
             )
 
             # create ingress and egress into and out of the junction
-
             for waypointTuple in waypoint_tuples:
 
                 # create ingress line for first waypoint of the tuple which lead into the junction
@@ -772,7 +770,7 @@ class TrafficLightsSensor(PseudoActor):
                                 found = True
                                 break
 
-                        if found == True:
+                        if found:
                             marker.color.r = 0.0
                             marker.color.g = 0.0
                             marker.color.b = 1.0
