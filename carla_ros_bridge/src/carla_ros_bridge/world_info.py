@@ -54,7 +54,7 @@ class WorldInfo(object):
         self.map_frame = "carla_map"
         self.world_set = False
         self.georeference_substitution = (self.node.parameters['georeference_substitution'])
-        
+
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
             "/carla/world_info",
@@ -93,7 +93,7 @@ class WorldInfo(object):
 
             #replace georeference inside te OpenDrive xml string
             geo_reference = root.find(".//geoReference")
-            
+
             if geo_reference.text != None and self.georeference_substitution != None and len(self.georeference_substitution) != 0:
                 geo_reference.text = self.georeference_substitution
                 opendrive = ET.tostring(root, encoding="unicode", method="xml")
@@ -106,7 +106,7 @@ class WorldInfo(object):
                     # get lat and lon from projection string
                     proj_xodr = pyproj.Proj(projparams=self.projection_string)
                     lon, lat = proj_xodr(0, 0, inverse=True)
-                    
+
                     # derive utm zone and set frame id
                     if lat >= 0.0: self.northp = True
                     else: self.northp = False
@@ -117,14 +117,14 @@ class WorldInfo(object):
                     else:
                         p = pyproj.Proj(proj='utm',zone=self.zone, south=True, ellps='WGS84', preserve_units=False)
                         self.world_frame = "utm_" + str(self.zone) + "S"
-                    
+
                     # calculate grid convergence
                     center_lon = 6.0 * float(self.zone) - 183.0
                     grid_convergence = math.atan(math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) * math.sin(lat * math.pi / 180.0))
                     self.q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
 
                     self.world_x, self.world_y = p(lon,lat)
-                    
+
                     self.world_set = True
 
             # publish world info
