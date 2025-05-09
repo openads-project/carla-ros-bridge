@@ -15,13 +15,10 @@ import numpy as np
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.traffic import TrafficLight
-import tf2_ros
-from geometry_msgs.msg import Vector3
 
 from carla_msgs.msg import CarlaTrafficLightStatusList, CarlaTrafficLightInfoList
 
 from carla_msgs.msg import CarlaTrafficLightStatus
-from rclpy.node import Node
 from carla.libcarla import LaneType
 
 from etsi_its_mapem_ts_msgs.msg import MAPEM
@@ -68,6 +65,7 @@ class TrafficLightsSensor(PseudoActor):
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
         self.traffic_light_stop_waypoints = {}  # cache for traffic light stop waypoints
+        
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
 
@@ -401,15 +399,15 @@ class TrafficLightsSensor(PseudoActor):
 
         if not self.integrate_junctions_without_traffic_lights:
             # only handle junctions nearby a traffic light
-            junction_candites = self.get_traffic_light_junction_candidates(
+            junction_candidates = self.get_traffic_light_junction_candidates(
                 traffic_lights
             )
         else:
             # handle all junctions on the map
-            junction_candites = self.get_all_junctions_from_world()
+            junction_candidates = self.get_all_junctions_from_world()
 
         # iterate through all junction candidates inside and cache them with potential traffic lights
-        for junction_object in junction_candites.values():
+        for junction_object in junction_candidates.values():
             junction_id = junction_object.id
 
             if (
@@ -428,21 +426,48 @@ class TrafficLightsSensor(PseudoActor):
                     waypoint_tuples
                 )
 
+                ingress_lanes = {}
+                egress_lanes = {}
+
                 # connect traffic light with corresponding ingress lane waypoint if available
                 for waypoint_tuple in waypoint_tuples:
-                    wp1, wp2 = waypoint_tuple
+                    junction_entry_waypoint, junction_exit_waypoint = waypoint_tuple
 
-                    (waypoint, traffic_light) = (
+                    (ingress_lane_waypoint, traffic_light) = (
                         self.get_affected_traffic_light_waypoint(
-                            traffic_lights, wp1.road_id
+                            traffic_lights, junction_entry_waypoint.road_id
                         )
                     )
 
-                    if (waypoint, traffic_light) != (None, None):
+                    if (ingress_lane_waypoint, traffic_light) != (None, None):
                         junction_traffic_lights[traffic_light.id] = traffic_light
 
-                    waypoint_tuples_traffic_lights.append([wp1, wp2, traffic_light])
-
+                    waypoint_tuples_traffic_lights.append([junction_entry_waypoint, junction_exit_waypoint, traffic_light])
+                    
+                    # create and update ingress lanes
+                    ingress_lane_waypoints = junction_entry_waypoint.previous(self.waypoints_search_distance)
+                    
+                    if len(ingress_lane_waypoints) > 0:
+                        ingress_lane_waypoint = ingress_lane_waypoints[0]
+                        
+                        if ingress_lane_waypoint.road_id not in ingress_lanes:
+                            # connect the ingress lane with the traffic light and all junction entry waypoints on the observed lane
+                            ingress_lanes[ingress_lane_waypoint.road_id] = (ingress_lane_waypoint, traffic_light, [])
+                        
+                        ingress_lanes[ingress_lane_waypoint.road_id][2].append(junction_entry_waypoint.road_id)
+                        
+                    # create and update egress lanes
+                    egress_lane_waypoints = junction_exit_waypoint.next(self.waypoints_search_distance)
+                    
+                    if len(egress_lane_waypoints) > 0:
+                        egress_lane_waypoint = egress_lane_waypoints[0]
+                        
+                        if egress_lane_waypoint.road_id not in egress_lanes:
+                            # connect the egress lane with all junction exit waypoints on the observed lane
+                            egress_lanes[egress_lane_waypoint.road_id] = (egress_lane_waypoint, [])
+                            
+                        egress_lanes[egress_lane_waypoint.road_id][1].append(junction_exit_waypoint.road_id)
+                
                 # fill junction data structure
                 if (
                     self.integrate_junctions_without_traffic_lights
@@ -559,7 +584,7 @@ class TrafficLightsSensor(PseudoActor):
                                 break
 
                         if not ignore_junction and road_id == waypoint.road_id:
-                            return (waypoint, traffic_light.carla_actor)
+                            return (stop_waypoint, traffic_light.carla_actor)
 
                     # get the next waypoint in the list
                     waypoint = waypoint.next(self.waypoints_search_distance)[0]
@@ -569,7 +594,7 @@ class TrafficLightsSensor(PseudoActor):
                         if test_waypoint.id == waypoint.id:
                             break
 
-        return (None, None)
+        return (None, None, None)
 
     def create_junction_lane(self, is_ingress, waypoint, junction_position):
         """
@@ -586,28 +611,30 @@ class TrafficLightsSensor(PseudoActor):
         """
 
         # create ingress line for
-        generic_lane_ingress = GenericLane()
-        generic_lane_ingress.lane_id.value = waypoint.road_id
-        generic_lane_ingress._lane_attributes.lane_type.choice = (
+        generic_lane = GenericLane()
+        generic_lane.lane_id.value = waypoint.road_id
+        generic_lane._lane_attributes.lane_type.choice = (
             TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
         )
 
+        generic_lane.
+
         # build the bitstring for ingress line: 128 encodes ingress and 192 encodes egress in big endian format
-        generic_lane_ingress.lane_attributes.directional_use.value.append(
+        generic_lane.lane_attributes.directional_use.value.append(
             128 if is_ingress else 64
         )
-        generic_lane_ingress.lane_attributes.directional_use.bits_unused = 6
+        generic_lane.lane_attributes.directional_use.bits_unused = 6
 
         # lane consists of a nodelist of two nodes
-        generic_lane_ingress.node_list = NodeListXY()
-        generic_lane_ingress.node_list.choice = NodeListXY.CHOICE_NODES
+        generic_lane.node_list = NodeListXY()
+        generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
 
         pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(
             waypoint.transform.location
         )
         pos_rel_junction = pos_abs - junction_position
 
-        TrafficLightsSensor.add_lane_node(generic_lane_ingress, pos_rel_junction)
+        TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction)
 
         last_wp = waypoint
         last_pos = pos_abs
@@ -630,11 +657,11 @@ class TrafficLightsSensor(PseudoActor):
             )
 
             pos_rel = next_wp_position - last_pos
-            TrafficLightsSensor.add_lane_node(generic_lane_ingress, pos_rel)
+            TrafficLightsSensor.add_lane_node(generic_lane, pos_rel)
             last_pos = next_wp_position
             last_wp = next_wp
 
-        return generic_lane_ingress
+        return generic_lane
 
     @staticmethod
     def calculate_junction_mean(junction_waypoint_tuples):
@@ -696,7 +723,7 @@ class TrafficLightsSensor(PseudoActor):
                 intersection_geometry, lat, lon, junction_position[2]
             )
 
-            # create ingress and egress into and out of the junction
+            # create ingress and egress lanes into and out of the junction
             for waypoint_tuple in junction_waypoint_tuples:
 
                 # create ingress line for first waypoint of the tuple which lead into the junction
@@ -713,6 +740,7 @@ class TrafficLightsSensor(PseudoActor):
 
                     connection.signal_group_is_present = True
                     connection.signal_group.value = traffic_light.id
+                    
 
                     generic_lane_ingress.connects_to_is_present = True
                     generic_lane_ingress.connects_to.array.append(connection)
