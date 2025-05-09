@@ -60,16 +60,5 @@
     <param name="rt_factor" value="$(arg rt_factor)"/>
     <param name='publish_static_vehicles' value='$(arg publish_static_vehicles)'/>
     <param name='ignore_altitude' value='$(arg ignore_altitude)'/>
-    <!-- traffic light etsi messages-->
-    <param name='publish_etsi_messages' value='$(arg publish_etsi_messages)'/>
-    <param name='waypoints_search_distance' value='$(arg waypoints_search_distance)'/>
-    <param name='lane_waypoints_count' value='$(arg lane_waypoints_count)'/>
-    <param name='traffic_light_junction_max_search_count' value='$(arg traffic_light_junction_max_search_count)'/>
-    <param name='debug_traffic_light_information' value='$(arg debug_traffic_light_information)'/>
-    <param name='integrate_junctions_without_traffic_lights' value='$(arg integrate_junctions_without_traffic_lights)'/>
-    <param name='traffic_light_junction_search_ignored_ids' value='$(arg traffic_light_junction_search_ignored_ids)'/>
-    <param name='publisher_mapem_timer_period' value='$(arg publisher_mapem_timer_period)'/>
-    <param name='publisher_spatem_timer_period' value='$(arg publisher_spatem_timer_period)'/>
-    <param name='publisher_debug_traffic_light_information_timer_period' value='$(arg publisher_debug_traffic_light_information_timer_period)'/>
   </node>
 </launch>
