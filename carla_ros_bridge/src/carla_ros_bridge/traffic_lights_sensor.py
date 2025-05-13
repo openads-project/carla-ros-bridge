@@ -596,7 +596,7 @@ class TrafficLightsSensor(PseudoActor):
 
         return (None, None, None)
 
-    def create_junction_lane(self, is_ingress, waypoint, junction_position):
+    def create_junction_lane(self, lane_id, is_ingress, waypoint, junction_position):
         """
         Creates an Ingress or Egress lane.
         The lane is part of an ETSI Mapem message.
@@ -612,7 +612,7 @@ class TrafficLightsSensor(PseudoActor):
 
         # create ingress line for
         generic_lane = GenericLane()
-        generic_lane.lane_id.value = waypoint.road_id
+        generic_lane.lane_id.value = lane_id
         generic_lane._lane_attributes.lane_type.choice = (
             TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
         )
@@ -708,6 +708,7 @@ class TrafficLightsSensor(PseudoActor):
             junction = self.get_junction(junction_id)
             junction_position = self.get_junction_position(junction_id)
             junction_waypoint_tuples = self.get_junction_waypoints_tuples(junction_id)
+            lane_id_counter = 0
 
             # create intersection geometry
             intersection_geometry = IntersectionGeometry()
@@ -728,9 +729,11 @@ class TrafficLightsSensor(PseudoActor):
 
                 # create ingress line for first waypoint of the tuple which lead into the junction
                 generic_lane_ingress = self.create_junction_lane(
-                    True, waypoint_tuple[0], junction_position
+                    lane_id_counter, True, waypoint_tuple[0], junction_position
                 )
+                lane_id_counter += 1
                 intersection_geometry.lane_set.array.append(generic_lane_ingress)
+
 
                 # if the ingress lane is affected by a traffic light, connect it to the traffic light
                 # with the given traffic light id, traffic light signals from Spatem messages can be assigned
@@ -741,14 +744,17 @@ class TrafficLightsSensor(PseudoActor):
                     connection.signal_group_is_present = True
                     connection.signal_group.value = traffic_light.id
                     
+                    # conection from ingress to egress lane (using the unique egress lane id)
+                    connection.connecting_lane.lane.value = lane_id_counter
 
                     generic_lane_ingress.connects_to_is_present = True
                     generic_lane_ingress.connects_to.array.append(connection)
                 
                 # create egress line for
                 generic_lane_egress = self.create_junction_lane(
-                    False, waypoint_tuple[1], junction_position
+                    lane_id_counter, False, waypoint_tuple[1], junction_position
                 )
+                lane_id_counter += 1
                 intersection_geometry.lane_set.array.append(generic_lane_egress)
 
             mapem.map.intersections_is_present = True
