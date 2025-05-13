@@ -10,6 +10,7 @@ a sensor that reports the state of all traffic lights
 """
 import pyproj
 import rclpy
+from collections import namedtuple
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 import numpy as np
 
@@ -42,6 +43,42 @@ class TrafficLightsSensor(PseudoActor):
     a sensor that reports the state of all traffic lights
     """
 
+    ETSI_ITS_BUTSTRING_INGRESS = 128
+    ETSI_ITS_BUTSTRING_EGRESS = 64
+
+    """"
+    Ingress Lane data container
+    :param lane_id: unique identifier for this lane. The lane_id is unique for each lane inside a junction and is genetrated from 0 to n-1, where n is the number of lanes inside the junction
+    :type lane_id: int
+    :param lane_type: type of the lane as defined in the ETSI standard
+    :type lane_type: int
+    :param waypoint_junction: entry waypoint from ingress lane into the junction
+    :type waypoint_junction: carla.Waypoint
+    :param traffic_light: correponding traffic light object if available for ETSI lane
+    :type traffic_light: carla.TrafficLight
+    :param connected_egress_lane_ids: list of ids of all connected egress lanes
+    :type connected_egress_lane_ids: list
+    """
+    Ingress_Lane = namedtuple(
+        "Ingress_Lane",
+        ["lane_id", "lane_type", "waypoint_junction", "traffic_light", "connected_egress_lane_ids"],
+    )
+    
+    
+    """"
+    Egress Lane data container
+    :param lane_id: unique identifier for this lane. The lane_id is unique for each lane inside a junction and is genetrated from 0 to n-1, where n is the number of lanes inside the junction
+    :type lane_id: int
+    :param lane_type: type of the lane as defined in the ETSI standard
+    :type lane_type: int
+    :param waypoint_junction: exit waypoint from junction into the egress lane
+    :type waypoint_junction: carla.Waypoint
+    """
+    Egress_Lane = namedtuple(
+        "Egress_Lane",
+        ["lane_id", "lane_type", "waypoint_junction"],
+    )
+
     def __init__(self, uid, name, parent, node, actor_list):
         """
         Constructor
@@ -65,10 +102,8 @@ class TrafficLightsSensor(PseudoActor):
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
         self.traffic_light_stop_waypoints = {}  # cache for traffic light stop waypoints
-        
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
-
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
         self.lane_waypoints_count = node.parameters["lane_waypoints_count"]
         self.taffic_light_junction_max_search_count = node.parameters[
@@ -105,7 +140,7 @@ class TrafficLightsSensor(PseudoActor):
 
             self.etsi_mapem_publisher = node.new_publisher(
                 MAPEM,
-                "/carla/etsi/spatem",
+                "/carla/etsi/mapem",
                 qos_profile=QoSProfile(
                     depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL
                 ),
@@ -113,7 +148,7 @@ class TrafficLightsSensor(PseudoActor):
 
             self.etsi_spatem_publisher = node.new_publisher(
                 SPATEM,
-                "/carla/etsi/mapem",
+                "/carla/etsi/spatem",
                 qos_profile=QoSProfile(
                     depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL
                 ),
@@ -157,8 +192,15 @@ class TrafficLightsSensor(PseudoActor):
         self.actor_list = None
         self.node.destroy_publisher(self.traffic_lights_info_publisher)
         self.node.destroy_publisher(self.traffic_lights_status_publisher)
-        self.node.destroy_publisher(self.etsi_mapem_publisher)
-        self.node.destroy_publisher(self.etsi_spatem_publisher)
+        
+        if self.publish_etsi_messages:
+            self.node.destroy_publisher(self.etsi_mapem_publisher)
+            
+        if self.etsi_spatem_publisher:
+            self.node.destroy_publisher(self.etsi_spatem_publisher)
+            
+        if self.debug_traffic_light_information:
+            self.node.destroy_publisher(self.debug_marker_publisher)
 
     @staticmethod
     def get_blueprint_name():
@@ -192,6 +234,26 @@ class TrafficLightsSensor(PseudoActor):
         """
         return self.junctions[junction_id]["junction_object"]
 
+    def get_junction_ingress_lanes(self, junction_id):
+        """
+        Returns all ingress lanes that belong to a junction with a given id
+        :param junction_id: id of the junction
+        :type junction_id: int
+        :return Ingress lanes of a junction
+        :rtype array(namedTuple(Ingress_Lane))
+        """
+        return self.junctions[junction_id]["ingress_lanes"].values()
+    
+    def get_junction_egress_lanes(self, junction_id):
+        """
+        Returns all egress lanes that belong to a junction with a given id
+        :param junction_id: id of the junction
+        :type junction_id: int
+        :return Egress lanes of a junction
+        :rtype array(namedTuple(Egress_Lane))
+        """
+        return self.junctions[junction_id]["egress_lanes"].values()
+
     def get_junction_traffic_lights(self, junction_id):
         """
         Returns all traffic lights that belong to a junction with a given id
@@ -201,16 +263,6 @@ class TrafficLightsSensor(PseudoActor):
         :rtype array(carla.Junction)
         """
         return self.junctions[junction_id]["traffic_lights"].values()
-
-    def get_junction_waypoints_tuples(self, junction_id):
-        """
-        Returns a list of waypoint tuples (a waypoint tuple describes the start- and end waypoint of a lane inside a junction) and the corresponding traffic light if available
-        :param junction_id: id of the junction
-        :type junction_id: int
-        :return a tuple with the format (waypoint ingoing, waypoint outgoing, traffic light for ingoing waypoint if available)
-        :rtype tuple(carla.Waypoint, carla.Waypoint, carla.TrafficLight)
-        """
-        return self.junctions[junction_id]["waypoints_tuple"]
 
     def get_junction_position(self, junction_id):
         """
@@ -234,6 +286,29 @@ class TrafficLightsSensor(PseudoActor):
 
         self.junctions[junction_id]["junction_object"] = value
 
+    def set_junction_ingress_lanes(self, junction_id, value):
+        """
+        Stores all ingress lanes that belong to a junction with a given id
+        :param junction_id: id of the junction to which the ingress lanes belong
+        :type junction_id: int
+        :param value: Ingress lanes of a junction
+        :type value: array(namedTuple(Ingress_Lane))
+        """
+        
+        self.junctions[junction_id]["ingress_lanes"] = value
+        
+    def set_junction_egress_lanes(self, junction_id, value):
+        """
+        Stores all Egress lanes that belong to a junction with a given id
+        :param junction_id: id of the junction to which the Egress lanes belong
+        :type junction_id: int
+        :param value: Egress lanes of a junction
+        :type value: array(namedTuple(Egress_Lane))
+        """
+
+        self.junctions[junction_id]["egress_lanes"] = value
+        
+
     def set_junction_traffic_lights(self, junction_id, value):
         """
         Stores all traffic lights that belong to a junction with a given id
@@ -244,17 +319,6 @@ class TrafficLightsSensor(PseudoActor):
         """
 
         self.junctions[junction_id]["traffic_lights"] = value
-
-    def set_junction_waypoints_tuples(self, junction_id, value):
-        """
-        Stores a list of waypoint tuples (a waypoint tuple describes the start- and end waypoint of a lane inside a junction) and the corresponding traffic light if available
-        :param junction_id: id of the junction
-        :type junction_id: int
-        :param value: a tuple with the format (waypoint ingoing, waypoint outgoing, traffic light for ingoing waypoint if available)
-        :type value: tuple(carla.Waypoint, carla.Waypoint, carla.TrafficLight)
-        """
-
-        self.junctions[junction_id]["waypoints_tuple"] = value
 
     def set_junction_position(self, junction_id, value):
         """
@@ -394,7 +458,6 @@ class TrafficLightsSensor(PseudoActor):
         :param traffic_lights: all traffic light actors from the carla world
         :type traffic_lights: array(carla.TrafficLight)
         """
-
         self.junctions = {}
 
         if not self.integrate_junctions_without_traffic_lights:
@@ -420,7 +483,6 @@ class TrafficLightsSensor(PseudoActor):
                 # to an exit (egress - second tuple element)
                 # an ingress lane can have an attached traffic light
                 waypoint_tuples = junction_object.get_waypoints(LaneType.Driving)
-                waypoint_tuples_traffic_lights = []
                 junction_traffic_lights = {}
                 junction_position = TrafficLightsSensor.calculate_junction_mean(
                     waypoint_tuples
@@ -428,8 +490,10 @@ class TrafficLightsSensor(PseudoActor):
 
                 ingress_lanes = {}
                 egress_lanes = {}
-
+                
                 # connect traffic light with corresponding ingress lane waypoint if available
+                lane_id_counter = 0
+
                 for waypoint_tuple in waypoint_tuples:
                     junction_entry_waypoint, junction_exit_waypoint = waypoint_tuple
 
@@ -438,35 +502,42 @@ class TrafficLightsSensor(PseudoActor):
                             traffic_lights, junction_entry_waypoint.road_id
                         )
                     )
-
+                    
                     if (ingress_lane_waypoint, traffic_light) != (None, None):
-                        junction_traffic_lights[traffic_light.id] = traffic_light
+                        junction_traffic_lights[traffic_light.id] = traffic_light                        
 
-                    waypoint_tuples_traffic_lights.append([junction_entry_waypoint, junction_exit_waypoint, traffic_light])
-                    
                     # create and update ingress lanes
-                    ingress_lane_waypoints = junction_entry_waypoint.previous(self.waypoints_search_distance)
+                    if junction_entry_waypoint.id not in ingress_lanes:
+                        # connect the ingress lane with the traffic light and all junction entry waypoints on the observed lane
+                        #ingress_lanes[ingress_lane_waypoint.road_id] = (ingress_lane_waypoint, traffic_light, [])
+                        ingress_lanes[junction_entry_waypoint.id] = self.Ingress_Lane(
+                            lane_id = lane_id_counter,
+                            lane_type=TrafficLightsSensor.convert_lane_type(
+                                junction_entry_waypoint.lane_type),
+                            waypoint_junction=junction_entry_waypoint,
+                            traffic_light=traffic_light,
+                            connected_egress_lane_ids=[])
+                        
+                        lane_id_counter += 1
+
+                    # create and update egress lanes                    
+                    if junction_exit_waypoint.id not in egress_lanes:
+                        # connect the egress lane with all junction exit waypoints on the observed lane
+                        #egress_lanes[egress_lane_waypoint.road_id] = (egress_lane_waypoint, [])
+                        egress_lanes[junction_exit_waypoint.id] = self.Egress_Lane(
+                            lane_id = lane_id_counter,
+                            lane_type=TrafficLightsSensor.convert_lane_type(
+                                junction_exit_waypoint.lane_type),
+                            waypoint_junction=junction_exit_waypoint)
+
+                        lane_id_counter += 1
+
+                # iterate again to connect the ingress lanes with the corresponding egress lanes
+                for waypoint_tuple in waypoint_tuples:
+                    junction_entry_waypoint, junction_exit_waypoint = waypoint_tuple
                     
-                    if len(ingress_lane_waypoints) > 0:
-                        ingress_lane_waypoint = ingress_lane_waypoints[0]
-                        
-                        if ingress_lane_waypoint.road_id not in ingress_lanes:
-                            # connect the ingress lane with the traffic light and all junction entry waypoints on the observed lane
-                            ingress_lanes[ingress_lane_waypoint.road_id] = (ingress_lane_waypoint, traffic_light, [])
-                        
-                        ingress_lanes[ingress_lane_waypoint.road_id][2].append(junction_entry_waypoint.road_id)
-                        
-                    # create and update egress lanes
-                    egress_lane_waypoints = junction_exit_waypoint.next(self.waypoints_search_distance)
-                    
-                    if len(egress_lane_waypoints) > 0:
-                        egress_lane_waypoint = egress_lane_waypoints[0]
-                        
-                        if egress_lane_waypoint.road_id not in egress_lanes:
-                            # connect the egress lane with all junction exit waypoints on the observed lane
-                            egress_lanes[egress_lane_waypoint.road_id] = (egress_lane_waypoint, [])
-                            
-                        egress_lanes[egress_lane_waypoint.road_id][1].append(junction_exit_waypoint.road_id)
+                    egress_lane_id = egress_lanes[junction_exit_waypoint.id].lane_id
+                    ingress_lanes[junction_entry_waypoint.id].connected_egress_lane_ids.append(egress_lane_id)
                 
                 # fill junction data structure
                 if (
@@ -478,10 +549,9 @@ class TrafficLightsSensor(PseudoActor):
                     self.set_junction_traffic_lights(
                         junction_id, junction_traffic_lights
                     )
-                    self.set_junction_waypoints_tuples(
-                        junction_id, waypoint_tuples_traffic_lights
-                    )
                     self.set_junction_position(junction_id, junction_position)
+                    self.set_junction_ingress_lanes(junction_id, ingress_lanes)
+                    self.set_junction_egress_lanes(junction_id, egress_lanes)
 
     def get_waypoints_from_traffic_light(self, traffic_light):
         """
@@ -594,9 +664,9 @@ class TrafficLightsSensor(PseudoActor):
                         if test_waypoint.id == waypoint.id:
                             break
 
-        return (None, None, None)
+        return (None, None)
 
-    def create_junction_lane(self, lane_id, is_ingress, waypoint, junction_position):
+    def create_junction_lane(self, lane_id, lane_type, is_ingress, waypoint, junction_position):
         """
         Creates an Ingress or Egress lane.
         The lane is part of an ETSI Mapem message.
@@ -609,26 +679,22 @@ class TrafficLightsSensor(PseudoActor):
         :return ETSI Mapem lane (Ingress or Egress)
         :rtype GenericLane
         """
-
+        
         # create ingress line for
         generic_lane = GenericLane()
         generic_lane.lane_id.value = lane_id
-        generic_lane._lane_attributes.lane_type.choice = (
-            TrafficLightsSensor.convert_lane_type(waypoint.lane_type)
-        )
-
-        generic_lane.
+        generic_lane._lane_attributes.lane_type.choice = lane_type     
 
         # build the bitstring for ingress line: 128 encodes ingress and 192 encodes egress in big endian format
         generic_lane.lane_attributes.directional_use.value.append(
-            128 if is_ingress else 64
+            self.ETSI_ITS_BUTSTRING_INGRESS if is_ingress else self.ETSI_ITS_BUTSTRING_EGRESS
         )
         generic_lane.lane_attributes.directional_use.bits_unused = 6
 
         # lane consists of a nodelist of two nodes
         generic_lane.node_list = NodeListXY()
         generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
-
+            
         pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(
             waypoint.transform.location
         )
@@ -639,7 +705,7 @@ class TrafficLightsSensor(PseudoActor):
         last_wp = waypoint
         last_pos = pos_abs
 
-        # create an egress/ingress line with a given length
+        # create an egress/ingress lane with a given length
         for i in range(self.lane_waypoints_count):
             if is_ingress:
                 next_wps = last_wp.previous(self.waypoints_search_distance)
@@ -676,16 +742,18 @@ class TrafficLightsSensor(PseudoActor):
 
         # set the lat/lon coordinates of junction as mean of corresponding traffic light positions
         for waypoint_tuple in junction_waypoint_tuples:
+            entry_waypoint, exit_waypoint = waypoint_tuple
+            
             position = (
                 position
                 + TrafficLightsSensor.convert_carla_location_to_ros_vector3(
-                    waypoint_tuple[0].transform.location
+                    entry_waypoint.transform.location
                 )
             )
             position = (
                 position
                 + TrafficLightsSensor.convert_carla_location_to_ros_vector3(
-                    waypoint_tuple[1].transform.location
+                    exit_waypoint.transform.location
                 )
             )
 
@@ -703,12 +771,12 @@ class TrafficLightsSensor(PseudoActor):
         # create MAPEM data
         mapem = MAPEM()
         mapem.map.msg_issue_revision.value = 0
-
+    
         for junction_id in self.junctions:
             junction = self.get_junction(junction_id)
             junction_position = self.get_junction_position(junction_id)
-            junction_waypoint_tuples = self.get_junction_waypoints_tuples(junction_id)
-            lane_id_counter = 0
+            junction_ingress_lanes = self.get_junction_ingress_lanes(junction_id)
+            junction_egress_lanes = self.get_junction_egress_lanes(junction_id)
 
             # create intersection geometry
             intersection_geometry = IntersectionGeometry()
@@ -724,37 +792,37 @@ class TrafficLightsSensor(PseudoActor):
                 intersection_geometry, lat, lon, junction_position[2]
             )
 
-            # create ingress and egress lanes into and out of the junction
-            for waypoint_tuple in junction_waypoint_tuples:
-
-                # create ingress line for first waypoint of the tuple which lead into the junction
+            # create junction ingress lanes
+            for ingress_lane in junction_ingress_lanes:
+                    
+                # create ingress lane which lead through the junction into an egress lane
                 generic_lane_ingress = self.create_junction_lane(
-                    lane_id_counter, True, waypoint_tuple[0], junction_position
+                    ingress_lane.lane_id, ingress_lane.lane_type, True, ingress_lane.waypoint_junction, junction_position
                 )
-                lane_id_counter += 1
+                
                 intersection_geometry.lane_set.array.append(generic_lane_ingress)
 
-
-                # if the ingress lane is affected by a traffic light, connect it to the traffic light
-                # with the given traffic light id, traffic light signals from Spatem messages can be assigned
-                if waypoint_tuple[2] != None:
-                    traffic_light = waypoint_tuple[2]
-                    connection = Connection()
-
-                    connection.signal_group_is_present = True
-                    connection.signal_group.value = traffic_light.id
-                    
-                    # conection from ingress to egress lane (using the unique egress lane id)
-                    connection.connecting_lane.lane.value = lane_id_counter
-
-                    generic_lane_ingress.connects_to_is_present = True
-                    generic_lane_ingress.connects_to.array.append(connection)
+                # connect Ingress lanes to Egess lanes and the traffic light signal, if available
+                generic_lane_ingress.connects_to_is_present = True
                 
-                # create egress line for
+                for egress_lane_id in ingress_lane.connected_egress_lane_ids:
+                    connection = Connection()
+                    
+                    if ingress_lane.traffic_light != None:
+                        connection.signal_group_is_present = True
+                        connection.signal_group.value = ingress_lane.traffic_light.id
+
+                    # add the lane of the connection
+                    connection.connecting_lane.lane.value = egress_lane_id
+                    generic_lane_ingress.connects_to.array.append(connection)
+            
+            # create junction egress lanes
+            for egress_lane in junction_egress_lanes:
+                # create egress lane
                 generic_lane_egress = self.create_junction_lane(
-                    lane_id_counter, False, waypoint_tuple[1], junction_position
+                    egress_lane.lane_id, egress_lane.lane_type, False, egress_lane.waypoint_junction, junction_position
                 )
-                lane_id_counter += 1
+                
                 intersection_geometry.lane_set.array.append(generic_lane_egress)
 
             mapem.map.intersections_is_present = True
