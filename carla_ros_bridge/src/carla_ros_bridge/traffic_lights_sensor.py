@@ -43,8 +43,8 @@ class TrafficLightsSensor(PseudoActor):
     a sensor that reports the state of all traffic lights
     """
 
-    ETSI_ITS_BUTSTRING_INGRESS = 128
-    ETSI_ITS_BUTSTRING_EGRESS = 64
+    ETSI_ITS_BITSTRING_INGRESS = 128
+    ETSI_ITS_BITSTRING_EGRESS = 64
 
     """"
     Ingress Lane data container
@@ -162,13 +162,13 @@ class TrafficLightsSensor(PseudoActor):
                 ),
             )
 
-            # spatem publisher calllback
+            # spatem publisher callback
             timer_period = node.parameters["publisher_spatem_timer_period"]
             self.timer_mapem = node.create_timer(
                 timer_period, self.publish_etsi_mapem_message
             )
 
-            # mapem publisher calllback
+            # mapem publisher callback
             timer_period = node.parameters["publisher_mapem_timer_period"]
             self.timer_spatem = node.create_timer(
                 timer_period, self.publish_etsi_spatem_message
@@ -687,7 +687,7 @@ class TrafficLightsSensor(PseudoActor):
 
         # build the bitstring for ingress line: 128 encodes ingress and 192 encodes egress in big endian format
         generic_lane.lane_attributes.directional_use.value.append(
-            self.ETSI_ITS_BUTSTRING_INGRESS if is_ingress else self.ETSI_ITS_BUTSTRING_EGRESS
+            self.ETSI_ITS_BITSTRING_INGRESS if is_ingress else self.ETSI_ITS_BITSTRING_EGRESS
         )
         generic_lane.lane_attributes.directional_use.bits_unused = 6
 
