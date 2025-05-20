@@ -155,5 +155,7 @@ class WorldInfo(object):
         t.transform.rotation.z = self.q_grid_convergence[2]
         t.transform.rotation.w = self.q_grid_convergence[3]
 
+        self.transform_utm_to_carla = t
+
         # publish transform message
         self._tf_broadcaster.sendTransform(t)

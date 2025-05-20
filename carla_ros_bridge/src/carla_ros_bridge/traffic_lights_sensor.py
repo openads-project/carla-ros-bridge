@@ -14,6 +14,10 @@ from collections import namedtuple
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 import numpy as np
 
+from tf2_ros import Buffer, TransformListener
+import tf_transformations
+from geometry_msgs.msg import TransformStamped
+
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.traffic import TrafficLight
 
@@ -102,6 +106,7 @@ class TrafficLightsSensor(PseudoActor):
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
         self.traffic_light_stop_waypoints = {}  # cache for traffic light stop waypoints
+        self.carla_to_utm_rotation_matrix_initialized = False
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
@@ -452,6 +457,46 @@ class TrafficLightsSensor(PseudoActor):
         node.delta.node_xy1.y.value = (int)(position[1] * 100)
         lane.node_list.nodes.array.append(node)
 
+    def check_is_initialized(self):
+        """
+        Check if other modules (Carla world) are initialized 
+        """
+        return self.node.world_info.transform_utm_to_carla != None
+
+    def rotate_point_from_carla_to_utm_frame(self, point_carla):
+        """
+        # transforms the relative position of a point from the CARLA frame to the global UTM frame, regardless of the point's origin
+        # only a rotation needs to be applied since we work with relative coordinates
+        
+        :param point_carla: point in relative coordinates (the context of the point's origin must be clear from the caller of this function)
+        :type point_carla: numpy.array(3)
+        :return tranformed point with rotation aligned to UTM frame. 
+        :rtype numpy.array(3)
+        """
+        if not self.carla_to_utm_rotation_matrix_initialized:
+            # the CARLA to UTM transformation
+            world_info = self.node.world_info
+
+            # Extract quaternion from the transform
+            q = world_info.transform_utm_to_carla.transform.rotation
+            quaternion = [q.x, q.y, q.z, q.w]
+            
+            # the rotation part of transformation from CARLA to UTM is needed
+            quaternion_inverse = tf_transformations.quaternion_inverse(quaternion)
+
+            # Convert to 4x4 rotation matrix
+            self.carla_to_utm_rotation_matrix = tf_transformations.quaternion_matrix(quaternion_inverse)
+            self.carla_to_utm_rotation_matrix_initialized = True
+            
+        # CARLA point in homogeneous coordinates
+        point_carla = np.append(point_carla, 1.0)
+    
+        # Apply rotation to trasnform poiint from CARLA frame to UTM frame
+        point_utm = self.carla_to_utm_rotation_matrix @ point_carla
+        
+        # extract 3D-point from 4D homogeneous coordinates representation
+        return point_utm#[:3]
+        
     def initialize_junctions(self, traffic_lights):
         """
         Initializes the junctions of the Carla world. For each junction, all traffic lights and their corresponding lanes are stored.
@@ -698,9 +743,9 @@ class TrafficLightsSensor(PseudoActor):
         pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(
             waypoint.transform.location
         )
-        pos_rel_junction = pos_abs - junction_position
-
-        TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction)
+        pos_rel_junction_carla = pos_abs - junction_position
+        pos_rel_junction_utm = self.rotate_point_from_carla_to_utm_frame(pos_rel_junction_carla)
+        TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction_utm)
 
         last_wp = waypoint
         last_pos = pos_abs
@@ -950,7 +995,10 @@ class TrafficLightsSensor(PseudoActor):
     def update(self, frame, timestamp):
         """
         Get the state of all known traffic lights
-        """
+        """        
+        if not self.check_is_initialized():
+            return
+        
         traffic_light_actors = self.get_traffic_light_actors()
         traffic_light_status = CarlaTrafficLightStatusList()
 
