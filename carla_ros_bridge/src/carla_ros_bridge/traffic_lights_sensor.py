@@ -16,7 +16,8 @@ import numpy as np
 
 from tf2_ros import Buffer, TransformListener
 import tf_transformations
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, PointStamped
+import tf2_geometry_msgs
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.traffic import TrafficLight
@@ -142,6 +143,9 @@ class TrafficLightsSensor(PseudoActor):
         if self.publish_etsi_messages:
             traffic_light_actors = self.get_traffic_light_actors()
             self.initialize_junctions(traffic_light_actors)
+
+            self.tf_buffer = Buffer()
+            self.tf_listener = TransformListener(self.tf_buffer, node)
 
             self.etsi_mapem_publisher = node.new_publisher(
                 MAPEM,
@@ -463,39 +467,36 @@ class TrafficLightsSensor(PseudoActor):
         """
         return self.node.world_info.transform_utm_to_carla != None
 
-    def rotate_point_from_carla_to_utm_frame(self, point_carla):
+    def rotate_point_from_map_to_utm_frame(self, point_map):
         """
-        # transforms the relative position of a point from the CARLA frame to the global UTM frame, regardless of the point's origin
-        # only a rotation needs to be applied since we work with relative coordinates
+        # transforms a point from the map frame into the UTM world frame
+        # the point is already converted to the right handed carla map ROS frame from the left handed CARLA frame
         
-        :param point_carla: point in relative coordinates (the context of the point's origin must be clear from the caller of this function)
-        :type point_carla: numpy.array(3)
-        :return tranformed point with rotation aligned to UTM frame. 
+        :param point_map: point in CARLA map coordinates (converted into right hand system)
+        :type point_map: numpy.array(3)
+        :return tranformed point in UTM frame 
         :rtype numpy.array(3)
         """
-        if not self.carla_to_utm_rotation_matrix_initialized:
-            # the CARLA to UTM transformation
+        point_stamped_map = PointStamped()
+        point_stamped_map.point.x = point_map[0]
+        point_stamped_map.point.y = point_map[1]
+        point_stamped_map.point.z = point_map[2]
+        
+        if not self.carla_to_utm_rotation_matrix_initialized:            
             world_info = self.node.world_info
-
-            # Extract quaternion from the transform
-            q = world_info.transform_utm_to_carla.transform.rotation
-            quaternion = [q.x, q.y, q.z, q.w]
             
-            # the rotation part of transformation from CARLA to UTM is needed
-            quaternion_inverse = tf_transformations.quaternion_inverse(quaternion)
-
-            # Convert to 4x4 rotation matrix
-            self.carla_to_utm_rotation_matrix = tf_transformations.quaternion_matrix(quaternion_inverse)
+            self.inverse_transform = self.tf_buffer.lookup_transform(
+                world_info.world_frame,  # target frame
+                world_info.map_frame,  # source frame
+                world_info.transform_utm_to_carla.header.stamp,
+                timeout=rclpy.duration.Duration(seconds=1.0)
+            )
+            
             self.carla_to_utm_rotation_matrix_initialized = True
             
-        # CARLA point in homogeneous coordinates
-        point_carla = np.append(point_carla, 1.0)
-    
-        # Apply rotation to trasnform poiint from CARLA frame to UTM frame
-        point_utm = self.carla_to_utm_rotation_matrix @ point_carla
+        point_utm = tf2_geometry_msgs.do_transform_point(point_stamped_map, self.inverse_transform)
         
-        # extract 3D-point from 4D homogeneous coordinates representation
-        return point_utm#[:3]
+        return np.array([point_utm.point.x, point_utm.point.y, point_utm.point.z])
         
     def initialize_junctions(self, traffic_lights):
         """
@@ -743,12 +744,15 @@ class TrafficLightsSensor(PseudoActor):
         pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(
             waypoint.transform.location
         )
-        pos_rel_junction_carla = pos_abs - junction_position
-        pos_rel_junction_utm = self.rotate_point_from_carla_to_utm_frame(pos_rel_junction_carla)
+        
+        junction_position_utm = self.rotate_point_from_map_to_utm_frame(junction_position)
+        pos_abs_utm = self.rotate_point_from_map_to_utm_frame(pos_abs)
+        
+        pos_rel_junction_utm = pos_abs_utm - junction_position_utm
         TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction_utm)
 
         last_wp = waypoint
-        last_pos = pos_abs
+        last_pos = pos_abs_utm
 
         # create an egress/ingress lane with a given length
         for i in range(self.lane_waypoints_count):
@@ -766,10 +770,12 @@ class TrafficLightsSensor(PseudoActor):
                     next_wp.transform.location
                 )
             )
+            
+            next_wp_position_utm = self.rotate_point_from_map_to_utm_frame(next_wp_position)
 
-            pos_rel = next_wp_position - last_pos
+            pos_rel = next_wp_position_utm - last_pos
             TrafficLightsSensor.add_lane_node(generic_lane, pos_rel)
-            last_pos = next_wp_position
+            last_pos = next_wp_position_utm
             last_wp = next_wp
 
         return generic_lane
