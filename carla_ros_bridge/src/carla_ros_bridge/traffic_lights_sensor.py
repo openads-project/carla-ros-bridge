@@ -172,13 +172,13 @@ class TrafficLightsSensor(PseudoActor):
             )
 
             # spatem publisher callback
-            timer_period = node.parameters["publisher_spatem_timer_period"]
+            timer_period = node.parameters["publisher_mapem_timer_period"]
             self.timer_mapem = node.create_timer(
                 timer_period, self.publish_etsi_mapem_message
             )
 
             # mapem publisher callback
-            timer_period = node.parameters["publisher_mapem_timer_period"]
+            timer_period = node.parameters["publisher_spatem_timer_period"]
             self.timer_spatem = node.create_timer(
                 timer_period, self.publish_etsi_spatem_message
             )
