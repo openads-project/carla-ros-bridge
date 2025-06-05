@@ -20,7 +20,11 @@ position.
 import ros_compatibility as roscomp
 from ros_compatibility.node import CompatibleNode
 
+import tf2_geometry_msgs # not unused; needed for transform! 
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose
+
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 
 class SetInitialPose(CompatibleNode):
@@ -32,6 +36,10 @@ class SetInitialPose(CompatibleNode):
         # control_id should correspond to the id of the actor.pseudo.control
         # actor that is set in the config file used to spawn it
         self.control_id = self.get_param("control_id", "control")
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
 
         self.transform_publisher = self.new_publisher(
             Pose,
@@ -45,7 +53,9 @@ class SetInitialPose(CompatibleNode):
             qos_profile=10)
 
     def intial_pose_callback(self, initial_pose):
-        pose_to_publish = initial_pose.pose.pose
+        pose_carla = self.tf_buffer.transform(initial_pose, 'carla_map')
+
+        pose_to_publish = pose_carla.pose.pose
         pose_to_publish.position.z += 2.0
         self.transform_publisher.publish(pose_to_publish)
 
