@@ -15,7 +15,6 @@
   <depend condition="$ROS_VERSION == 2">rclpy</depend>
   <exec_depend condition="$ROS_VERSION == 2">tf2_ros</exec_depend>
 
-
   <!-- ROS 1 DEPENDENCIES-->
   <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
   <build_depend condition="$ROS_VERSION == 1">rospy</build_depend>
@@ -24,7 +23,6 @@
   <exec_depend condition="$ROS_VERSION == 1">rospy</exec_depend>
   <exec_depend condition="$ROS_VERSION == 1">topic_tools</exec_depend>
   <exec_depend condition="$ROS_VERSION == 1">tf2</exec_depend>
-
 
   <export>
     <build_type condition="$ROS_VERSION == 1">catkin</build_type>

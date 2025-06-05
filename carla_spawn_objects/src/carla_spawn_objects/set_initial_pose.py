@@ -20,12 +20,11 @@ position.
 import ros_compatibility as roscomp
 from ros_compatibility.node import CompatibleNode
 
-import tf2_geometry_msgs # not unused; needed for transform! 
+import tf2_geometry_msgs
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose
 
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-
 
 class SetInitialPose(CompatibleNode):
 
@@ -39,7 +38,6 @@ class SetInitialPose(CompatibleNode):
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-
 
         self.transform_publisher = self.new_publisher(
             Pose,
