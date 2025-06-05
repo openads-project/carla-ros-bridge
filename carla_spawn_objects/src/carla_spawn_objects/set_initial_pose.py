@@ -36,6 +36,7 @@ class SetInitialPose(CompatibleNode):
         # actor that is set in the config file used to spawn it
         self.control_id = self.get_param("control_id", "control")
 
+        self.world_frame = "carla_map"
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -51,7 +52,7 @@ class SetInitialPose(CompatibleNode):
             qos_profile=10)
 
     def intial_pose_callback(self, initial_pose):
-        pose_carla = self.tf_buffer.transform(initial_pose, 'carla_map')
+        pose_carla = self.tf_buffer.transform(initial_pose, self.world_frame)
 
         pose_to_publish = pose_carla.pose.pose
         pose_to_publish.position.z += 2.0
