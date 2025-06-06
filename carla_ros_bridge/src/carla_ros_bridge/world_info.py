@@ -53,6 +53,7 @@ class WorldInfo(object):
         self.map_published = False
         self.map_frame = "carla_map"
         self.world_set = False
+        self.georeference_substitution = (self.node.parameters['georeference_substitution'])
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
@@ -84,44 +85,54 @@ class WorldInfo(object):
         :return:
         """
         if not self.map_published:
-            open_drive_msg = CarlaWorldInfo()
-            open_drive_msg.map_name = self.carla_map.name
-            open_drive_msg.opendrive = self.carla_map.to_opendrive()
-            self.world_info_publisher.publish(open_drive_msg)
-            self.map_published = True
+
+            opendrive = self.carla_map.to_opendrive()
 
             # extract transform 
-            root = ET.fromstring(open_drive_msg.opendrive)
+            root = ET.fromstring(opendrive)
+
+            #replace georeference inside te OpenDrive xml string
+            geo_reference = root.find(".//geoReference")
+
+            if geo_reference.text != None and self.georeference_substitution != None and len(self.georeference_substitution) != 0:
+                geo_reference.text = self.georeference_substitution
+                opendrive = ET.tostring(root, encoding="unicode", method="xml")
 
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
-                    projection_string = geo.text
+                    self.projection_string = geo.text
+                    self.node.loginfo("geoReference projection string: {}".format(geo.text))
 
                     # get lat and lon from projection string
-                    proj_xodr = pyproj.Proj(projparams=projection_string)
+                    proj_xodr = pyproj.Proj(projparams=self.projection_string)
                     lon, lat = proj_xodr(0, 0, inverse=True)
 
                     # derive utm zone and set frame id
-                    if lat >= 0.0: northp = True
-                    else: northp = False
-                    zone = int(math.floor((lon + 180.0)/6.0) + 1)
-                    if northp:
-                        p = pyproj.Proj(proj='utm',zone=zone,ellps='WGS84', preserve_units=False)
-                        self.world_frame = "utm_" + str(zone) + "N"
+                    if lat >= 0.0: self.northp = True
+                    else: self.northp = False
+                    self.zone = int(math.floor((lon + 180.0)/6.0) + 1)
+                    if self.northp:
+                        p = pyproj.Proj(proj='utm',zone=self.zone,ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(self.zone) + "N"
                     else:
-                        p = pyproj.Proj(proj='utm',zone=zone, south=True, ellps='WGS84', preserve_units=False)
-                        self.world_frame = "utm_" + str(zone) + "S"
-                    
+                        p = pyproj.Proj(proj='utm',zone=self.zone, south=True, ellps='WGS84', preserve_units=False)
+                        self.world_frame = "utm_" + str(self.zone) + "S"
+
                     # calculate grid convergence
-                    center_lon = 6.0 * float(zone) - 183.0
+                    center_lon = 6.0 * float(self.zone) - 183.0
                     grid_convergence = math.atan(math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) * math.sin(lat * math.pi / 180.0))
                     self.q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
 
-                    print("Publishing transform from {} to {}".format(self.world_frame, self.map_frame))
-
                     self.world_x, self.world_y = p(lon,lat)
-                    
+
                     self.world_set = True
+
+            # publish world info
+            open_drive_msg = CarlaWorldInfo()
+            open_drive_msg.map_name = self.carla_map.name
+            open_drive_msg.opendrive = opendrive
+            self.world_info_publisher.publish(open_drive_msg)
+            self.map_published = True
 
             # if no geo reference found in OpenDRIVE, align 'carla_map' frame with 'map' frame
             if not self.world_set:
@@ -144,6 +155,7 @@ class WorldInfo(object):
         t.transform.rotation.z = self.q_grid_convergence[2]
         t.transform.rotation.w = self.q_grid_convergence[3]
 
+        self.transform_utm_to_carla = t
 
         # publish transform message
         self._tf_broadcaster.sendTransform(t)

@@ -21,7 +21,7 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='timeout',
-            default_value='2',
+            default_value='5000',
             description='Time to wait for a successful connection to the CARLA server'
         ),
         launch.actions.DeclareLaunchArgument(
@@ -80,6 +80,64 @@ def generate_launch_description():
             default_value='False',
             description='Disable altitude information'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='georeference_substitution',
+            default_value='',
+            description='Substitutes the content of the georeference xml file from the CARLA OpenDRIVE file if not empty. Can be used to set the origin of the WorldInfo without changing the original OpenDRIVE file.'
+        ),
+        
+        # etsi traffic_light parameters
+        launch.actions.DeclareLaunchArgument(
+            name='publish_etsi_messages',
+            default_value='True',
+            description='Flag if Etsi Mapem and Spatem messages should be published. Saves computation time if not needed.'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='publisher_mapem_timer_period',
+            default_value='1.0',
+            description='Time between publishing the Etsi Mapem message'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='publisher_spatem_timer_period',
+            default_value='0.1',
+            description='Time between publishing the Etsi Spatem message'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='integrate_junctions_without_traffic_lights',
+            default_value='False',
+            description='Flag if additionaly junctions without traffic lights should be integrated into the map. Saves computation time if not needed.'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='traffic_light_junction_search_ignored_ids',
+            default_value='[-1]', # list can not be empty
+            description='In convoluted junctions, the search for traffic light junctions can output additional junctions which are not desired. Junctions with the given OpenDRIVE ids are discarded in the junction search. If empty, all junctions are searched.'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='traffic_light_junction_max_search_count',
+            default_value='13',
+            description='The number of waypoints to search for traffic light junctions, starting from inside each trigger box of a traffic light.'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='waypoints_search_distance',
+            default_value='1.0',
+            description='The search distance for waypoints in meters.'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='lane_waypoints_count',
+            default_value='10',
+            description='Number of waypoints included in the Etsi Mapem Egress/Ingress lanes.'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='debug_traffic_light_information',
+            default_value='False',
+            description='Flag if traffic light junction search debug information should be published. Saves computation time if not needed.'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='publisher_debug_traffic_light_information_timer_period',
+            default_value='1.0',
+            description='Time between publishing the debug traffic light junction search information'
+        ),
+        
         launch_ros.actions.Node(
             package='carla_ros_bridge',
             executable='bridge',
@@ -132,6 +190,39 @@ def generate_launch_description():
                 },
                 {
                     'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
+                },
+                {
+                    'georeference_substitution': launch.substitutions.LaunchConfiguration('georeference_substitution')
+                },            
+                {
+                    'publish_etsi_messages': launch.substitutions.LaunchConfiguration('publish_etsi_messages')
+                },
+                {
+                    'publisher_mapem_timer_period': launch.substitutions.LaunchConfiguration('publisher_mapem_timer_period')
+                },
+                {
+                    'publisher_spatem_timer_period': launch.substitutions.LaunchConfiguration('publisher_spatem_timer_period')
+                },
+                {
+                    'integrate_junctions_without_traffic_lights': launch.substitutions.LaunchConfiguration('integrate_junctions_without_traffic_lights')
+                },
+                {
+                    'traffic_light_junction_search_ignored_ids': launch.substitutions.LaunchConfiguration('traffic_light_junction_search_ignored_ids')
+                },
+                {
+                    'traffic_light_junction_max_search_count': launch.substitutions.LaunchConfiguration('traffic_light_junction_max_search_count')
+                },
+                {
+                    'waypoints_search_distance': launch.substitutions.LaunchConfiguration('waypoints_search_distance')
+                },
+                {
+                    'lane_waypoints_count': launch.substitutions.LaunchConfiguration('lane_waypoints_count')
+                },
+                {
+                    'debug_traffic_light_information': launch.substitutions.LaunchConfiguration('debug_traffic_light_information')
+                },                
+                {
+                    'publisher_debug_traffic_light_information_timer_period': launch.substitutions.LaunchConfiguration('publisher_debug_traffic_light_information_timer_period')
                 }
             ]
         )

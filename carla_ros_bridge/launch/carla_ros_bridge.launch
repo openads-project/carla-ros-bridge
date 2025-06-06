@@ -33,6 +33,18 @@
   <!-- disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
       
+  <!-- traffic light etsi messages-->
+  <arg name='publish_etsi_messages' default='False'/>
+  <arg name='waypoints_search_distance' default='1.0'/>
+  <arg name='lane_waypoints_count' default='10'/>
+  <arg name='traffic_light_junction_max_search_count' default='12'/>
+  <arg name='debug_traffic_light_information' default='False'/>
+  <arg name='integrate_junctions_without_traffic_lights' default='False'/>
+  <arg name='traffic_light_junction_search_ignored_ids' default='[]'/>
+  <arg name='publisher_mapem_timer_period' default='1.0'/>
+  <arg name='publisher_spatem_timer_period' default='0.1'/>
+  <arg name='publisher_debug_traffic_light_information_timer_period' default='1.0'/>
+
   <node pkg="carla_ros_bridge" name="carla_ros_bridge" type="bridge.py" output="screen" required="true">
     <param name="host" value="$(arg host)" unless="$(eval host == '')"/>
     <param name="port" value="$(arg port)" unless="$(eval port == '')"/>
