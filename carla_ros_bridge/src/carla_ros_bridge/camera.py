@@ -73,13 +73,10 @@ class Camera(Sensor):
         else:
             self._build_camera_info()
 
-        self.declare_parameter("publish_compressed_images", True)
-        self.publish_compressed = self.node.get_parameter('publish_compressed_images').get_parameter_value().bool_value
-
         self.camera_info_publisher = node.new_publisher(CameraInfo, self.get_topic_prefix() +
                                                         '/camera_info', qos_profile=10)
 
-        if self.publish_compressed:
+        if self.node.parameters['publish_compressed_images']:
             self.camera_image_publisher = node.new_publisher(CompressedImage, self.get_topic_prefix() +
                                                             '/' + 'image', qos_profile=10)
         else:
@@ -128,7 +125,7 @@ class Camera(Sensor):
         into a ROS image message
         """
 
-        if self.publish_compressed:
+        if self.node.parameters['publish_compressed_images']:
             img_msg = self.get_ros_compressed_image(carla_camera_data)
         else:
             img_msg = self.get_ros_image(carla_camera_data)
