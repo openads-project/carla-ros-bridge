@@ -73,7 +73,8 @@ class Camera(Sensor):
         else:
             self._build_camera_info()
 
-        self.publish_compressed = self.carla_actor.attributes.get("publish_compressed", "false").lower() == "true"
+        self.declare_parameter("publish_compressed_images", True)
+        self.publish_compressed = self.node.get_parameter('publish_compressed_images').get_parameter_value().bool_value
 
         self.camera_info_publisher = node.new_publisher(CameraInfo, self.get_topic_prefix() +
                                                         '/camera_info', qos_profile=10)
