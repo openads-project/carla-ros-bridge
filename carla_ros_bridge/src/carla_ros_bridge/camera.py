@@ -78,7 +78,7 @@ class Camera(Sensor):
 
         if self.node.parameters['publish_compressed_images']:
             self.camera_image_publisher = node.new_publisher(CompressedImage, self.get_topic_prefix() +
-                                                            '/' + 'image', qos_profile=10)
+                                                            '/' + 'image/compressed', qos_profile=10)
         else:
             self.camera_image_publisher = node.new_publisher(Image, self.get_topic_prefix() +
                                                             '/' + 'image', qos_profile=10)
