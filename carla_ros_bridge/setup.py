@@ -25,7 +25,7 @@ elif ROS_VERSION == 2:
                     ('share/' + package_name, ['package.xml']),
                     (os.path.join('share', package_name), glob('launch/*.launch.py')),
                     (os.path.join('share', package_name + '/test'), glob('test/test_objects.json'))],
-        install_requires=['setuptools'],
+        install_requires=['setuptools', 'image_transport_py'],
         zip_safe=True,
         maintainer='CARLA Simulator Team',
         maintainer_email='carla.simulator@gmail.com',
