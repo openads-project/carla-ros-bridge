@@ -76,6 +76,11 @@ def generate_launch_description():
             description='Enable/disable object list with static vehicles'
         ),
         launch.actions.DeclareLaunchArgument(
+            name='publish_compressed_images',
+            default_value='True',
+            description='Enable/disable compressed image publishing'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='ignore_altitude',
             default_value='False',
             description='Disable altitude information'
@@ -187,6 +192,9 @@ def generate_launch_description():
                 },
                 {
                     'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
+                },
+                {
+                    'publish_compressed_images': launch.substitutions.LaunchConfiguration('publish_compressed_images')
                 },
                 {
                     'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')

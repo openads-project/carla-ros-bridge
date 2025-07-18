@@ -51,6 +51,10 @@ def generate_launch_description():
             default_value='True'
         ),
         launch.actions.DeclareLaunchArgument(
+            name='publish_compressed_images',
+            default_value='True'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='ignore_altitude',
             default_value='False'
         ),
@@ -68,6 +72,7 @@ def generate_launch_description():
                 'synchronous_mode_wait_for_vehicle_control_command': launch.substitutions.LaunchConfiguration('synchronous_mode_wait_for_vehicle_control_command'),
                 'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds'),
                 'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles'),
+                'publish_compressed_images': launch.substitutions.LaunchConfiguration('publish_compressed_images'),
                 'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
             }.items()
         ),
