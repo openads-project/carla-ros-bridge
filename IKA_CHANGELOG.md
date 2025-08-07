@@ -9,6 +9,7 @@
 
 ## Interesting for an official merge request
 - publish_static_vehicles in object lists (!14)
+- publish_compressed_images (!51)
 - publish destination point in ros_vehicle_control.py (@gkueppers)
 - use_sim_time for ROS nodes (!23)
 - control start_unix_time_stamp (!24)

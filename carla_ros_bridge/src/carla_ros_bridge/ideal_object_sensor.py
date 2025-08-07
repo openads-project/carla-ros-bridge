@@ -310,7 +310,7 @@ class IdealObjectSensor(ObjectSensor):
         time_latest_tf = Time(seconds=0)
         duration_timeout = Duration(seconds=0)
         try:
-            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map' , time_latest_tf, duration_timeout)
+            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
             ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
         except:
             self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(

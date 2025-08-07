@@ -429,6 +429,7 @@ def main(args=None):
                                        ["hero", "ego_vehicle", "hero1", "hero2", "hero3"])
     parameters['ego_vehicle'] = {'role_name': role_name}
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
+    parameters['publish_compressed_images'] = carla_bridge.get_param('publish_compressed_images', True)
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
     parameters['georeference_substitution'] = carla_bridge.get_param('georeference_substitution', "")
     

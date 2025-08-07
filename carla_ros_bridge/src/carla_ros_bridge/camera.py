@@ -18,13 +18,14 @@ import carla
 import numpy
 import transforms3d
 from cv_bridge import CvBridge
+import cv2
 
 import carla_common.transforms as trans
 from ros_compatibility.core import get_ros_version
 
 from carla_ros_bridge.sensor import Sensor, create_cloud
 
-from sensor_msgs.msg import CameraInfo, Image, PointCloud2, PointField
+from sensor_msgs.msg import CameraInfo, Image, CompressedImage, PointCloud2, PointField
 
 ROS_VERSION = get_ros_version()
 
@@ -74,8 +75,13 @@ class Camera(Sensor):
 
         self.camera_info_publisher = node.new_publisher(CameraInfo, self.get_topic_prefix() +
                                                         '/camera_info', qos_profile=10)
-        self.camera_image_publisher = node.new_publisher(Image, self.get_topic_prefix() +
-                                                         '/' + 'image', qos_profile=10)
+
+        if self.node.parameters['publish_compressed_images']:
+            self.camera_image_publisher = node.new_publisher(CompressedImage, self.get_topic_prefix() +
+                                                            '/image/compressed', qos_profile=10)
+        else:
+            self.camera_image_publisher = node.new_publisher(Image, self.get_topic_prefix() +
+                                                            '/image', qos_profile=10)
 
     def destroy(self):
         super(Camera, self).destroy()
@@ -118,7 +124,11 @@ class Camera(Sensor):
         Function (override) to transform the received carla camera data
         into a ROS image message
         """
-        img_msg = self.get_ros_image(carla_camera_data)
+
+        if self.node.parameters['publish_compressed_images']:
+            img_msg = self.get_ros_compressed_image(carla_camera_data)
+        else:
+            img_msg = self.get_ros_image(carla_camera_data)
 
         cam_info = self._camera_info
         cam_info.header = img_msg.header
@@ -165,6 +175,34 @@ class Camera(Sensor):
         img_msg.header = self.get_msg_header(timestamp=carla_camera_data.timestamp)
 
         return img_msg
+
+    def get_ros_compressed_image(self, carla_camera_data):
+        """
+        Converts carla image data to a ROS CompressedImage message.
+        """
+        if ((carla_camera_data.height != self._camera_info.height) or
+                (carla_camera_data.width != self._camera_info.width)):
+            self.node.logerr(
+                "Camera{} received image not matching configuration".format(self.get_prefix()))
+        image_data_array, _ = self.get_carla_image_data_array(carla_camera_data)
+
+        # Convert BGRA to BGR if needed
+        if image_data_array.shape[2] == 4:
+            image_data_array = cv2.cvtColor(image_data_array, cv2.COLOR_BGRA2BGR)
+
+        # Encode the image to JPEG format
+        success, encoded_image = cv2.imencode('.jpg', image_data_array)
+        if not success:
+            self.node.logerr("Image compression failed")
+            return None
+
+        # Create the CompressedImage message
+        msg = CompressedImage()
+        msg.header = self.get_msg_header(timestamp=carla_camera_data.timestamp)
+        msg.format = "jpeg"
+        msg.data = encoded_image.tobytes()
+
+        return msg
 
     @abstractmethod
     def get_carla_image_data_array(self, carla_camera_data):
