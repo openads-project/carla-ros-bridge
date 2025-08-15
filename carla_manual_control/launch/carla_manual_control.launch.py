@@ -15,6 +15,14 @@ def generate_launch_description():
             name='wireless_controller',
             default_value='False'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='width',
+            default_value='800'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='height',
+            default_value='600'
+        ),
         launch_ros.actions.Node(
             package='carla_manual_control',
             executable='carla_manual_control',
@@ -24,7 +32,9 @@ def generate_launch_description():
             parameters=[
                 {
                     'role_name': launch.substitutions.LaunchConfiguration('role_name'),
-                    'wireless_controller': launch.substitutions.LaunchConfiguration('wireless_controller')
+                    'wireless_controller': launch.substitutions.LaunchConfiguration('wireless_controller'),
+                    'width': launch.substitutions.LaunchConfiguration('width'),
+                    'height': launch.substitutions.LaunchConfiguration('height')
                 }
             ]
         )
