@@ -16,11 +16,11 @@ def generate_launch_description():
             default_value='False'
         ),
         launch.actions.DeclareLaunchArgument(
-            name='width',
+            name='window_width',
             default_value='800'
         ),
         launch.actions.DeclareLaunchArgument(
-            name='height',
+            name='window_height',
             default_value='600'
         ),
         launch_ros.actions.Node(
@@ -33,8 +33,8 @@ def generate_launch_description():
                 {
                     'role_name': launch.substitutions.LaunchConfiguration('role_name'),
                     'wireless_controller': launch.substitutions.LaunchConfiguration('wireless_controller'),
-                    'width': launch.substitutions.LaunchConfiguration('width'),
-                    'height': launch.substitutions.LaunchConfiguration('height')
+                    'window_width': launch.substitutions.LaunchConfiguration('window_width'),
+                    'window_height': launch.substitutions.LaunchConfiguration('window_height')
                 }
             ]
         )
