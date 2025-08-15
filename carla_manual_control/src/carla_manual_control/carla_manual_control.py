@@ -788,9 +788,11 @@ def main(args=None):
     roscomp.init("manual_control", args=args)
 
     # resolution should be similar to spawned camera with role-name 'view'
-    width = roscomp.get_param("width", 800)
-    height = roscomp.get_param("height", 600)
+    temp_node = CompatibleNode("manual_control_param_helper")
+    width = temp_node.get_param("width", 800)
+    height = temp_node.get_param("height", 600)
     resolution = {"width": width, "height": height}
+    temp_node.destroy_node()
 
     pygame.init()
     pygame.font.init()
