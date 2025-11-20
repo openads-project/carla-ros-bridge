@@ -50,6 +50,7 @@ from threading import Thread
 import numpy
 import os
 from transforms3d.euler import quat2euler
+import cv2
 try:
     import pygame
     from pygame.locals import KMOD_CTRL
@@ -88,6 +89,7 @@ from carla_msgs.msg import CarlaLaneInvasionEvent
 from carla_msgs.msg import CarlaCollisionEvent
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import NavSatFix
 from std_msgs.msg import Bool
 
@@ -123,6 +125,9 @@ class ManualControl(CompatibleNode):
         self.image_subscriber = self.new_subscription(
             Image, "/carla/{}/rgb_view/image".format(self.role_name),
             self.on_view_image, qos_profile=10)
+        self.compressed_image_subscriber = self.new_subscription(
+            CompressedImage, "/carla/{}/rgb_view/image/compressed".format(self.role_name),
+            self.on_view_compressed_image, qos_profile=10)
 
         self.collision_subscriber = self.new_subscription(
             CarlaCollisionEvent, "/carla/{}/collision".format(self.role_name),
@@ -236,6 +241,18 @@ class ManualControl(CompatibleNode):
         array = numpy.reshape(array, (image.height, image.width, 4))
         array = array[:, :, :3]
         array = array[:, :, ::-1]
+        self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+
+    def on_view_compressed_image(self, image):
+        """
+        Callback when receiving a compressed camera image
+        """
+        np_arr = numpy.frombuffer(image.data, dtype=numpy.uint8)
+        array = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        if array is None:
+            self.node.logwarn("Could not decode compressed image")
+            return
+        array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
         self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
 
     def render(self, game_clock, display):
