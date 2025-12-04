@@ -7,7 +7,7 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 #
 """
-Control Carla ego vehicle by using AckermannDrive messages
+Control Carla ego vehicle by using AckermannDriveStamped messages
 """
 
 import sys
@@ -20,7 +20,7 @@ from ros_compatibility.node import CompatibleNode
 
 from carla_ackermann_control import carla_control_physics as phys
 
-from ackermann_msgs.msg import AckermannDrive  # pylint: disable=import-error,wrong-import-order
+from ackermann_msgs.msg import AckermannDriveStamped  # pylint: disable=import-error,wrong-import-order
 from std_msgs.msg import Header # pylint: disable=wrong-import-order
 from carla_msgs.msg import CarlaEgoVehicleStatus  # pylint: disable=no-name-in-module,import-error
 from carla_msgs.msg import CarlaEgoVehicleControl  # pylint: disable=no-name-in-module,import-error
@@ -126,7 +126,7 @@ class CarlaAckermannControl(CompatibleNode):
 
         # ackermann drive commands
         self.control_subscriber = self.new_subscription(
-            AckermannDrive,
+            AckermannDriveStamped,
             "/carla/" + self.role_name + "/ackermann_cmd",
             self.ackermann_command_updated,
             qos_profile=10
@@ -251,7 +251,7 @@ class CarlaAckermannControl(CompatibleNode):
         Stores the ackermann drive message for the next controller calculation
 
         :param ros_ackermann_drive: the current ackermann control input
-        :type ros_ackermann_drive: ackermann_msgs.AckermannDrive
+        :type ros_ackermann_drive: ackermann_msgs.AckermannDriveStamped
         :return:
         """
 
@@ -263,7 +263,7 @@ class CarlaAckermannControl(CompatibleNode):
         Stores the ackermann drive message for the next controller calculation
 
         :param ros_ackermann_drive: the current ackermann control input
-        :type ros_ackermann_drive: ackermann_msgs.AckermannDrive
+        :type ros_ackermann_drive: ackermann_msgs.AckermannDriveStamped
         :return:
         """
         # set target values
@@ -289,15 +289,15 @@ class CarlaAckermannControl(CompatibleNode):
         Stores the ackermann drive message for the next controller calculation
 
         :param ros_ackermann_drive: the current ackermann control input
-        :type ros_ackermann_drive: ackermann_msgs.AckermannDrive
+        :type ros_ackermann_drive: ackermann_msgs.AckermannDriveStamped
         :return:
         """
         self.last_ackermann_msg_received_sec = self.get_time()
         # set target values
-        self.set_target_steering_angle(ros_ackermann_drive.steering_angle)
-        self.set_target_speed(ros_ackermann_drive.speed)
-        self.set_target_accel(ros_ackermann_drive.acceleration)
-        self.set_target_jerk(ros_ackermann_drive.jerk)
+        self.set_target_steering_angle(ros_ackermann_drive.drive.steering_angle)
+        self.set_target_speed(ros_ackermann_drive.drive.speed)
+        self.set_target_accel(ros_ackermann_drive.drive.acceleration)
+        self.set_target_jerk(ros_ackermann_drive.drive.jerk)
 
     def set_target_steering_angle(self, target_steering_angle):
         """
@@ -353,7 +353,7 @@ class CarlaAckermannControl(CompatibleNode):
         if not self.info.output.hand_brake:
             self.update_drive_vehicle_control_command()
 
-            # only send out the Carla Control Command if AckermannDrive messages are
+            # only send out the Carla Control Command if AckermannDriveStamped messages are
             # received in the last second (e.g. to allows manually controlling the vehicle)
             if (self.last_ackermann_msg_received_sec + 1.0) > \
                     self.get_time():

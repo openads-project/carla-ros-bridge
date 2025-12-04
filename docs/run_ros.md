@@ -138,7 +138,7 @@ __2.__ In another terminal, publish to the topic `/carla/<ROLE NAME>/vehicle_con
 
 The current status of the vehicle can be received via topic `/carla/<ROLE NAME>/vehicle_status`. Static information about the vehicle can be received via `/carla/<ROLE NAME>/vehicle_info`.
 
-It is possible to use [AckermannDrive](https://docs.ros.org/en/api/ackermann_msgs/html/msg/AckermannDrive.html) messages to control the ego vehicles. This can be achieved through the use of the [CARLA Ackermann Control](carla_ackermann_control.md) package.
+It is possible to use [AckermannDriveStamped](https://docs.ros.org/en/api/ackermann_msgs/html/msg/AckermannDriveStamped.html) messages to control the ego vehicles. This can be achieved through the use of the [CARLA Ackermann Control](carla_ackermann_control.md) package.
 
 ---
 
