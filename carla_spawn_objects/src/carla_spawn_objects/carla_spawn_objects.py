@@ -174,6 +174,9 @@ class CarlaSpawnObjects(CompatibleNode):
 
             # check if there's a spawn_point corresponding to this vehicle
             spawn_point_param = self.get_param("spawn_point_" + vehicle["id"], None)
+            print(spawn_point_param)
+            self.logwarn("Debugging: {}, ".format(spawn_point_param))
+
             spawn_param_used = False
             if (spawn_point_param is not None):
                 # try to use spawn_point from parameters
@@ -524,7 +527,11 @@ class CarlaSpawnObjects(CompatibleNode):
         return spawn_point
 
     def check_spawn_point_param(self, spawn_point_parameter):
+        self.logwarn("check_spawn_point_param:)
+        self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
+        
         components = spawn_point_parameter.split(',')
+        print(components)
         if len(components) != 6:
             self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
             return None
