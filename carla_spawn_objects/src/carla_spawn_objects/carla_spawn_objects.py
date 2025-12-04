@@ -527,7 +527,7 @@ class CarlaSpawnObjects(CompatibleNode):
         return spawn_point
 
     def check_spawn_point_param(self, spawn_point_parameter):
-        self.logwarn("check_spawn_point_param:)
+        self.logwarn("check_spawn_point_param:")
         self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
         
         components = spawn_point_parameter.split(',')
