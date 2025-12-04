@@ -2,7 +2,7 @@
 
 The [`carla_ackermann_control` package](https://github.com/carla-simulator/ros-bridge/tree/master/carla_ackermann_control) is used to control a CARLA vehicle with [Ackermann messages][ackermanncontrolmsg]. The package converts the Ackermann messages into [CarlaEgoVehicleControl][carlaegovehiclecontrolmsg] messages. It reads vehicle information from CARLA and passes that information to a Python based PID controller called `simple-pid` to control the acceleration and velocity.
 
-[ackermanncontrolmsg]: https://docs.ros.org/en/api/ackermann_msgs/html/msg/AckermannDrive.html
+[ackermanncontrolmsg]: https://docs.ros.org/en/api/ackermann_msgs/html/msg/AckermannDriveStamped.html
 [carlaegovehiclecontrolmsg]: https://carla.readthedocs.io/en/latest/ros_msgs/#carlaegovehiclecontrolmsg
 
 - [__Configuration__](#configuration)
@@ -29,10 +29,10 @@ Test the setup by sending commands to the car via the topic `/carla/<ROLE NAME>/
 ```bash
 
 # ROS 1
-rostopic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDrive "{steering_angle: 0.0, steering_angle_velocity: 0.0, speed: 10, acceleration: 0.0, jerk: 0.0}" -r 10
+rostopic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDriveStamped "{drive.steering_angle: 0.0, drive.steering_angle_velocity: 0.0, drive.speed: 10, drive.acceleration: 0.0, drive.jerk: 0.0}" -r 10
 
 # ROS 2
-ros2 topic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDrive "{steering_angle: 0.0, steering_angle_velocity: 0.0, speed: 10, acceleration: 0.0, jerk: 0.0}" -r 10
+ros2 topic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDriveStamped "{drive.steering_angle: 0.0, drive.steering_angle_velocity: 0.0, drive.speed: 10, drive.acceleration: 0.0, drive.jerk: 0.0}" -r 10
 
 ```
 
@@ -41,10 +41,10 @@ Or make the vehicle move forward while turning at an angle of 1.22 radians:
 ```bash
 
 # ROS 1
-rostopic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDrive "{steering_angle: 1.22, steering_angle_velocity: 0.0, speed: 10, acceleration: 0.0, jerk: 0.0}" -r 10
+rostopic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDriveStamped "{drive.steering_angle: 1.22, drive.steering_angle_velocity: 0.0, drive.speed: 10, drive.acceleration: 0.0, drive.jerk: 0.0}" -r 10
 
 # ROS 2
-ros2 topic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDrive "{steering_angle: 1.22, steering_angle_velocity: 0.0, speed: 10, acceleration: 0.0, jerk: 0.0}" -r 10
+ros2 topic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDriveStamped "{drive.steering_angle: 1.22, drive.steering_angle_velocity: 0.0, drive.speed: 10, drive.acceleration: 0.0, drive.jerk: 0.0}" -r 10
 
 ```
 
@@ -56,7 +56,7 @@ ros2 topic pub /carla/ego_vehicle/ackermann_cmd ackermann_msgs/AckermannDrive "{
 
 |Topic|Type|Description|
 |--|--|--|
-|`/carla/<ROLE NAME>/ackermann_cmd` | [ackermann_msgs.AckermannDrive][ackermanncontrolmsg] | __Subscriber__ for steering commands |
+|`/carla/<ROLE NAME>/ackermann_cmd` | [ackermann_msgs.AckermannDriveStamped][ackermanncontrolmsg] | __Subscriber__ for steering commands |
 
 <br>
 
