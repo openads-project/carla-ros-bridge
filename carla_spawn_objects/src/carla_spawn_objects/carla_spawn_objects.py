@@ -180,7 +180,7 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_param_used = False
             if (spawn_point_param is not None):
                 # try to use spawn_point from parameters
-                vehicle["local_transform"] = self.check_spawn_point_param(spawn_point_param)
+                spawn_point = self.check_spawn_point_param(spawn_point_param)
                 if spawn_point is None:
                     self.logwarn("{}: Could not use spawn point from parameters, ".format(vehicle["id"]) +
                                     "the spawn point from config file will be used.")
@@ -192,7 +192,7 @@ class CarlaSpawnObjects(CompatibleNode):
                 # get spawn point from config file
                 try:
                     spawn_point = vehicle["spawn_point"]
-                    vehicle["local_transform"] = self.create_spawn_point(
+                    spawn_point = self.create_spawn_point(
                         spawn_point["x"],
                         spawn_point["y"],
                         spawn_point["z"],
@@ -208,12 +208,12 @@ class CarlaSpawnObjects(CompatibleNode):
             if spawn_param_used is False and "spawn_point" not in vehicle:
                 # pose not specified, ask for a random one in the service call
                 self.loginfo("Spawn point selected at random")
-                vehicle["local_transform"] = Pose()  # empty pose
+                spawn_point = Pose()  # empty pose
                 spawn_object_request.random_pose = True
 
             player_spawned = False
             while not player_spawned and roscomp.ok():
-                spawn_object_request.transform = vehicle["local_transform"]
+                spawn_object_request.transform = spawn_point
 
                 vehicle['response_id'] = self.spawn_object(spawn_object_request)
                 if vehicle['response_id'] != -1:
@@ -481,6 +481,7 @@ class CarlaSpawnObjects(CompatibleNode):
         spawn_point.orientation.x = quat[1]
         spawn_point.orientation.y = quat[2]
         spawn_point.orientation.z = quat[3]
+        print("Finish create_spawn_point")
         return spawn_point
 
     def extend_spawn_point(self, base, shift):
@@ -535,6 +536,7 @@ class CarlaSpawnObjects(CompatibleNode):
         if len(components) != 6:
             self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
             return None
+        print(components)
         spawn_point = self.create_spawn_point(
             float(components[0]),
             float(components[1]),
@@ -543,6 +545,7 @@ class CarlaSpawnObjects(CompatibleNode):
             float(components[4]),
             float(components[5])
         )
+        print(spawn_point)
         return spawn_point
 
     def destroy(self):
