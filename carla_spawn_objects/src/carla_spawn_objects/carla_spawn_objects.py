@@ -32,8 +32,11 @@ from carla_msgs.srv import SpawnObject, DestroyObject
 from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import Pose
 import geometry_msgs.msg
+import tf2_geometry_msgs
 import tf2_ros
 from transforms3d.euler import quat2euler, euler2quat
+import pyproj
+
 
 # ==============================================================================
 # -- CarlaSpawnObjects ------------------------------------------------------------
@@ -64,6 +67,9 @@ class CarlaSpawnObjects(CompatibleNode):
             'blueprint': self.process_blueprint
         }
         self.world_frame = "carla_map"
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self._utm_proj_cache = {}
 
         # lists of spawned entities
         self.players = []
@@ -75,6 +81,70 @@ class CarlaSpawnObjects(CompatibleNode):
         # setup services
         self.spawn_object_service = self.new_client(SpawnObject, "/carla/spawn_object")
         self.destroy_object_service = self.new_client(DestroyObject, "/carla/destroy_object")
+
+    def wgs84_to_carla_spawn_point(self, lat, lon, alt, roll=0.0, pitch=0.0, yaw=0.0):
+        """
+        Convert WGS84 coordinates to CARLA coordinates
+        """
+
+        north = lat >= 0.0
+        zone = int(math.floor((lon + 180.0) / 6.0) + 1)
+        proj_key = (zone, north)
+        if proj_key not in self._utm_proj_cache:
+            proj_args = {'proj': 'utm', 'zone': zone, 'ellps': 'WGS84', 'preserve_units': False}
+            if not north:
+                proj_args['south'] = True
+            self._utm_proj_cache[proj_key] = pyproj.Proj(**proj_args)
+        proj = self._utm_proj_cache[proj_key]
+        utm_x, utm_y = proj(lon, lat)
+
+        frame_id = "utm_{}{}".format(zone, "N" if north else "S")
+
+        utm_pose = geometry_msgs.msg.PoseStamped()
+        utm_pose.header.frame_id = frame_id
+        utm_pose.header.stamp = roscomp.ros_timestamp()
+        utm_pose.pose = self.create_spawn_point(utm_x, utm_y, alt, roll, pitch, yaw)
+
+        try:
+            carla_pose = self.tf_buffer.transform(utm_pose, self.world_frame)
+            return carla_pose.pose
+
+        except Exception as e:
+            self.logerr("Could not transform spawn point from '{}' to '{}': {}".format(frame_id, self.world_frame, e))
+            raise
+
+
+    def resolve_spawn_point(self, spawn_point):
+        """
+        Build a CARLA-map-frame Pose from a spawn point definition.
+
+        Supports two formats:
+        - spawn points already in CARLA coordinates (x/y/[z/roll/pitch/yaw])
+        - spawn points given in WGS84 (lat/lon/[alt/roll/pitch/yaw])
+        """
+        roll = spawn_point.get("roll", 0.0)
+        pitch = spawn_point.get("pitch", 0.0)
+        yaw = spawn_point.get("yaw", 0.0)
+
+        if 'lat' in spawn_point and 'lon' in spawn_point:
+
+            return self.wgs84_to_carla_spawn_point(
+                spawn_point['lat'],
+                spawn_point['lon'],
+                spawn_point.get('alt', 0.0),
+                roll,
+                pitch,
+                yaw)
+
+        if 'x' in spawn_point and 'y' in spawn_point:
+
+            return self.create_spawn_point(
+                spawn_point["x"],
+                spawn_point["y"],
+                spawn_point.get("z", 0.0),
+                roll,
+                pitch,
+                yaw)
 
     def spawn_object(self, spawn_object_request):
         """
@@ -188,19 +258,15 @@ class CarlaSpawnObjects(CompatibleNode):
             if spawn_param_used is False and "spawn_point" in vehicle:
                 # get spawn point from config file
                 try:
-                    spawn_point = vehicle["spawn_point"]
-                    spawn_point = self.create_spawn_point(
-                        spawn_point["x"],
-                        spawn_point["y"],
-                        spawn_point["z"],
-                        spawn_point["roll"],
-                        spawn_point["pitch"],
-                        spawn_point["yaw"]
-                    )
+                    spawn_point = self.resolve_spawn_point(vehicle["spawn_point"])
                     self.loginfo("Spawn point from configuration file")
                 except KeyError as e:
                     self.logerr("{}: Could not use the spawn point from config file, ".format(vehicle["id"]) +
                                 "the mandatory attribute {} is missing, a random spawn point will be used".format(e))
+                    raise
+                except Exception as e:
+                    self.logerr("{}: Could not resolve spawn point from config file: {}".format(vehicle["id"], e))
+                    raise
 
             if spawn_param_used is False and "spawn_point" not in vehicle:
                 # pose not specified, ask for a random one in the service call
@@ -234,15 +300,7 @@ class CarlaSpawnObjects(CompatibleNode):
         
         # use spawn_point if object is non-pseudo top level object or contains spawn_point
         if (parent is None and "pseudo" not in object["type"]) or 'spawn_point' in object:
-            spawn_point = object['spawn_point']
-            object['local_transform'] = self.create_spawn_point(
-                spawn_point["x"],
-                spawn_point["y"],
-                spawn_point["z"],
-                spawn_point["roll"],
-                spawn_point["pitch"],
-                spawn_point["yaw"]
-            )
+            object['local_transform'] = self.resolve_spawn_point(object['spawn_point'])
         # if object attached to a parent, or is a 'pseudo_actor', allow default pose
         elif 'spawn_point' not in object:
             object['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -520,23 +578,31 @@ class CarlaSpawnObjects(CompatibleNode):
         spawn_point.orientation.x = quat[1]
         spawn_point.orientation.y = quat[2]
         spawn_point.orientation.z = quat[3]
-        
+
         return spawn_point
 
     def check_spawn_point_param(self, spawn_point_parameter):
         components = spawn_point_parameter.split(',')
-        if len(components) != 6:
-            self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
-            return None
-        spawn_point = self.create_spawn_point(
-            float(components[0]),
-            float(components[1]),
-            float(components[2]),
-            float(components[3]),
-            float(components[4]),
-            float(components[5])
-        )
-        return spawn_point
+        num_components = len(components)
+
+        if num_components == 6:
+            x, y, z, roll, pitch, yaw = map(float, components)
+            return self.create_spawn_point(x, y, z, roll, pitch, yaw)
+
+        elif num_components == 7 and components[-1] == 'wgs84':
+            lat, lon, alt, roll, pitch, yaw = map(float, components[:6])
+            return self.wgs84_to_carla_spawn_point(lat, lon, alt, roll, pitch, yaw)
+
+        elif num_components == 4:
+            x, y, z, yaw = map(float, components)
+            return self.create_spawn_point(x, y, z, 0.0, 0.0, yaw)
+
+        elif num_components == 5 and components[-1] == 'wgs84':
+            lat, lon, alt, yaw = map(float, components[:4])
+            return self.wgs84_to_carla_spawn_point(lat, lon, alt, 0.0, 0.0, yaw)
+
+        self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
+        return None
 
     def destroy(self):
         """
