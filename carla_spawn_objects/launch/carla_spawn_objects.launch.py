@@ -13,10 +13,17 @@ def generate_launch_description():
             default_value='True',
             description='use_sim_time'
         ),
+        # ORIGINAL: Single file parameter (kept for backward compatibility)
         launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
-            default_value=os.path.join(get_package_share_directory(
-                'carla_spawn_objects'), 'config', 'objects.json')
+            default_value='',
+            description='Single JSON file path (legacy mode)'
+        ),
+        # NEW: Multiple files parameter (comma-separated)
+        launch.actions.DeclareLaunchArgument(
+            name='objects_definition_files',
+            default_value='',
+            description='Comma-separated list of JSON file paths'
         ),
         launch.actions.DeclareLaunchArgument(
             name='spawn_point_ego_vehicle',
@@ -39,6 +46,9 @@ def generate_launch_description():
                 },
                 {
                     'objects_definition_file': launch.substitutions.LaunchConfiguration('objects_definition_file')
+                },
+                {
+                    'objects_definition_files': launch.substitutions.LaunchConfiguration('objects_definition_files')
                 },
                 {
                     'spawn_point_ego_vehicle': launch.substitutions.LaunchConfiguration('spawn_point_ego_vehicle')

@@ -6,10 +6,17 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     ld = launch.LaunchDescription([
+        # ORIGINAL: Single file (kept for backward compatibility)
         launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
-            default_value=get_package_share_directory(
-                'carla_spawn_objects') + '/config/objects.json'
+            default_value='',
+            description='Single JSON file path (legacy mode)'
+        ),
+        # NEW: Multiple files parameter
+        launch.actions.DeclareLaunchArgument(
+            name='objects_definition_files',
+            default_value='',
+            description='Comma-separated list of JSON file paths'
         ),
         launch.actions.DeclareLaunchArgument(
             name='role_name',
@@ -34,6 +41,7 @@ def generate_launch_description():
             ),
             launch_arguments={
                 'objects_definition_file': launch.substitutions.LaunchConfiguration('objects_definition_file'),
+                'objects_definition_files': launch.substitutions.LaunchConfiguration('objects_definition_files'),
                 'spawn_point_ego_vehicle': launch.substitutions.LaunchConfiguration('spawn_point_ego_vehicle'),
                 'spawn_sensors_only': launch.substitutions.LaunchConfiguration('spawn_sensors_only')
             }.items()
