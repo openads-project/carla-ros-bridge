@@ -26,12 +26,10 @@ export DOCKER_ROS_FILES_PATH=/docker-ros/additional-files
 
 # Check if user provided CARLA PythonAPI. If not, exit
 mkdir -p /opt/carla
-if [ -d "$DOCKER_ROS_FILES_PATH/artifacts/PythonAPI" ]; then
-    mv $DOCKER_ROS_FILES_PATH/artifacts/PythonAPI /opt/carla/PythonAPI
-else
-    echo "CARLA PythonAPI not found in $DOCKER_ROS_FILES_PATH/artifacts/PythonAPI ...Exiting"
-    exit 1
-fi
+curl --location --output artifacts.zip "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/update/0.9.16/download?job=provide-carla-artifacts&job_token=$GIT_HTTPS_PASSWORD"
+unzip artifacts.zip
+mv artifacts/PythonAPI /opt/carla
+rm -rf artifacts
 
 # Install the CARLA wheel that matches the current Python minor version
 pyver=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
