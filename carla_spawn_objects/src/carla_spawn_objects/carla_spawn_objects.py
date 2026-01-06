@@ -32,8 +32,11 @@ from carla_msgs.srv import SpawnObject, DestroyObject
 from diagnostic_msgs.msg import KeyValue
 from geometry_msgs.msg import Pose
 import geometry_msgs.msg
+import tf2_geometry_msgs
 import tf2_ros
 from transforms3d.euler import quat2euler, euler2quat
+import pyproj
+
 
 # ==============================================================================
 # -- CarlaSpawnObjects ------------------------------------------------------------
@@ -51,9 +54,9 @@ class CarlaSpawnObjects(CompatibleNode):
     def __init__(self):
         super(CarlaSpawnObjects, self).__init__('carla_spawn_objects')
 
-        # MODIFICATION: Support both single file and multiple files
+        # Support both single file and multiple files
         self.objects_definition_file = self.get_param('objects_definition_file', '')
-        self.objects_definition_files = self.get_param('objects_definition_files', '')
+        self.objects_definition_files = self.get_param('objects_definition_files', [])
         self.spawn_sensors_only = self.get_param('spawn_sensors_only', False)
 
         # map object types to corresponding processing functions
@@ -66,6 +69,9 @@ class CarlaSpawnObjects(CompatibleNode):
             'blueprint': self.process_blueprint
         }
         self.world_frame = "carla_map"
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self._utm_proj_cache = {}
 
         # lists of spawned entities
         self.players = []
@@ -77,6 +83,70 @@ class CarlaSpawnObjects(CompatibleNode):
         # setup services
         self.spawn_object_service = self.new_client(SpawnObject, "/carla/spawn_object")
         self.destroy_object_service = self.new_client(DestroyObject, "/carla/destroy_object")
+
+    def wgs84_to_carla_spawn_point(self, lat, lon, alt, roll=0.0, pitch=0.0, yaw=0.0):
+        """
+        Convert WGS84 coordinates to CARLA coordinates
+        """
+
+        north = lat >= 0.0
+        zone = int(math.floor((lon + 180.0) / 6.0) + 1)
+        proj_key = (zone, north)
+        if proj_key not in self._utm_proj_cache:
+            proj_args = {'proj': 'utm', 'zone': zone, 'ellps': 'WGS84', 'preserve_units': False}
+            if not north:
+                proj_args['south'] = True
+            self._utm_proj_cache[proj_key] = pyproj.Proj(**proj_args)
+        proj = self._utm_proj_cache[proj_key]
+        utm_x, utm_y = proj(lon, lat)
+
+        frame_id = "utm_{}{}".format(zone, "N" if north else "S")
+
+        utm_pose = geometry_msgs.msg.PoseStamped()
+        utm_pose.header.frame_id = frame_id
+        utm_pose.header.stamp = roscomp.ros_timestamp()
+        utm_pose.pose = self.create_spawn_point(utm_x, utm_y, alt, roll, pitch, yaw)
+
+        try:
+            carla_pose = self.tf_buffer.transform(utm_pose, self.world_frame)
+            return carla_pose.pose
+
+        except Exception as e:
+            self.logerr("Could not transform spawn point from '{}' to '{}': {}".format(frame_id, self.world_frame, e))
+            raise
+
+
+    def resolve_spawn_point(self, spawn_point):
+        """
+        Build a CARLA-map-frame Pose from a spawn point definition.
+
+        Supports two formats:
+        - spawn points already in CARLA coordinates (x/y/[z/roll/pitch/yaw])
+        - spawn points given in WGS84 (lat/lon/[alt/roll/pitch/yaw])
+        """
+        roll = spawn_point.get("roll", 0.0)
+        pitch = spawn_point.get("pitch", 0.0)
+        yaw = spawn_point.get("yaw", 0.0)
+
+        if 'lat' in spawn_point and 'lon' in spawn_point:
+
+            return self.wgs84_to_carla_spawn_point(
+                spawn_point['lat'],
+                spawn_point['lon'],
+                spawn_point.get('alt', 0.0),
+                roll,
+                pitch,
+                yaw)
+
+        if 'x' in spawn_point and 'y' in spawn_point:
+
+            return self.create_spawn_point(
+                spawn_point["x"],
+                spawn_point["y"],
+                spawn_point.get("z", 0.0),
+                roll,
+                pitch,
+                yaw)
 
     def spawn_object(self, spawn_object_request):
         """
@@ -97,89 +167,96 @@ class CarlaSpawnObjects(CompatibleNode):
             raise RuntimeError(response.error_string)
         return response_id
 
-    def load_json_files(self, file_paths):
+    def _collect_definition_files(self):
         """
-        MODIFICATION: Load and merge multiple JSON files
+        Collect all object definition files from both single-file parameter
+        and new multi-file parameter.
+        :return: list of file paths to process
+        """
+        files_to_load = []
         
-        :param file_paths: List of file paths to load
-        :return: Merged JSON data with 'objects' and 'blueprints' keys
+        # Handle legacy single file parameter (backwards compatibility)
+        if self.objects_definition_file:
+            if isinstance(self.objects_definition_file, str) and self.objects_definition_file.strip():
+                files_to_load.append(self.objects_definition_file)
+        
+        # Handle new multi-file parameter
+        if self.objects_definition_files:
+            if isinstance(self.objects_definition_files, str):
+                # Parameter might come as comma-separated string from launch file
+                files = [f.strip() for f in self.objects_definition_files.split(',') if f.strip()]
+                files_to_load.extend(files)
+            elif isinstance(self.objects_definition_files, list):
+                files_to_load.extend([f for f in self.objects_definition_files if f and f.strip()])
+        
+        return files_to_load
+
+    def _load_and_merge_definitions(self, definition_files):
         """
-        merged_objects = []
+        Load multiple JSON definition files and merge their blueprints and objects.
+        :param definition_files: list of file paths to load
+        :return: tuple of (merged_blueprints, merged_objects)
+        """
         merged_blueprints = []
-        seen_object_ids = set()
-        seen_blueprint_ids = set()
+        merged_objects = []
+        blueprint_ids = set()
+        object_ids = set()
         
-        for file_path in file_paths:
-            if not os.path.exists(file_path):
-                self.logwarn(f"JSON file not found: {file_path}")
-                continue
-                
-            self.loginfo(f"Loading JSON file: {file_path}")
+        for filepath in definition_files:
+            if not os.path.exists(filepath):
+                raise RuntimeError(
+                    "Could not read object definitions from {}".format(filepath))
             
-            with open(file_path) as handle:
-                json_data = json.loads(handle.read())
+            self.loginfo("Loading object definitions from: {}".format(filepath))
             
-            # Merge objects
+            with open(filepath) as handle:
+                try:
+                    json_data = json.loads(handle.read())
+                except json.JSONDecodeError as e:
+                    raise RuntimeError(
+                        "Invalid JSON in file {}: {}".format(filepath, e))
+            
+            # Merge blueprints (check for duplicates)
+            for blueprint in json_data.get('blueprints', []):
+                bp_id = blueprint.get('id')
+                if bp_id in blueprint_ids:
+                    self.logwarn("Duplicate blueprint id '{}' found in {}, skipping.".format(
+                        bp_id, filepath))
+                    continue
+                blueprint_ids.add(bp_id)
+                merged_blueprints.append(blueprint)
+            
+            # Merge objects (check for duplicates)
             for obj in json_data.get('objects', []):
-                obj_id = obj.get('id', None)
-                if obj_id is None or obj_id not in seen_object_ids:
-                    merged_objects.append(obj)
-                    if obj_id:
-                        seen_object_ids.add(obj_id)
-                else:
-                    self.logwarn(f"Skipping duplicate object id: {obj_id}")
-            
-            # Merge blueprints
-            for bp in json_data.get('blueprints', []):
-                bp_id = bp.get('id', None)
-                if bp_id is None or bp_id not in seen_blueprint_ids:
-                    merged_blueprints.append(bp)
-                    if bp_id:
-                        seen_blueprint_ids.add(bp_id)
-                else:
-                    self.logwarn(f"Skipping duplicate blueprint id: {bp_id}")
+                obj_id = obj.get('id')
+                if obj_id in object_ids:
+                    self.logwarn("Duplicate object id '{}' found in {}, skipping.".format(
+                        obj_id, filepath))
+                    continue
+                object_ids.add(obj_id)
+                merged_objects.append(obj)
         
-        return {
-            'objects': merged_objects,
-            'blueprints': merged_blueprints
-        }
+        self.loginfo("Loaded {} blueprints and {} objects from {} file(s).".format(
+            len(merged_blueprints), len(merged_objects), len(definition_files)))
+        
+        return merged_blueprints, merged_objects
 
     def spawn_objects(self):
         """
-        MODIFICATION: Processes the input objects_definition_file(s)
-        Supports both single file and multiple files
+        Processes the input object definition file(s).
+        Supports both single file and multiple files.
         """
         
-        # MODIFICATION: Determine which parameter to use
-        if self.objects_definition_files:
-            # Multiple files mode
-            file_list = [f.strip() for f in self.objects_definition_files.split(',')]
-            self.loginfo(f"Loading multiple JSON files: {file_list}")
-            
-            # Verify at least one file exists
-            if not any(os.path.exists(f) for f in file_list):
-                raise RuntimeError(
-                    f"Could not find any of the object definition files: {file_list}")
-            
-            json_actors = self.load_json_files(file_list)
-            
-        elif self.objects_definition_file:
-            # Single file mode (original behavior)
-            if not os.path.exists(self.objects_definition_file):
-                raise RuntimeError(
-                    f"Could not read object definitions from {self.objects_definition_file}")
-            
-            self.loginfo(f"Loading single JSON file: {self.objects_definition_file}")
-            with open(self.objects_definition_file) as handle:
-                json_actors = json.loads(handle.read())
-        else:
+        # Collect all definition files
+        definition_files = self._collect_definition_files()
+        
+        if not definition_files:
             raise RuntimeError(
-                "No object definition file(s) specified. Use 'objects_definition_file' or 'objects_definition_files' parameter.")
-
-        self.blueprints = json_actors.get('blueprints', [])     # Read blueprints 
-        self.objects = json_actors.get('objects', [])           # Read objects
-
-        self.loginfo(f"Loaded {len(self.objects)} objects and {len(self.blueprints)} blueprints")
+                "No object definition files specified. Set either 'objects_definition_file' " +
+                "or 'objects_definition_files' parameter.")
+        
+        # Load and merge all definition files
+        self.blueprints, self.objects = self._load_and_merge_definitions(definition_files)
 
         global_sensors = [obj for obj in self.objects if obj['type'].split('.')[0] == 'sensor']
 
@@ -248,7 +325,7 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_param_used = False
             if (spawn_point_param is not None):
                 # try to use spawn_point from parameters
-                vehicle["local_transform"] = self.check_spawn_point_param(spawn_point_param)
+                spawn_point = self.check_spawn_point_param(spawn_point_param)
                 if spawn_point is None:
                     self.logwarn("{}: Could not use spawn point from parameters, ".format(vehicle["id"]) +
                                     "the spawn point from config file will be used.")
@@ -259,29 +336,25 @@ class CarlaSpawnObjects(CompatibleNode):
             if spawn_param_used is False and "spawn_point" in vehicle:
                 # get spawn point from config file
                 try:
-                    spawn_point = vehicle["spawn_point"]
-                    vehicle["local_transform"] = self.create_spawn_point(
-                        spawn_point["x"],
-                        spawn_point["y"],
-                        spawn_point["z"],
-                        spawn_point["roll"],
-                        spawn_point["pitch"],
-                        spawn_point["yaw"]
-                    )
+                    spawn_point = self.resolve_spawn_point(vehicle["spawn_point"])
                     self.loginfo("Spawn point from configuration file")
                 except KeyError as e:
                     self.logerr("{}: Could not use the spawn point from config file, ".format(vehicle["id"]) +
                                 "the mandatory attribute {} is missing, a random spawn point will be used".format(e))
+                    raise
+                except Exception as e:
+                    self.logerr("{}: Could not resolve spawn point from config file: {}".format(vehicle["id"], e))
+                    raise
 
             if spawn_param_used is False and "spawn_point" not in vehicle:
                 # pose not specified, ask for a random one in the service call
                 self.loginfo("Spawn point selected at random")
-                vehicle["local_transform"] = Pose()  # empty pose
+                spawn_point = Pose()  # empty pose
                 spawn_object_request.random_pose = True
 
             player_spawned = False
             while not player_spawned and roscomp.ok():
-                spawn_object_request.transform = vehicle["local_transform"]
+                spawn_object_request.transform = spawn_point
 
                 vehicle['response_id'] = self.spawn_object(spawn_object_request)
                 if vehicle['response_id'] != -1:
@@ -305,15 +378,7 @@ class CarlaSpawnObjects(CompatibleNode):
         
         # use spawn_point if object is non-pseudo top level object or contains spawn_point
         if (parent is None and "pseudo" not in object["type"]) or 'spawn_point' in object:
-            spawn_point = object['spawn_point']
-            object['local_transform'] = self.create_spawn_point(
-                spawn_point["x"],
-                spawn_point["y"],
-                spawn_point["z"],
-                spawn_point["roll"],
-                spawn_point["pitch"],
-                spawn_point["yaw"]
-            )
+            object['local_transform'] = self.resolve_spawn_point(object['spawn_point'])
         # if object attached to a parent, or is a 'pseudo_actor', allow default pose
         elif 'spawn_point' not in object:
             object['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -591,23 +656,31 @@ class CarlaSpawnObjects(CompatibleNode):
         spawn_point.orientation.x = quat[1]
         spawn_point.orientation.y = quat[2]
         spawn_point.orientation.z = quat[3]
-        
+
         return spawn_point
 
     def check_spawn_point_param(self, spawn_point_parameter):
         components = spawn_point_parameter.split(',')
-        if len(components) != 6:
-            self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
-            return None
-        spawn_point = self.create_spawn_point(
-            float(components[0]),
-            float(components[1]),
-            float(components[2]),
-            float(components[3]),
-            float(components[4]),
-            float(components[5])
-        )
-        return spawn_point
+        num_components = len(components)
+
+        if num_components == 6:
+            x, y, z, roll, pitch, yaw = map(float, components)
+            return self.create_spawn_point(x, y, z, roll, pitch, yaw)
+
+        elif num_components == 7 and components[-1] == 'wgs84':
+            lat, lon, alt, roll, pitch, yaw = map(float, components[:6])
+            return self.wgs84_to_carla_spawn_point(lat, lon, alt, roll, pitch, yaw)
+
+        elif num_components == 4:
+            x, y, z, yaw = map(float, components)
+            return self.create_spawn_point(x, y, z, 0.0, 0.0, yaw)
+
+        elif num_components == 5 and components[-1] == 'wgs84':
+            lat, lon, alt, yaw = map(float, components[:4])
+            return self.wgs84_to_carla_spawn_point(lat, lon, alt, 0.0, 0.0, yaw)
+
+        self.logwarn("Invalid spawnpoint '{}'".format(spawn_point_parameter))
+        return None
 
     def destroy(self):
         """
