@@ -8,14 +8,8 @@ def generate_launch_description():
     ld = launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
-            default_value='',
-            description='Single object definition file (use objects_definition_files for multiple files)'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='objects_definition_files',
-            default_value=get_package_share_directory(
-                'carla_spawn_objects') + '/config/objects.json',
-            description='Comma-separated list of object definition files to load and merge'
+            default_value=get_package_share_directory('carla_spawn_objects') + '/config/objects.json',
+            description='Object definition file(s), comma-separated for multiple files'
         ),
         launch.actions.DeclareLaunchArgument(
             name='objects_directory',
@@ -50,7 +44,6 @@ def generate_launch_description():
             ),
             launch_arguments={
                 'objects_definition_file': launch.substitutions.LaunchConfiguration('objects_definition_file'),
-                'objects_definition_files': launch.substitutions.LaunchConfiguration('objects_definition_files'),
                 'objects_directory': launch.substitutions.LaunchConfiguration('objects_directory'),
                 'blueprints_directory': launch.substitutions.LaunchConfiguration('blueprints_directory'),
                 'spawn_point_ego_vehicle': launch.substitutions.LaunchConfiguration('spawn_point_ego_vehicle'),

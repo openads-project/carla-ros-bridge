@@ -16,12 +16,7 @@ def generate_launch_description():
         launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
             default_value='',
-            description='Single object definition file (use objects_definition_files for multiple files)'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='objects_definition_files',
-            default_value='',
-            description='Comma-separated list of object definition files to load and merge'
+            description='Object definition file(s), comma-separated for multiple files'
         ),
         launch.actions.DeclareLaunchArgument(
             name='objects_directory',
@@ -54,9 +49,6 @@ def generate_launch_description():
                 },
                 {
                     'objects_definition_file': launch.substitutions.LaunchConfiguration('objects_definition_file')
-                },
-                {
-                    'objects_definition_files': launch.substitutions.LaunchConfiguration('objects_definition_files')
                 },
                 {
                     'objects_directory': launch.substitutions.LaunchConfiguration('objects_directory')

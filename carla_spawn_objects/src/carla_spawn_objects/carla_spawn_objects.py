@@ -54,9 +54,7 @@ class CarlaSpawnObjects(CompatibleNode):
     def __init__(self):
         super(CarlaSpawnObjects, self).__init__('carla_spawn_objects')
 
-        # Support both single file and multiple files
         self.objects_definition_file = self.get_param('objects_definition_file', '')
-        self.objects_definition_files = self.get_param('objects_definition_files', [])
         self.objects_directory = self.get_param('objects_directory', '')
         self.blueprints_directory = self.get_param('blueprints_directory', '')
         self.spawn_sensors_only = self.get_param('spawn_sensors_only', False)
@@ -171,25 +169,19 @@ class CarlaSpawnObjects(CompatibleNode):
 
     def _collect_definition_files(self):
         """
-        Collect all object definition files from both single-file parameter
-        and multi-file parameter. Prepends objects_directory to relative paths.
+        Collect all object definition files from the objects_definition_file parameter.
+        Supports single file or comma-separated list of files.
+        Prepends objects_directory to relative paths.
         :return: list of file paths to process
         """
         files_to_load = []
         
-        # Handle single file parameter
         if self.objects_definition_file:
             if isinstance(self.objects_definition_file, str) and self.objects_definition_file.strip():
-                files_to_load.append(self.objects_definition_file)
-        
-        # Handle multi-file parameter
-        if self.objects_definition_files:
-            if isinstance(self.objects_definition_files, str):
-                # Parameter might come as comma-separated string from launch file
-                files = [f.strip() for f in self.objects_definition_files.split(',') if f.strip()]
+                files = [f.strip() for f in self.objects_definition_file.split(',') if f.strip()]
                 files_to_load.extend(files)
-            elif isinstance(self.objects_definition_files, list):
-                files_to_load.extend([f for f in self.objects_definition_files if f and f.strip()])
+            elif isinstance(self.objects_definition_file, list):
+                files_to_load.extend([f for f in self.objects_definition_file if f and f.strip()])
         
         # Prepend objects_directory to relative paths
         if self.objects_directory and self.objects_directory.strip():
