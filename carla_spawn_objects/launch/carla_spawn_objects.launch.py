@@ -16,12 +16,17 @@ def generate_launch_description():
         launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
             default_value='',
-            description='Single object definition file (legacy parameter, use objects_definition_files for multiple files)'
+            description='Single object definition file (use objects_definition_files for multiple files)'
         ),
         launch.actions.DeclareLaunchArgument(
             name='objects_definition_files',
             default_value='',
             description='Comma-separated list of object definition files to load and merge'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='blueprints_directory',
+            default_value='',
+            description='Directory containing blueprint JSON files (auto-detected if not specified)'
         ),
         launch.actions.DeclareLaunchArgument(
             name='spawn_point_ego_vehicle',
@@ -47,6 +52,9 @@ def generate_launch_description():
                 },
                 {
                     'objects_definition_files': launch.substitutions.LaunchConfiguration('objects_definition_files')
+                },
+                {
+                    'blueprints_directory': launch.substitutions.LaunchConfiguration('blueprints_directory')
                 },
                 {
                     'spawn_point_ego_vehicle': launch.substitutions.LaunchConfiguration('spawn_point_ego_vehicle')

@@ -57,6 +57,7 @@ class CarlaSpawnObjects(CompatibleNode):
         # Support both single file and multiple files
         self.objects_definition_file = self.get_param('objects_definition_file', '')
         self.objects_definition_files = self.get_param('objects_definition_files', [])
+        self.blueprints_directory = self.get_param('blueprints_directory', '')
         self.spawn_sensors_only = self.get_param('spawn_sensors_only', False)
 
         # map object types to corresponding processing functions
@@ -170,17 +171,17 @@ class CarlaSpawnObjects(CompatibleNode):
     def _collect_definition_files(self):
         """
         Collect all object definition files from both single-file parameter
-        and new multi-file parameter.
+        and multi-file parameter.
         :return: list of file paths to process
         """
         files_to_load = []
         
-        # Handle legacy single file parameter (backwards compatibility)
+        # Handle single file parameter
         if self.objects_definition_file:
             if isinstance(self.objects_definition_file, str) and self.objects_definition_file.strip():
                 files_to_load.append(self.objects_definition_file)
         
-        # Handle new multi-file parameter
+        # Handle multi-file parameter
         if self.objects_definition_files:
             if isinstance(self.objects_definition_files, str):
                 # Parameter might come as comma-separated string from launch file
@@ -191,15 +192,104 @@ class CarlaSpawnObjects(CompatibleNode):
         
         return files_to_load
 
-    def _load_and_merge_definitions(self, definition_files):
+    def _find_blueprints_directory(self, first_definition_file):
+        """
+        Find the blueprints directory. First checks the blueprints_directory parameter,
+        then searches upwards from the first definition file.
+        
+        :param first_definition_file: Path to the first definition file
+        :return: Path to blueprints directory or None if not found
+        """
+        # First, check if blueprints_directory parameter is set
+        if self.blueprints_directory and self.blueprints_directory.strip():
+            if os.path.exists(self.blueprints_directory) and os.path.isdir(self.blueprints_directory):
+                self.loginfo("Using blueprints directory from parameter: {}".format(self.blueprints_directory))
+                return self.blueprints_directory
+            else:
+                self.logwarn("Specified blueprints_directory '{}' does not exist, searching recursively...".format(
+                    self.blueprints_directory))
+        
+        # Search upwards from the first definition file for a 'blueprints' directory
+        search_dir = os.path.dirname(first_definition_file)
+        
+        while search_dir and search_dir != '/':
+            blueprints_path = os.path.join(search_dir, 'blueprints')
+            if os.path.exists(blueprints_path) and os.path.isdir(blueprints_path):
+                self.loginfo("Found blueprints directory: {}".format(blueprints_path))
+                return blueprints_path
+            search_dir = os.path.dirname(search_dir)
+        
+        self.logwarn("No blueprints directory found. Blueprints must be included in object definition files.")
+        return None
+
+    def _auto_load_blueprints(self, blueprints_dir):
+        """
+        Automatically load all blueprint JSON files from the given blueprints directory.
+        This allows users to only specify object files in SENSORS, while blueprints
+        are loaded automatically.
+        
+        :param blueprints_dir: Path to the blueprints directory
+        :return: tuple of (blueprint_files_loaded, merged_blueprints, blueprint_ids)
+        """
+        merged_blueprints = []
+        blueprint_ids = set()
+        files_loaded = []
+        
+        self.loginfo("Auto-loading blueprints from: {}".format(blueprints_dir))
+        
+        # Walk through all subdirectories and find JSON files
+        for root, dirs, files in os.walk(blueprints_dir):
+            for filename in sorted(files):  # Sort for deterministic loading order
+                if not filename.endswith('.json'):
+                    continue
+                
+                filepath = os.path.join(root, filename)
+                rel_path = os.path.relpath(filepath, blueprints_dir)
+                
+                try:
+                    with open(filepath) as handle:
+                        json_data = json.loads(handle.read())
+                except json.JSONDecodeError as e:
+                    self.logwarn("Invalid JSON in blueprint file {}: {}, skipping.".format(filepath, e))
+                    continue
+                except IOError as e:
+                    self.logwarn("Could not read blueprint file {}: {}, skipping.".format(filepath, e))
+                    continue
+                
+                # Only process files that contain blueprints
+                blueprints_in_file = json_data.get('blueprints', [])
+                if not blueprints_in_file:
+                    continue
+                
+                files_loaded.append(filepath)
+                self.loginfo("  Loading blueprints from: {}".format(rel_path))
+                
+                for blueprint in blueprints_in_file:
+                    bp_id = blueprint.get('id')
+                    if bp_id in blueprint_ids:
+                        self.logwarn("Duplicate blueprint id '{}' found in {}, skipping.".format(
+                            bp_id, rel_path))
+                        continue
+                    blueprint_ids.add(bp_id)
+                    merged_blueprints.append(blueprint)
+        
+        if files_loaded:
+            self.loginfo("Auto-loaded {} blueprints from {} file(s).".format(
+                len(merged_blueprints), len(files_loaded)))
+        
+        return files_loaded, merged_blueprints, blueprint_ids
+
+    def _load_and_merge_definitions(self, definition_files, preloaded_blueprints=None, preloaded_blueprint_ids=None):
         """
         Load multiple JSON definition files and merge their blueprints and objects.
         :param definition_files: list of file paths to load
+        :param preloaded_blueprints: list of blueprints already loaded (e.g., from auto-load)
+        :param preloaded_blueprint_ids: set of blueprint IDs already loaded
         :return: tuple of (merged_blueprints, merged_objects)
         """
-        merged_blueprints = []
+        merged_blueprints = list(preloaded_blueprints) if preloaded_blueprints else []
         merged_objects = []
-        blueprint_ids = set()
+        blueprint_ids = set(preloaded_blueprint_ids) if preloaded_blueprint_ids else set()
         object_ids = set()
         
         for filepath in definition_files:
@@ -245,6 +335,7 @@ class CarlaSpawnObjects(CompatibleNode):
         """
         Processes the input object definition file(s).
         Supports both single file and multiple files.
+        Automatically loads blueprints from the blueprints/ subdirectory.
         """
         
         # Collect all definition files
@@ -255,8 +346,19 @@ class CarlaSpawnObjects(CompatibleNode):
                 "No object definition files specified. Set either 'objects_definition_file' " +
                 "or 'objects_definition_files' parameter.")
         
-        # Load and merge all definition files
-        self.blueprints, self.objects = self._load_and_merge_definitions(definition_files)
+        # Determine blueprints directory
+        blueprints_dir = self._find_blueprints_directory(definition_files[0])
+        
+        # Auto-load all blueprints from the blueprints/ directory
+        if blueprints_dir:
+            _, preloaded_blueprints, preloaded_blueprint_ids = self._auto_load_blueprints(blueprints_dir)
+        else:
+            preloaded_blueprints = []
+            preloaded_blueprint_ids = set()
+        
+        # Load and merge all definition files (with preloaded blueprints)
+        self.blueprints, self.objects = self._load_and_merge_definitions(
+            definition_files, preloaded_blueprints, preloaded_blueprint_ids)
 
         global_sensors = [obj for obj in self.objects if obj['type'].split('.')[0] == 'sensor']
 
