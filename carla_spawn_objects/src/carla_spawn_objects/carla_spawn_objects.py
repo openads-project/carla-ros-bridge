@@ -57,6 +57,7 @@ class CarlaSpawnObjects(CompatibleNode):
         # Support both single file and multiple files
         self.objects_definition_file = self.get_param('objects_definition_file', '')
         self.objects_definition_files = self.get_param('objects_definition_files', [])
+        self.objects_directory = self.get_param('objects_directory', '')
         self.blueprints_directory = self.get_param('blueprints_directory', '')
         self.spawn_sensors_only = self.get_param('spawn_sensors_only', False)
 
@@ -171,7 +172,7 @@ class CarlaSpawnObjects(CompatibleNode):
     def _collect_definition_files(self):
         """
         Collect all object definition files from both single-file parameter
-        and multi-file parameter.
+        and multi-file parameter. Prepends objects_directory to relative paths.
         :return: list of file paths to process
         """
         files_to_load = []
@@ -189,6 +190,14 @@ class CarlaSpawnObjects(CompatibleNode):
                 files_to_load.extend(files)
             elif isinstance(self.objects_definition_files, list):
                 files_to_load.extend([f for f in self.objects_definition_files if f and f.strip()])
+        
+        # Prepend objects_directory to relative paths
+        if self.objects_directory and self.objects_directory.strip():
+            base_dir = self.objects_directory.strip()
+            files_to_load = [
+                os.path.join(base_dir, f) if not os.path.isabs(f) else f
+                for f in files_to_load
+            ]
         
         return files_to_load
 

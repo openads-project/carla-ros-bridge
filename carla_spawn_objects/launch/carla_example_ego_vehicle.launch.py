@@ -18,6 +18,11 @@ def generate_launch_description():
             description='Comma-separated list of object definition files to load and merge'
         ),
         launch.actions.DeclareLaunchArgument(
+            name='objects_directory',
+            default_value=get_package_share_directory('carla_spawn_objects') + '/config/objects',
+            description='Base directory for object definition files (prepended to relative paths)'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='blueprints_directory',
             default_value='',
             description='Directory containing blueprint JSON files (auto-detected if not specified)'
@@ -46,6 +51,7 @@ def generate_launch_description():
             launch_arguments={
                 'objects_definition_file': launch.substitutions.LaunchConfiguration('objects_definition_file'),
                 'objects_definition_files': launch.substitutions.LaunchConfiguration('objects_definition_files'),
+                'objects_directory': launch.substitutions.LaunchConfiguration('objects_directory'),
                 'blueprints_directory': launch.substitutions.LaunchConfiguration('blueprints_directory'),
                 'spawn_point_ego_vehicle': launch.substitutions.LaunchConfiguration('spawn_point_ego_vehicle'),
                 'spawn_sensors_only': launch.substitutions.LaunchConfiguration('spawn_sensors_only')
