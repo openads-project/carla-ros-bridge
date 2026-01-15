@@ -174,54 +174,16 @@ class CarlaSpawnObjects(CompatibleNode):
         Prepends objects_directory to relative paths.
         :return: list of file paths to process
         """
-        files_to_load = []
+        files_str = (self.objects_definition_file or "").strip()
         
-        if self.objects_definition_file:
-            if isinstance(self.objects_definition_file, str) and self.objects_definition_file.strip():
-                files = [f.strip() for f in self.objects_definition_file.split(',') if f.strip()]
-                files_to_load.extend(files)
-            elif isinstance(self.objects_definition_file, list):
-                files_to_load.extend([f for f in self.objects_definition_file if f and f.strip()])
-        
-        # Prepend objects_directory to relative paths
-        if self.objects_directory and self.objects_directory.strip():
-            base_dir = self.objects_directory.strip()
-            files_to_load = [
-                os.path.join(base_dir, f) if not os.path.isabs(f) else f
-                for f in files_to_load
-            ]
-        
-        return files_to_load
+        if not files_str:
+            return []
 
-    def _find_blueprints_directory(self, first_definition_file):
-        """
-        Find the blueprints directory. First checks the blueprints_directory parameter,
-        then searches upwards from the first definition file.
-        
-        :param first_definition_file: Path to the first definition file
-        :return: Path to blueprints directory or None if not found
-        """
-        # First, check if blueprints_directory parameter is set
-        if self.blueprints_directory and self.blueprints_directory.strip():
-            if os.path.exists(self.blueprints_directory) and os.path.isdir(self.blueprints_directory):
-                self.loginfo("Using blueprints directory from parameter: {}".format(self.blueprints_directory))
-                return self.blueprints_directory
-            else:
-                self.logwarn("Specified blueprints_directory '{}' does not exist, searching recursively...".format(
-                    self.blueprints_directory))
-        
-        # Search upwards from the first definition file for a 'blueprints' directory
-        search_dir = os.path.dirname(first_definition_file)
-        
-        while search_dir and search_dir != '/':
-            blueprints_path = os.path.join(search_dir, 'blueprints')
-            if os.path.exists(blueprints_path) and os.path.isdir(blueprints_path):
-                self.loginfo("Found blueprints directory: {}".format(blueprints_path))
-                return blueprints_path
-            search_dir = os.path.dirname(search_dir)
-        
-        self.logwarn("No blueprints directory found. Blueprints must be included in object definition files.")
-        return None
+        return [
+            os.path.join((self.objects_directory or "").strip(), f.strip())
+            for f in files_str.split(',')
+            if f.strip()
+        ]
 
     def _auto_load_blueprints(self, blueprints_dir):
         """
@@ -239,7 +201,7 @@ class CarlaSpawnObjects(CompatibleNode):
         self.loginfo("Auto-loading blueprints from: {}".format(blueprints_dir))
         
         # Walk through all subdirectories and find JSON files
-        for root, dirs, files in os.walk(blueprints_dir):
+        for root, files in os.walk(blueprints_dir):
             for filename in sorted(files):  # Sort for deterministic loading order
                 if not filename.endswith('.json'):
                     continue
@@ -347,12 +309,9 @@ class CarlaSpawnObjects(CompatibleNode):
                 "No object definition files specified. Set either 'objects_definition_file' " +
                 "or 'objects_definition_files' parameter.")
         
-        # Determine blueprints directory
-        blueprints_dir = self._find_blueprints_directory(definition_files[0])
-        
         # Auto-load all blueprints from the blueprints/ directory
-        if blueprints_dir:
-            _, preloaded_blueprints, preloaded_blueprint_ids = self._auto_load_blueprints(blueprints_dir)
+        if os.path.exists(self.blueprints_directory) and os.path.isdir(self.blueprints_directory):
+            _, preloaded_blueprints, preloaded_blueprint_ids = self._auto_load_blueprints(self.blueprints_directory)
         else:
             preloaded_blueprints = []
             preloaded_blueprint_ids = set()
