@@ -201,7 +201,7 @@ class CarlaSpawnObjects(CompatibleNode):
         self.loginfo("Auto-loading blueprints from: {}".format(blueprints_dir))
         
         # Walk through all subdirectories and find JSON files
-        for root, files in os.walk(blueprints_dir):
+        for root, dirs, files in os.walk(blueprints_dir):
             for filename in sorted(files):  # Sort for deterministic loading order
                 if not filename.endswith('.json'):
                     continue
