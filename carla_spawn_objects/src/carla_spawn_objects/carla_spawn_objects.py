@@ -306,8 +306,7 @@ class CarlaSpawnObjects(CompatibleNode):
         
         if not definition_files:
             raise RuntimeError(
-                "No object definition files specified. Set either 'objects_definition_file' " +
-                "or 'objects_definition_files' parameter.")
+                "No object definition files specified. Set 'objects_definition_file' parameter.")
         
         # Auto-load all blueprints from the blueprints/ directory
         if os.path.exists(self.blueprints_directory) and os.path.isdir(self.blueprints_directory):
