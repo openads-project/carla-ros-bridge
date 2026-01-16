@@ -15,12 +15,12 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
-            default_value=get_package_share_directory('carla_spawn_objects') + '/config/objects.json',
+            default_value='objects.json',
             description='Object definition file(s), comma-separated for multiple files'
         ),
         launch.actions.DeclareLaunchArgument(
             name='objects_directory',
-            default_value=get_package_share_directory('carla_spawn_objects') + '/config/objects',
+            default_value=get_package_share_directory('carla_spawn_objects') + '/config',
             description='Base directory for object definition files (prepended to relative paths)'
         ),
         launch.actions.DeclareLaunchArgument(
