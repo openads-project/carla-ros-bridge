@@ -25,8 +25,8 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='blueprints_directory',
-            default_value='',
-            description='Directory containing blueprint JSON files (auto-detected if not specified)'
+            default_value=get_package_share_directory('carla_spawn_objects') + '/config/blueprints',
+            description='Base directory containing blueprint JSON files'
         ),
         launch.actions.DeclareLaunchArgument(
             name='spawn_point_ego_vehicle',
