@@ -167,7 +167,7 @@ class CarlaSpawnObjects(CompatibleNode):
             raise RuntimeError(response.error_string)
         return response_id
 
-    def _collect_definition_files(self):
+    def _collect_object_files(self):
         """
         Collect all object definition files from the objects_definition_file parameter.
         Supports single file or comma-separated list of files.
@@ -175,7 +175,7 @@ class CarlaSpawnObjects(CompatibleNode):
         :return: list of file paths to process
         """
         files_str = (self.objects_definition_file or "").strip()
-        
+
         if not files_str:
             return []
 
@@ -190,25 +190,25 @@ class CarlaSpawnObjects(CompatibleNode):
         Automatically load all blueprint JSON files from the given blueprints directory.
         This allows users to only specify object files in SENSORS, while blueprints
         are loaded automatically.
-        
+
         :param blueprints_dir: Path to the blueprints directory
         :return: tuple of (blueprint_files_loaded, merged_blueprints, blueprint_ids)
         """
         merged_blueprints = []
         blueprint_ids = set()
         files_loaded = []
-        
+
         self.loginfo("Auto-loading blueprints from: {}".format(blueprints_dir))
-        
+
         # Walk through all subdirectories and find JSON files
         for root, dirs, files in os.walk(blueprints_dir):
             for filename in sorted(files):  # Sort for deterministic loading order
                 if not filename.endswith('.json'):
                     continue
-                
+
                 filepath = os.path.join(root, filename)
                 rel_path = os.path.relpath(filepath, blueprints_dir)
-                
+
                 try:
                     with open(filepath) as handle:
                         json_data = json.loads(handle.read())
@@ -218,15 +218,15 @@ class CarlaSpawnObjects(CompatibleNode):
                 except IOError as e:
                     self.logwarn("Could not read blueprint file {}: {}, skipping.".format(filepath, e))
                     continue
-                
+
                 # Only process files that contain blueprints
                 blueprints_in_file = json_data.get('blueprints', [])
                 if not blueprints_in_file:
                     continue
-                
+
                 files_loaded.append(filepath)
-                self.loginfo("  Loading blueprints from: {}".format(rel_path))
-                
+                self.loginfo("Loading blueprints from: {}".format(rel_path))
+
                 for blueprint in blueprints_in_file:
                     bp_id = blueprint.get('id')
                     if bp_id in blueprint_ids:
@@ -235,17 +235,17 @@ class CarlaSpawnObjects(CompatibleNode):
                         continue
                     blueprint_ids.add(bp_id)
                     merged_blueprints.append(blueprint)
-        
+
         if files_loaded:
             self.loginfo("Auto-loaded {} blueprints from {} file(s).".format(
                 len(merged_blueprints), len(files_loaded)))
-        
+
         return files_loaded, merged_blueprints, blueprint_ids
 
-    def _load_and_merge_definitions(self, definition_files, preloaded_blueprints=None, preloaded_blueprint_ids=None):
+    def _load_and_merge_definitions(self, object_files, preloaded_blueprints=None, preloaded_blueprint_ids=None):
         """
         Load multiple JSON definition files and merge their blueprints and objects.
-        :param definition_files: list of file paths to load
+        :param object_files: list of file paths to load
         :param preloaded_blueprints: list of blueprints already loaded (e.g., from auto-load)
         :param preloaded_blueprint_ids: set of blueprint IDs already loaded
         :return: tuple of (merged_blueprints, merged_objects)
@@ -254,21 +254,21 @@ class CarlaSpawnObjects(CompatibleNode):
         merged_objects = []
         blueprint_ids = set(preloaded_blueprint_ids) if preloaded_blueprint_ids else set()
         object_ids = set()
-        
-        for filepath in definition_files:
+
+        for filepath in object_files:
             if not os.path.exists(filepath):
                 raise RuntimeError(
                     "Could not read object definitions from {}".format(filepath))
-            
+
             self.loginfo("Loading object definitions from: {}".format(filepath))
-            
+
             with open(filepath) as handle:
                 try:
                     json_data = json.loads(handle.read())
                 except json.JSONDecodeError as e:
                     raise RuntimeError(
                         "Invalid JSON in file {}: {}".format(filepath, e))
-            
+
             # Merge blueprints (check for duplicates)
             for blueprint in json_data.get('blueprints', []):
                 bp_id = blueprint.get('id')
@@ -278,7 +278,7 @@ class CarlaSpawnObjects(CompatibleNode):
                     continue
                 blueprint_ids.add(bp_id)
                 merged_blueprints.append(blueprint)
-            
+
             # Merge objects (check for duplicates)
             for obj in json_data.get('objects', []):
                 obj_id = obj.get('id')
@@ -288,10 +288,10 @@ class CarlaSpawnObjects(CompatibleNode):
                     continue
                 object_ids.add(obj_id)
                 merged_objects.append(obj)
-        
+
         self.loginfo("Loaded {} blueprints and {} objects from {} file(s).".format(
-            len(merged_blueprints), len(merged_objects), len(definition_files)))
-        
+            len(merged_blueprints), len(merged_objects), len(object_files)))
+
         return merged_blueprints, merged_objects
 
     def spawn_objects(self):
@@ -300,24 +300,24 @@ class CarlaSpawnObjects(CompatibleNode):
         Supports both single file and multiple files.
         Automatically loads blueprints from the blueprints/ subdirectory.
         """
-        
+
         # Collect all definition files
-        definition_files = self._collect_definition_files()
-        
-        if not definition_files:
+        object_files = self._collect_object_files()
+
+        if not object_files:
             raise RuntimeError(
                 "No object definition files specified. Set 'objects_definition_file' parameter.")
-        
+
         # Auto-load all blueprints from the blueprints/ directory
         if os.path.exists(self.blueprints_directory) and os.path.isdir(self.blueprints_directory):
             _, preloaded_blueprints, preloaded_blueprint_ids = self._auto_load_blueprints(self.blueprints_directory)
         else:
             preloaded_blueprints = []
             preloaded_blueprint_ids = set()
-        
+
         # Load and merge all definition files (with preloaded blueprints)
         self.blueprints, self.objects = self._load_and_merge_definitions(
-            definition_files, preloaded_blueprints, preloaded_blueprint_ids)
+            object_files, preloaded_blueprints, preloaded_blueprint_ids)
 
         global_sensors = [obj for obj in self.objects if obj['type'].split('.')[0] == 'sensor']
 
