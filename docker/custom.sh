@@ -26,7 +26,7 @@ export DOCKER_ROS_FILES_PATH=/docker-ros/additional-files
 
 # Download PythonAPI as artifact from CARLA CI pipeline
 mkdir -p /opt/carla
-curl --location --output artifacts.zip "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/update/0.9.16/download?job=provide-carla-artifacts&job_token=$GIT_HTTPS_PASSWORD"
+curl --location --output artifacts.zip "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/main/download?job=provide-carla-artifacts&job_token=$GIT_HTTPS_PASSWORD"
 unzip artifacts.zip
 mv artifacts/PythonAPI /opt/carla
 rm -rf artifacts
