@@ -195,6 +195,19 @@ class ActorFactory(object):
                 self._task_queue.put((ActorFactory.TaskType.DESTROY_ACTOR, (obj, None)))
         return objects_to_destroy
 
+    def _get_altitude_on_map(self, p):
+        """
+        get the altitude of the map at a given position
+        """
+        carla_map = self.world.get_map()
+        waypoint = carla_map.get_waypoint(carla.Location(x=p.x, y=p.y, z=0.0), project_to_road=True, lane_type=carla.LaneType.Driving)
+
+        if waypoint is not None:
+            return waypoint.transform.location.z
+        else:
+            self.node.loginfo("Could not find waypoint for position x={}, y={}".format(p.x, p.y))
+            return p.z
+
     def _spawn_carla_actor(self, req):
         """
         spawns an actor in carla
@@ -205,14 +218,21 @@ class ActorFactory(object):
         else:
             blueprint = self.blueprint_lib.find(req.type)
         blueprint.set_attribute('role_name', req.id)
+
         for attribute in req.attributes:
             blueprint.set_attribute(attribute.key, attribute.value)
+
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
         else:
             # get a random pose
             transform = secure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
+
+        # update altitude if too far from map
+        map_altitude = self._get_altitude_on_map(req.transform.position)
+        if abs(map_altitude - transform.location.z) > 5.0:
+            req.transform.position.z = map_altitude + 2.0
 
         attach_to = None
         if req.attach_to != 0:
