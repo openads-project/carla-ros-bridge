@@ -58,6 +58,10 @@ def generate_launch_description():
             name='ignore_altitude',
             default_value='False'
         ),
+        launch.actions.DeclareLaunchArgument(
+            name='grid_convergence',
+            default_value='True'
+        ),
         launch.actions.IncludeLaunchDescription(
             launch.launch_description_sources.PythonLaunchDescriptionSource(
                 os.path.join(get_package_share_directory(
@@ -73,7 +77,8 @@ def generate_launch_description():
                 'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds'),
                 'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles'),
                 'publish_compressed_images': launch.substitutions.LaunchConfiguration('publish_compressed_images'),
-                'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
+                'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude'),
+                'grid_convergence': launch.substitutions.LaunchConfiguration('grid_convergence')
             }.items()
         ),
         launch.actions.IncludeLaunchDescription(

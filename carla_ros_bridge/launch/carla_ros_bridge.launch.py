@@ -90,7 +90,12 @@ def generate_launch_description():
             default_value='',
             description='Substitutes the content of the georeference xml file from the CARLA OpenDRIVE file if not empty. Can be used to set the origin of the WorldInfo without changing the original OpenDRIVE file.'
         ),
-        
+        launch.actions.DeclareLaunchArgument(
+            name='grid_convergence',
+            default_value='True',
+            description='Enable/disable applying grid convergence when publishing the map frame transform'
+        ),
+
         # etsi traffic_light parameters
         launch.actions.DeclareLaunchArgument(
             name='publish_etsi_messages',
@@ -201,7 +206,10 @@ def generate_launch_description():
                 },
                 {
                     'georeference_substitution': launch.substitutions.LaunchConfiguration('georeference_substitution')
-                },            
+                },
+                {
+                    'grid_convergence': launch.substitutions.LaunchConfiguration('grid_convergence')
+                },
                 {
                     'publish_etsi_messages': launch.substitutions.LaunchConfiguration('publish_etsi_messages')
                 },

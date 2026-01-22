@@ -37,6 +37,8 @@
 
   <!-- disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
+  <!-- enable/disable grid convergence -->
+  <arg name='grid_convergence' default='True'/>
       
   <!-- traffic light etsi messages-->
   <arg name='publish_etsi_messages' default='False'/>
@@ -66,5 +68,6 @@
     <param name='publish_static_vehicles' value='$(arg publish_static_vehicles)'/>
     <param name='publish_compressed_images' value='$(arg publish_compressed_images)'/>
     <param name='ignore_altitude' value='$(arg ignore_altitude)'/>
+    <param name='grid_convergence' value='$(arg grid_convergence)'/>
   </node>
 </launch>
