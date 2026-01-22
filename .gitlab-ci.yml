@@ -3,6 +3,7 @@ include:
 
 variables:
   BASE_IMAGE: rwthika/ros2:jazzy
+  RMW_IMPLEMENTATION: rmw_zenoh_cpp
   COMMAND: bash -ic 'ros2 launch carla_ros_bridge carla_ros_bridge.launch.py'
   TARGET: dev,run
   PLATFORM: amd64
