@@ -199,13 +199,10 @@ class ActorFactory(object):
         """
         get the altitude of the map at a given position
         """
-        self.node.loginfo("Getting carla map for altitude retrieval")
         carla_map = self.world.get_map()
-        self.node.loginfo("Getting altitude for position x={}, y={}".format(l.x, l.y))
         waypoint = carla_map.get_waypoint(l, project_to_road=True, lane_type=carla.LaneType.Driving)
 
         if waypoint is not None:
-            self.node.loginfo("Waypoint for position x={}, y={} is {}".format(l.x, l.y, waypoint))
             return waypoint.transform.location.z
         else:
             self.node.loginfo("Could not find waypoint for position x={}, y={}".format(l.x, l.y))
@@ -232,14 +229,19 @@ class ActorFactory(object):
             transform = secure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
 
-        # update altitude if too far from map
-        self.node.loginfo("Update altitude")
-        map_altitude = self._get_altitude_on_map(transform.location)
-        self.node.loginfo("Map altitude at position x={}, y={} is {}".format(
-            transform.location.x, transform.location.y, map_altitude))
+        # Check altitude (due to map elevation) if not attached to another actor
+        if req.attach_to == 0:
+            self.node.loginfo("Checking spawn altitude for actor={} at z={}".format(
+                req.type, transform.location.z))
 
-        if abs(map_altitude - transform.location.z) > 5.0:
-            transform.location.z = map_altitude + 5.0
+            map_altitude = self._get_altitude_on_map(transform.location)
+            dh = transform.location.z - map_altitude
+
+            if dh > 50.0 or dh < 0:
+                transform.location.z = map_altitude + 3.0
+
+                self.node.loginfo("Update spawn altitude because of map elevation: actor={} z={}".format(
+                    req.type, transform.location.z))
 
         attach_to = None
         if req.attach_to != 0:
