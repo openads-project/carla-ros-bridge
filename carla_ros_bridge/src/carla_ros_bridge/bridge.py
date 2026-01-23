@@ -432,7 +432,7 @@ def main(args=None):
     parameters['publish_compressed_images'] = carla_bridge.get_param('publish_compressed_images', True)
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
     parameters['georeference_substitution'] = carla_bridge.get_param('georeference_substitution', "")
-    parameters['grid_convergence'] = carla_bridge.get_param('grid_convergence', True)
+    parameters['grid_convergence'] = carla_bridge.get_param('grid_convergence', None)
 
     # etsi its traffic_light parameters
     parameters['publish_etsi_messages'] = carla_bridge.get_param('publish_etsi_messages', True)

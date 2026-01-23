@@ -92,8 +92,8 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='grid_convergence',
-            default_value='True',
-            description='Enable/disable applying grid convergence when publishing the map frame transform'
+            default_value='None',
+            description='Apply grid convergence when publishing the map frame transform (True/False/None for auto)'
         ),
 
         # etsi traffic_light parameters

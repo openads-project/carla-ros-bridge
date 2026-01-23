@@ -60,7 +60,7 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='grid_convergence',
-            default_value='True'
+            default_value='None'
         ),
         launch.actions.IncludeLaunchDescription(
             launch.launch_description_sources.PythonLaunchDescriptionSource(

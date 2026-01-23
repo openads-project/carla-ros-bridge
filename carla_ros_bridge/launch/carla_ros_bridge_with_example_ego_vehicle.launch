@@ -29,7 +29,7 @@
   <!-- Disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
   <!-- Enable/disable grid convergence -->
-  <arg name='grid_convergence' default='True'/>
+  <arg name='grid_convergence' default='None'/>
 
   <include file="$(find carla_ros_bridge)/launch/carla_ros_bridge.launch">
     <arg name='host' value='$(arg host)'/>

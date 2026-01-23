@@ -38,7 +38,7 @@
   <!-- disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
   <!-- enable/disable grid convergence -->
-  <arg name='grid_convergence' default='True'/>
+  <arg name='grid_convergence' default='None'/>
       
   <!-- traffic light etsi messages-->
   <arg name='publish_etsi_messages' default='False'/>
