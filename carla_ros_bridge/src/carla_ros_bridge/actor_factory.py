@@ -199,6 +199,7 @@ class ActorFactory(object):
         """
         get the altitude of the map at a given position
         """
+        self.node.loginfo("Getting carla map for altitude retrieval")
         carla_map = self.world.get_map()
         self.node.loginfo("Getting altitude for position x={}, y={}".format(p.x, p.y))
         waypoint = carla_map.get_waypoint(carla.Location(x=p.x, y=p.y, z=0.0), project_to_road=True, lane_type=carla.LaneType.Driving)
@@ -232,10 +233,11 @@ class ActorFactory(object):
                 self.spawn_points) if self.spawn_points else carla.Transform()
 
         # update altitude if too far from map
+        self.node.loginfo("Update altitude")
         map_altitude = self._get_altitude_on_map(req.transform.position)
         self.node.loginfo("Map altitude at position x={}, y={} is {}".format(
             req.transform.position.x, req.transform.position.y, map_altitude))
-   
+
         if abs(map_altitude - transform.location.z) > 5.0:
             req.transform.position.z = map_altitude + 2.0
 
