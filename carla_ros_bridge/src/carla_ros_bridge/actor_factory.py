@@ -235,9 +235,10 @@ class ActorFactory(object):
                 req.type, transform.location.z))
 
             map_altitude = self._get_altitude_on_map(transform.location)
-            dh = transform.location.z - map_altitude
-
-            if dh > 50.0 or dh < 0:
+            dz = transform.location.z - map_altitude
+            
+            # spawn vehicle 3 m above map if desired height is below map
+            if dz < 0:
                 transform.location.z = map_altitude + 3.0
 
                 self.node.loginfo("Update spawn altitude because of map elevation: actor={} z={}".format(
