@@ -96,7 +96,7 @@ class WorldInfo(object):
             #replace georeference inside te OpenDrive xml string
             geo_reference = root.find(".//geoReference")
 
-            if geo_reference.text != None and self.georeference_substitution != None and len(self.georeference_substitution) != 0:
+            if geo_reference is not None and geo_reference.text is not None and self.georeference_substitution != None and len(self.georeference_substitution) != 0:
                 geo_reference.text = self.georeference_substitution
                 opendrive = ET.tostring(root, encoding="unicode", method="xml")
 
@@ -129,7 +129,7 @@ class WorldInfo(object):
                         p = pyproj.Proj(proj='utm',zone=self.zone, south=True, ellps='WGS84', preserve_units=False)
 
                     # apply grid convergence
-                    apply_gc, reason =self._check_grid_convergence(self.projection_string)
+                    apply_gc, reason = self._check_grid_convergence(self.projection_string)
                     self.node.loginfo("Grid convergence check: {} ({})".format(reason, apply_gc))
                     if apply_gc:
                         center_lon = 6.0 * float(self.zone) - 183.0
