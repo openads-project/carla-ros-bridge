@@ -195,21 +195,21 @@ class ActorFactory(object):
                 self._task_queue.put((ActorFactory.TaskType.DESTROY_ACTOR, (obj, None)))
         return objects_to_destroy
 
-    def _get_altitude_on_map(self, p):
+    def _get_altitude_on_map(self, l):
         """
         get the altitude of the map at a given position
         """
         self.node.loginfo("Getting carla map for altitude retrieval")
         carla_map = self.world.get_map()
-        self.node.loginfo("Getting altitude for position x={}, y={}".format(p.x, p.y))
-        waypoint = carla_map.get_waypoint(carla.Location(x=p.x, y=p.y, z=0.0), project_to_road=True, lane_type=carla.LaneType.Driving)
+        self.node.loginfo("Getting altitude for position x={}, y={}".format(l.x, l.y))
+        waypoint = carla_map.get_waypoint(l, project_to_road=True, lane_type=carla.LaneType.Driving)
 
         if waypoint is not None:
-            self.node.loginfo("Waypoint for position x={}, y={} is {}".format(p.x, p.y, waypoint))
+            self.node.loginfo("Waypoint for position x={}, y={} is {}".format(l.x, l.y, waypoint))
             return waypoint.transform.location.z
         else:
-            self.node.loginfo("Could not find waypoint for position x={}, y={}".format(p.x, p.y))
-            return p.z
+            self.node.loginfo("Could not find waypoint for position x={}, y={}".format(l.x, l.y))
+            return l.z
 
     def _spawn_carla_actor(self, req):
         """
@@ -234,12 +234,12 @@ class ActorFactory(object):
 
         # update altitude if too far from map
         self.node.loginfo("Update altitude")
-        map_altitude = self._get_altitude_on_map(req.transform.position)
+        map_altitude = self._get_altitude_on_map(transform.location)
         self.node.loginfo("Map altitude at position x={}, y={} is {}".format(
-            req.transform.position.x, req.transform.position.y, map_altitude))
+            transform.location.x, transform.location.y, map_altitude))
 
         if abs(map_altitude - transform.location.z) > 5.0:
-            req.transform.position.z = map_altitude + 2.0
+            transform.location.z = map_altitude + 5.0
 
         attach_to = None
         if req.attach_to != 0:
@@ -247,6 +247,12 @@ class ActorFactory(object):
             if attach_to is None:
                 raise IndexError("Parent actor {} not found".format(req.attach_to))
 
+        self.node.loginfo("Spawning actor of type {} with role_name '{}'".format(
+            req.type, req.id))
+        self.node.loginfo(" at x={}, y={}, z={}".format(
+            transform.location.x,
+            transform.location.y,
+            transform.location.z))
         carla_actor = self.world.spawn_actor(blueprint, transform, attach_to)
         return carla_actor.id
 
