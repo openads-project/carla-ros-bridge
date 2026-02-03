@@ -4,4 +4,4 @@
 	branch = master
 [submodule ".vscode"]
 	path = .vscode
-	url = https://gitlab.ika.rwth-aachen.de/fb-fi/dev-environment/vscode.git
+	url = ../../../dev-environment/vscode.git
