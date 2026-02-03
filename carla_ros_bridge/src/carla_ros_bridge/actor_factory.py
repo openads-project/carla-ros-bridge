@@ -230,7 +230,9 @@ class ActorFactory(object):
                 self.spawn_points) if self.spawn_points else carla.Transform()
 
         # Check altitude (due to map elevation) if not attached to another actor
-        if req.attach_to == 0:
+        # Only apply altitude correction for vehicles and walkers, not for static props or sensors
+        # Static props and sensors should spawn at their exact specified position
+        if req.attach_to == 0 and (req.type.startswith('vehicle.') or req.type.startswith('walker.')):
             self.node.loginfo("Checking spawn altitude for actor={} at z={}".format(
                 req.type, transform.location.z))
 
