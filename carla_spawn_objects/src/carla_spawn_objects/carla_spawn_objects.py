@@ -679,23 +679,50 @@ class CarlaSpawnObjects(CompatibleNode):
 
     def extend_spawn_point(self, base, shift):
         """
-        Extend a spawn point by another spawn point
-        param base: base spawn point
-        param shift: shift spawn point
+        Extend a spawn point by another spawn point.
+        The shift position is rotated by the base orientation before being added.
+        param base: base spawn point (parent)
+        param shift: shift spawn point (child, relative to parent)
         """
 
         spawn_point = Pose()
 
-        # add position
-        spawn_point.position.x = base.position.x + shift.position.x
-        spawn_point.position.y = base.position.y + shift.position.y
-        spawn_point.position.z = base.position.z + shift.position.z
-        
-        # transform orientation to euler angles
+        # transform base orientation to euler angles
         base_orientation = list(quat2euler([base.orientation.w,
                                 base.orientation.x,
                                 base.orientation.y,
                                 base.orientation.z]))
+
+        base_roll = base_orientation[0]
+        base_pitch = base_orientation[1]
+        base_yaw = base_orientation[2]
+
+        # Rotate shift position by base orientation (yaw, then pitch, then roll)
+        # Apply yaw rotation (around Z axis)
+        cos_yaw = math.cos(base_yaw)
+        sin_yaw = math.sin(base_yaw)
+        x1 = shift.position.x * cos_yaw - shift.position.y * sin_yaw
+        y1 = shift.position.x * sin_yaw + shift.position.y * cos_yaw
+        z1 = shift.position.z
+
+        # Apply pitch rotation (around Y axis)
+        cos_pitch = math.cos(base_pitch)
+        sin_pitch = math.sin(base_pitch)
+        x2 = x1 * cos_pitch + z1 * sin_pitch
+        y2 = y1
+        z2 = -x1 * sin_pitch + z1 * cos_pitch
+
+        # Apply roll rotation (around X axis)
+        cos_roll = math.cos(base_roll)
+        sin_roll = math.sin(base_roll)
+        rotated_x = x2
+        rotated_y = y2 * cos_roll - z2 * sin_roll
+        rotated_z = y2 * sin_roll + z2 * cos_roll
+
+        # Add rotated position to base position
+        spawn_point.position.x = base.position.x + rotated_x
+        spawn_point.position.y = base.position.y + rotated_y
+        spawn_point.position.z = base.position.z + rotated_z
 
         shift_orientation = list(quat2euler([shift.orientation.w,
                                 shift.orientation.x,
