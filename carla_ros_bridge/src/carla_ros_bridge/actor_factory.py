@@ -195,6 +195,19 @@ class ActorFactory(object):
                 self._task_queue.put((ActorFactory.TaskType.DESTROY_ACTOR, (obj, None)))
         return objects_to_destroy
 
+    def _get_altitude_on_map(self, l):
+        """
+        get the altitude of the map at a given position
+        """
+        carla_map = self.world.get_map()
+        waypoint = carla_map.get_waypoint(l, project_to_road=True, lane_type=carla.LaneType.Driving)
+
+        if waypoint is not None:
+            return waypoint.transform.location.z
+        else:
+            self.node.loginfo("Could not find waypoint for position x={}, y={}".format(l.x, l.y))
+            return l.z
+
     def _spawn_carla_actor(self, req):
         """
         spawns an actor in carla
@@ -205,8 +218,10 @@ class ActorFactory(object):
         else:
             blueprint = self.blueprint_lib.find(req.type)
         blueprint.set_attribute('role_name', req.id)
+
         for attribute in req.attributes:
             blueprint.set_attribute(attribute.key, attribute.value)
+
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
         else:
@@ -214,12 +229,35 @@ class ActorFactory(object):
             transform = secure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
 
+        # Check altitude (due to map elevation) if not attached to another actor
+        # Only apply altitude correction for vehicles and walkers, not for static props or sensors
+        # Static props and sensors should spawn at their exact specified position
+        if req.attach_to == 0 and (req.type.startswith('vehicle.') or req.type.startswith('walker.')):
+            self.node.loginfo("Checking spawn altitude for actor={} at z={}".format(
+                req.type, transform.location.z))
+
+            map_altitude = self._get_altitude_on_map(transform.location)
+            dz = transform.location.z - map_altitude
+            
+            # spawn vehicle 3 m above map if desired height is below map
+            if dz < 0:
+                transform.location.z = map_altitude + 3.0
+
+                self.node.loginfo("Update spawn altitude because of map elevation: actor={} z={}".format(
+                    req.type, transform.location.z))
+
         attach_to = None
         if req.attach_to != 0:
             attach_to = self.world.get_actor(req.attach_to)
             if attach_to is None:
                 raise IndexError("Parent actor {} not found".format(req.attach_to))
 
+        self.node.loginfo("Spawning actor of type {} with role_name '{}'".format(
+            req.type, req.id))
+        self.node.loginfo(" at x={}, y={}, z={}".format(
+            transform.location.x,
+            transform.location.y,
+            transform.location.z))
         carla_actor = self.world.spawn_actor(blueprint, transform, attach_to)
         return carla_actor.id
 

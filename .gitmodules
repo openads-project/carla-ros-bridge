@@ -2,3 +2,6 @@
 	path = carla_msgs
 	url = https://github.com/carla-simulator/ros-carla-msgs
 	branch = master
+[submodule ".vscode"]
+	path = .vscode
+	url = ../../../dev-environment/vscode.git

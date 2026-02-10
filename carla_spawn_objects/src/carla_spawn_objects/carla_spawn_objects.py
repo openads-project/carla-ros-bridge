@@ -679,23 +679,53 @@ class CarlaSpawnObjects(CompatibleNode):
 
     def extend_spawn_point(self, base, shift):
         """
-        Extend a spawn point by another spawn point
-        param base: base spawn point
-        param shift: shift spawn point
+        Extend a spawn point by another spawn point.
+        The shift position is rotated by the base orientation before being added.
+        Uses 'sxyz' rotation order (same as transforms3d default).
+        param base: base spawn point (parent)
+        param shift: shift spawn point (child, relative to parent)
         """
 
         spawn_point = Pose()
 
-        # add position
-        spawn_point.position.x = base.position.x + shift.position.x
-        spawn_point.position.y = base.position.y + shift.position.y
-        spawn_point.position.z = base.position.z + shift.position.z
-        
-        # transform orientation to euler angles
+        # transform base orientation to euler angles
         base_orientation = list(quat2euler([base.orientation.w,
                                 base.orientation.x,
                                 base.orientation.y,
                                 base.orientation.z]))
+
+        base_roll = base_orientation[0]
+        base_pitch = base_orientation[1]
+        base_yaw = base_orientation[2]
+
+        # Rotate shift position by base orientation using 'sxyz' order
+        # Order: first Roll (X), then Pitch (Y), then Yaw (Z)
+        
+        # Roll (X-axis) first
+        cos_roll = math.cos(base_roll)
+        sin_roll = math.sin(base_roll)
+        x1 = shift.position.x
+        y1 = shift.position.y * cos_roll - shift.position.z * sin_roll
+        z1 = shift.position.y * sin_roll + shift.position.z * cos_roll
+
+        # Pitch (Y-axis)
+        cos_pitch = math.cos(base_pitch)
+        sin_pitch = math.sin(base_pitch)
+        x2 = x1 * cos_pitch + z1 * sin_pitch
+        y2 = y1
+        z2 = -x1 * sin_pitch + z1 * cos_pitch
+
+        # Yaw (Z-axis) last
+        cos_yaw = math.cos(base_yaw)
+        sin_yaw = math.sin(base_yaw)
+        rotated_x = x2 * cos_yaw - y2 * sin_yaw
+        rotated_y = x2 * sin_yaw + y2 * cos_yaw
+        rotated_z = z2
+
+        # Add rotated position to base position
+        spawn_point.position.x = base.position.x + rotated_x
+        spawn_point.position.y = base.position.y + rotated_y
+        spawn_point.position.z = base.position.z + rotated_z
 
         shift_orientation = list(quat2euler([shift.orientation.w,
                                 shift.orientation.x,
