@@ -56,6 +56,16 @@ class WorldInfo(object):
         self.world_set = False
         self.georeference_substitution = (self.node.parameters['georeference_substitution'])
         self.grid_convergence_override = self.node.parameters['grid_convergence']
+        self.projection_string = ""
+
+        # Keep safe defaults so other modules can access world info before map parsing succeeds.
+        self.world_frame = "map"
+        self.world_x = 0.0
+        self.world_y = 0.0
+        self.q_grid_convergence = quaternion_from_euler(0, 0, 0)
+        self.transform_utm_to_carla = None
+        self.zone = None
+        self.northp = True
 
         self.world_info_publisher = node.new_publisher(
             CarlaWorldInfo,
@@ -89,58 +99,73 @@ class WorldInfo(object):
         if not self.map_published:
 
             opendrive = self.carla_map.to_opendrive()
-
-            # extract transform 
             root = ET.fromstring(opendrive)
 
-            #replace georeference inside te OpenDrive xml string
+            # replace georeference inside the OpenDRIVE xml string
             geo_reference = root.find(".//geoReference")
-
-            if geo_reference is not None and geo_reference.text is not None and self.georeference_substitution != None and len(self.georeference_substitution) != 0:
+            if geo_reference is not None and geo_reference.text is not None and \
+                    self.georeference_substitution is not None and len(self.georeference_substitution) != 0:
                 geo_reference.text = self.georeference_substitution
                 opendrive = ET.tostring(root, encoding="unicode", method="xml")
+                self.node.loginfo("Applied georeference_substitution.")
 
             for header in root.findall('header'):
                 for geo in header.findall('geoReference'):
-                    self.projection_string = geo.text
-                    self.node.loginfo("geoReference projection string: {}".format(geo.text))
+                    self.projection_string = (geo.text or "").strip()
+                    if not self.projection_string:
+                        continue
+                    self.node.loginfo("geoReference projection string: {}".format(self.projection_string))
 
                     proj_xodr = pyproj.Proj(self.projection_string)
 
-                    # read offset from the header (default 0 if missing)
+                    # use OpenDRIVE offset when available, otherwise fallback to +x_0/+y_0
                     off = header.find('offset')
                     if off is not None:
                         ox = float(off.get('x', 0.0))
                         oy = float(off.get('y', 0.0))
+                        self.node.loginfo("Using OpenDRIVE <offset>: x={} y={}".format(ox, oy))
                     else:
-                        ox = 0.0
-                        oy = 0.0
+                        sl = self.projection_string.lower()
+                        ox = self._get_float_param(sl, "x_0")
+                        oy = self._get_float_param(sl, "y_0")
+                        ox = ox if ox is not None else 0.0
+                        oy = oy if oy is not None else 0.0
+                        self.node.loginfo("No OpenDRIVE <offset>. Using +x_0/+y_0 fallback: x={} y={}".format(
+                            ox, oy))
 
-                    # lon/lat of the OpenDRIVE origin in WGS84
                     lon, lat = proj_xodr(ox, oy, inverse=True)
 
-                    # derive utm zone and set frame id
                     self.zone = int(math.floor((lon + 180.0 + 1e-12) / 6.0) + 1)
+                    self.zone = max(1, min(60, self.zone))
                     self.northp = (lat >= 0.0)
                     self.world_frame = "utm_{}{}".format(self.zone, "N" if self.northp else "S")
-                    if self.northp:
-                        p = pyproj.Proj(proj='utm',zone=self.zone,ellps='WGS84', preserve_units=False)
-                    else:
-                        p = pyproj.Proj(proj='utm',zone=self.zone, south=True, ellps='WGS84', preserve_units=False)
+                    self.node.loginfo("Derived world frame '{}' from lon={} lat={}".format(
+                        self.world_frame, lon, lat))
 
-                    # apply grid convergence
+                    if self.northp:
+                        p = pyproj.Proj(proj='utm', zone=self.zone, ellps='WGS84', preserve_units=False)
+                    else:
+                        p = pyproj.Proj(proj='utm', zone=self.zone, south=True, ellps='WGS84',
+                                        preserve_units=False)
+
                     apply_gc, reason = self._check_grid_convergence(self.projection_string)
                     self.node.loginfo("Grid convergence check: {} ({})".format(reason, apply_gc))
                     if apply_gc:
                         center_lon = 6.0 * float(self.zone) - 183.0
-                        grid_convergence = math.atan(math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) * math.sin(lat * math.pi / 180.0))
+                        grid_convergence = math.atan(
+                            math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) *
+                            math.sin(lat * math.pi / 180.0))
                         self.q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
                     else:
                         self.q_grid_convergence = quaternion_from_euler(0, 0, 0)
 
-                    self.world_x, self.world_y = p(lon,lat)
-
+                    self.world_x, self.world_y = p(lon, lat)
                     self.world_set = True
+                    self.node.loginfo("World transform set: frame='{}' translation=({}, {}, 0.0)".format(
+                        self.world_frame, self.world_x, self.world_y))
+                    break
+                if self.world_set:
+                    break
 
             # publish world info
             open_drive_msg = CarlaWorldInfo()
@@ -155,6 +180,8 @@ class WorldInfo(object):
                 self.world_x = 0.0
                 self.world_y = 0.0
                 self.q_grid_convergence = quaternion_from_euler(0, 0, 0)
+                self.node.logwarn("No valid geoReference found. Falling back to world frame '{}'.".format(
+                    self.world_frame))
 
         # create transform message
         t = geometry_msgs.msg.TransformStamped()
@@ -174,14 +201,18 @@ class WorldInfo(object):
 
         # publish transform message
         self._tf_broadcaster.sendTransform(t)
+        self.node.logdebug("Published transform {} -> {} at x={} y={}".format(
+            self.world_frame, self.map_frame, self.world_x, self.world_y))
 
+
+
+    @staticmethod
+    def _get_float_param(s: str, key: str):
+        m = re.search(rf"\+{re.escape(key)}=([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", s)
+        return float(m.group(1)) if m else None
 
 
     def _check_grid_convergence(self, proj_string: str):
-
-        def _get_float_param(s: str, key: str):
-            m = re.search(rf"\+{re.escape(key)}=([-+]?\d+(\.\d+)?)", s)
-            return float(m.group(1)) if m else None
 
         override = self.grid_convergence_override
         if isinstance(override, str):
@@ -197,9 +228,9 @@ class WorldInfo(object):
             return False, "utm -> not apply grid convergence"
 
         if "+proj=tmerc" in sl:
-            k  = _get_float_param(sl, "k")
-            x0 = _get_float_param(sl, "x_0")
-            y0 = _get_float_param(sl, "y_0")
+            k  = self._get_float_param(sl, "k")
+            x0 = self._get_float_param(sl, "x_0")
+            y0 = self._get_float_param(sl, "y_0")
 
             # UTM-like TM
             if k is not None and x0 is not None:
