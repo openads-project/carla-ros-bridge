@@ -133,14 +133,14 @@ class WorldInfo(object):
                         self.node.loginfo("No OpenDRIVE <offset>. Using +x_0/+y_0 fallback: x={} y={}".format(
                             ox, oy))
 
-                    lon, lat = proj_xodr(ox, oy, inverse=True)
+                    lon_proj_origin, lat_proj_origin = proj_xodr(ox, oy, inverse=True)
 
-                    self.zone = int(math.floor((lon + 180.0 + 1e-12) / 6.0) + 1)
+                    self.zone = int(math.floor((lon_proj_origin + 180.0 + 1e-12) / 6.0) + 1)
                     self.zone = max(1, min(60, self.zone))
-                    self.northp = (lat >= 0.0)
+                    self.northp = (lat_proj_origin >= 0.0)
                     self.world_frame = "utm_{}{}".format(self.zone, "N" if self.northp else "S")
-                    self.node.loginfo("Derived world frame '{}' from lon={} lat={}".format(
-                        self.world_frame, lon, lat))
+                    self.node.loginfo("Derived world frame '{}' from lon_proj_origin={} lat_proj_origin={}".format(
+                        self.world_frame, lon_proj_origin, lat_proj_origin))
 
                     if self.northp:
                         p = pyproj.Proj(proj='utm', zone=self.zone, ellps='WGS84', preserve_units=False)
@@ -153,13 +153,15 @@ class WorldInfo(object):
                     if apply_gc:
                         center_lon = 6.0 * float(self.zone) - 183.0
                         grid_convergence = math.atan(
-                            math.tan(lon * math.pi / 180.0 - center_lon * math.pi / 180.0) *
-                            math.sin(lat * math.pi / 180.0))
+                            math.tan(lon_proj_origin * math.pi / 180.0 - center_lon * math.pi / 180.0) *
+                            math.sin(lat_proj_origin * math.pi / 180.0))
                         self.q_grid_convergence = quaternion_from_euler(0, 0, grid_convergence)
                     else:
                         self.q_grid_convergence = quaternion_from_euler(0, 0, 0)
 
-                    self.world_x, self.world_y = p(lon, lat)
+
+                    lon_map_origin, lat_map_origin = proj_xodr(0, 0, inverse=True)
+                    self.world_x, self.world_y = p(lon_map_origin, lat_map_origin)
                     self.world_set = True
                     self.node.loginfo("World transform set: frame='{}' translation=({}, {}, 0.0)".format(
                         self.world_frame, self.world_x, self.world_y))
