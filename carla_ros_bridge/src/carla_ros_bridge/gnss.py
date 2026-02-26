@@ -102,21 +102,16 @@ class Gnss(Sensor):
         """
 
         world_info = getattr(self.node, 'world_info', None)
-        projection_string = ""
-        if world_info is not None:
-            projection_string = (world_info.projection_string or "").strip()
-        if not projection_string:
-            return None
 
-        if projection_string != self._projection_string:
-            self._projection_string = projection_string
-            try:
-                self._projection = pyproj.Proj(projparams=projection_string)
-            except RuntimeError as error:
-                self.node.logwarn("Failed to parse georeference projection '{}': {}".format(
-                    projection_string, error))
-                self._projection = None
-                return None
+        self._projection_string = world_info.projection_string
+        print("GNSS debug: world georeference projection string: {}".format(self._projection_string))
+        try:
+            self._projection = pyproj.Proj(projparams=self._projection_string)
+        except RuntimeError as error:
+            self.node.logwarn("Failed to parse georeference projection '{}': {}".format(
+                self._projection_string, error))
+            self._projection = None
+            return None
 
         if self._projection is None:
             return None
