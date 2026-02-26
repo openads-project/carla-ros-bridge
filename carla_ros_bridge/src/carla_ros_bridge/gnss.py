@@ -123,7 +123,8 @@ class Gnss(Sensor):
 
         try:
             location = carla_gnss_measurement.transform.location
-            lon, lat = self._projection(location.x, location.y, inverse=True)
+            lon, lat = self._projection(location.x, -location.y, inverse=True)
+            print("GNSS debug: x={}, y={}, lat={}, lon={}".format(location.x, location.y, lat, lon))
         except (AttributeError, RuntimeError) as error:
             self.node.logwarn(
                 "Failed to derive GNSS fix from sensor position: {}"
