@@ -10,6 +10,8 @@
 Classes to handle Carla gnsss
 """
 
+import pyproj
+
 from carla_ros_bridge.sensor import Sensor
 
 from sensor_msgs.msg import NavSatFix
@@ -51,6 +53,8 @@ class Gnss(Sensor):
         self.gnss_publisher = node.new_publisher(NavSatFix,
                                                  self.get_topic_prefix(),
                                                  qos_profile=10)
+        self._projection_string = None
+        self._projection = None
         self.listen()
 
     def destroy(self):
@@ -67,12 +71,63 @@ class Gnss(Sensor):
         """
         navsatfix_msg = NavSatFix()
         navsatfix_msg.header = self.get_msg_header(timestamp=carla_gnss_measurement.timestamp)
-        navsatfix_msg.latitude = carla_gnss_measurement.latitude
-        navsatfix_msg.longitude = carla_gnss_measurement.longitude
+        if self.node.parameters.get('georeference_substitution'):
+            latlon = self._update_lat_lon(carla_gnss_measurement)
+            if latlon is None:
+                raise RuntimeError(
+                    "georeference_substitution is active, but GNSS lat/lon could not be derived from position.")
+            navsatfix_msg.latitude, navsatfix_msg.longitude = latlon
+        else:
+            navsatfix_msg.latitude = carla_gnss_measurement.latitude
+            navsatfix_msg.longitude = carla_gnss_measurement.longitude
 
         if self.node.parameters['ignore_altitude']:
             navsatfix_msg.altitude = 0.0
         else:
             navsatfix_msg.altitude = carla_gnss_measurement.altitude
-            
+
         self.gnss_publisher.publish(navsatfix_msg)
+
+    def _update_lat_lon(self, carla_gnss_measurement):
+        """
+        Convert the measurement position to latitude/longitude using the active world georeference.
+
+        This path is only used when a georeference substitution is configured. It ensures GNSS
+        output follows the substituted projection instead of CARLA's internal GNSS conversion.
+
+        :param carla_gnss_measurement: carla gnss measurement object
+        :type carla_gnss_measurement: carla.GnssMeasurement
+        :return: latitude/longitude if conversion is available
+        :rtype: tuple(float, float) or None
+        """
+
+        world_info = getattr(self.node, 'world_info', None)
+        projection_string = ""
+        if world_info is not None:
+            projection_string = (world_info.projection_string or "").strip()
+        if not projection_string:
+            return None
+
+        if projection_string != self._projection_string:
+            self._projection_string = projection_string
+            try:
+                self._projection = pyproj.Proj(projparams=projection_string)
+            except RuntimeError as error:
+                self.node.logwarn("Failed to parse georeference projection '{}': {}".format(
+                    projection_string, error))
+                self._projection = None
+                return None
+
+        if self._projection is None:
+            return None
+
+        try:
+            location = carla_gnss_measurement.transform.location
+            lon, lat = self._projection(location.x, location.y, inverse=True)
+        except (AttributeError, RuntimeError) as error:
+            self.node.logwarn(
+                "Failed to derive GNSS fix from sensor position: {}"
+                .format(error))
+            return None
+
+        return lat, lon
