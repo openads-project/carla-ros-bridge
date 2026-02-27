@@ -86,10 +86,10 @@ class Gnss(Sensor):
 
     def _update_lat_lon(self, carla_gnss_measurement):
         """
-        Convert the measurement position to latitude/longitude using the active world georeference.
+        Correct the measurement position using the active world georeference.
 
         This path is only used when a georeference substitution is configured. It ensures GNSS
-        output follows the substituted projection instead of CARLA's internal GNSS conversion.
+        output follows the given projection instead of CARLA's internal GNSS conversion.
 
         :param carla_gnss_measurement: carla gnss measurement object
         :type carla_gnss_measurement: carla.GnssMeasurement
@@ -101,19 +101,18 @@ class Gnss(Sensor):
         if world_info is None:
             raise RuntimeError("georeference_substitution is active, but world_info is not available.")
 
-        projection_string = (world_info.projection_string or "").strip()
-        if not projection_string:
+        if not (world_info.projection_string and world_info.projection_string.strip()):
             raise RuntimeError(
                 "georeference_substitution is active, but world_info.projection_string is empty.")
 
-        if projection_string != self._projection_string or self._projection is None:
+        if world_info.projection_string.strip() != self._projection_string or self._projection is None:
             try:
-                self._projection = pyproj.Proj(projparams=projection_string)
-                self._projection_string = projection_string
+                self._projection_string = world_info.projection_string.strip()
+                self._projection = pyproj.Proj(projparams=self._projection_string)
             except RuntimeError as error:
                 self._projection = None
                 raise RuntimeError(
-                    "Failed to parse georeference projection '{}': {}".format(projection_string, error)
+                    "Failed to parse georeference projection '{}': {}".format(self._projection_string, error)
                 ) from error
 
         try:
