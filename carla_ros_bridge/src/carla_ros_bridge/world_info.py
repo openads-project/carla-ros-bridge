@@ -58,7 +58,6 @@ class WorldInfo(object):
         self.grid_convergence_override = self.node.parameters['grid_convergence']
         self.projection_string = ""
 
-        # Keep safe defaults so other modules can access world info before map parsing succeeds.
         self.world_frame = "map"
         self.world_x = 0.0
         self.world_y = 0.0
@@ -118,23 +117,28 @@ class WorldInfo(object):
 
                     proj_xodr = pyproj.Proj(self.projection_string)
 
-                    # use OpenDRIVE offset when available, otherwise fallback to +x_0/+y_0
+                    # consider offset or +x_0/+y_0 in projection string to find projection origin
                     off = header.find('offset')
                     if off is not None:
                         ox = float(off.get('x', 0.0))
                         oy = float(off.get('y', 0.0))
-                        self.node.loginfo("Using OpenDRIVE <offset>: x={} y={}".format(ox, oy))
+                        self.node.loginfo("Using OpenDRIVE offset: x={} y={}".format(ox, oy))
                     else:
                         sl = self.projection_string.lower()
                         ox = self._get_float_param(sl, "x_0")
                         oy = self._get_float_param(sl, "y_0")
                         ox = ox if ox is not None else 0.0
                         oy = oy if oy is not None else 0.0
-                        self.node.loginfo("No OpenDRIVE <offset>. Using +x_0/+y_0 fallback: x={} y={}".format(
+                        self.node.loginfo("No OpenDRIVE offset. Using +x_0/+y_0 fallback: x={} y={}".format(
                             ox, oy))
 
+                    # find lat/lon of projection origin and map origin
+                    # (0, 0) is the OpenDRIVE map origin in projected coordinates,
+                    # not the projection's false-origin (+x_0/+y_0).
+                    lon_map_origin, lat_map_origin = proj_xodr(0, 0, inverse=True)
                     lon_proj_origin, lat_proj_origin = proj_xodr(ox, oy, inverse=True)
 
+                    # derive UTM zone and world frame name from projection origin
                     self.zone = int(math.floor((lon_proj_origin + 180.0 + 1e-12) / 6.0) + 1)
                     self.zone = max(1, min(60, self.zone))
                     self.northp = (lat_proj_origin >= 0.0)
@@ -142,11 +146,17 @@ class WorldInfo(object):
                     self.node.loginfo("Derived world frame '{}' from lon_proj_origin={} lat_proj_origin={}".format(
                         self.world_frame, lon_proj_origin, lat_proj_origin))
 
+                    # set up projection for world origin
                     if self.northp:
                         p = pyproj.Proj(proj='utm', zone=self.zone, ellps='WGS84', preserve_units=False)
                     else:
                         p = pyproj.Proj(proj='utm', zone=self.zone, south=True, ellps='WGS84',
                                         preserve_units=False)
+
+                    # calculate world origin in CARLA coordinates
+                    self.world_x, self.world_y = p(lon_map_origin, lat_map_origin)
+                    self.node.loginfo("World transform set: frame='{}' translation=({}, {}, 0.0)".format(
+                        self.world_frame, self.world_x, self.world_y))
 
                     apply_gc, reason = self._check_grid_convergence(self.projection_string)
                     self.node.loginfo("Grid convergence check: {} ({})".format(reason, apply_gc))
@@ -159,12 +169,7 @@ class WorldInfo(object):
                     else:
                         self.q_grid_convergence = quaternion_from_euler(0, 0, 0)
 
-
-                    lon_map_origin, lat_map_origin = proj_xodr(0, 0, inverse=True)
-                    self.world_x, self.world_y = p(lon_map_origin, lat_map_origin)
                     self.world_set = True
-                    self.node.loginfo("World transform set: frame='{}' translation=({}, {}, 0.0)".format(
-                        self.world_frame, self.world_x, self.world_y))
                     break
                 if self.world_set:
                     break
