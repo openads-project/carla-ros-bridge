@@ -72,11 +72,7 @@ class Gnss(Sensor):
         navsatfix_msg = NavSatFix()
         navsatfix_msg.header = self.get_msg_header(timestamp=carla_gnss_measurement.timestamp)
         if self.node.parameters.get('georeference_substitution'):
-            latlon = self._update_lat_lon(carla_gnss_measurement)
-            if latlon is None:
-                raise RuntimeError(
-                    "georeference_substitution is active, but GNSS lat/lon could not be derived from position.")
-            navsatfix_msg.latitude, navsatfix_msg.longitude = latlon
+            navsatfix_msg.latitude, navsatfix_msg.longitude = self._update_lat_lon(carla_gnss_measurement)
         else:
             navsatfix_msg.latitude = carla_gnss_measurement.latitude
             navsatfix_msg.longitude = carla_gnss_measurement.longitude
@@ -97,33 +93,33 @@ class Gnss(Sensor):
 
         :param carla_gnss_measurement: carla gnss measurement object
         :type carla_gnss_measurement: carla.GnssMeasurement
-        :return: latitude/longitude if conversion is available
-        :rtype: tuple(float, float) or None
+        :return: latitude/longitude
+        :rtype: tuple(float, float)
+        :raises RuntimeError: when conversion cannot be performed
         """
-
         world_info = getattr(self.node, 'world_info', None)
+        if world_info is None:
+            raise RuntimeError("georeference_substitution is active, but world_info is not available.")
 
-        self._projection_string = world_info.projection_string
-        print("GNSS debug: world georeference projection string: {}".format(self._projection_string))
-        try:
-            self._projection = pyproj.Proj(projparams=self._projection_string)
-        except RuntimeError as error:
-            self.node.logwarn("Failed to parse georeference projection '{}': {}".format(
-                self._projection_string, error))
-            self._projection = None
-            return None
+        projection_string = (world_info.projection_string or "").strip()
+        if not projection_string:
+            raise RuntimeError(
+                "georeference_substitution is active, but world_info.projection_string is empty.")
 
-        if self._projection is None:
-            return None
+        if projection_string != self._projection_string or self._projection is None:
+            try:
+                self._projection = pyproj.Proj(projparams=projection_string)
+                self._projection_string = projection_string
+            except RuntimeError as error:
+                self._projection = None
+                raise RuntimeError(
+                    "Failed to parse georeference projection '{}': {}".format(projection_string, error)
+                ) from error
 
         try:
             location = carla_gnss_measurement.transform.location
             lon, lat = self._projection(location.x, -location.y, inverse=True)
-            print("GNSS debug: x={}, y={}, lat={}, lon={}".format(location.x, location.y, lat, lon))
         except (AttributeError, RuntimeError) as error:
-            self.node.logwarn(
-                "Failed to derive GNSS fix from sensor position: {}"
-                .format(error))
-            return None
+            raise RuntimeError("Failed to derive GNSS fix from sensor position: {}".format(error))
 
         return lat, lon
