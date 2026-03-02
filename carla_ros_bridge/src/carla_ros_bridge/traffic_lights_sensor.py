@@ -819,6 +819,10 @@ class TrafficLightsSensor(PseudoActor):
         """
         Creates and publishes an ETSI Mapem message
         """
+
+        if not self.check_is_initialized():
+            return
+        
         # create MAPEM data
         mapem = MAPEM()
         mapem.map.msg_issue_revision.value = 0
@@ -967,6 +971,10 @@ class TrafficLightsSensor(PseudoActor):
         """
         Creates and publishes an ETSI SPATEM message
         """
+
+        if not self.check_is_initialized():
+            return
+        
         spatem = SPATEM()
         spatem.spat.name_is_present = True
         spatem.spat.name.value = "Carla traffic light status"
