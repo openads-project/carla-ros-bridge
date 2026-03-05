@@ -65,6 +65,11 @@ def generate_launch_description():
             description='Enable/disable the registration of all sensors. If disabled, only sensors spawned by the bridge are registered'
         ),
         launch.actions.DeclareLaunchArgument(
+            name='native_interface',
+            default_value='False',
+            description='Enable CARLA native DDS interfaces: bridge will not create sensor publishers and control subscribers'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='ego_vehicle_role_name',
             default_value=["hero", "ego_vehicle", "hero0", "hero1", "hero2",
                            "hero3", "hero4", "hero5", "hero6", "hero7", "hero8", "hero9"],
@@ -191,6 +196,9 @@ def generate_launch_description():
                 },
                 {
                     'register_all_sensors': launch.substitutions.LaunchConfiguration('register_all_sensors')
+                },
+                {
+                    'native_interface': launch.substitutions.LaunchConfiguration('native_interface')
                 },
                 {
                     'ego_vehicle_role_name': launch.substitutions.LaunchConfiguration('ego_vehicle_role_name')

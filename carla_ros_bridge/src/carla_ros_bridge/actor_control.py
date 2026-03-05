@@ -47,15 +47,18 @@ class ActorControl(PseudoActor):
                                            parent=parent,
                                            node=node)
 
-        self.set_location_subscriber = self.node.new_subscription(Pose,
-                                                                  self.get_topic_prefix() + "/set_transform",
-                                                                  self.on_pose,
-                                                                  qos_profile=10)
+        self.set_location_subscriber = None
+        self.twist_control_subscriber = None
+        if not self.node.parameters.get("native_interface", False):
+            self.set_location_subscriber = self.node.new_subscription(Pose,
+                                                                      self.get_topic_prefix() + "/set_transform",
+                                                                      self.on_pose,
+                                                                      qos_profile=10)
 
-        self.twist_control_subscriber = self.node.new_subscription(Twist,
-                                                                   self.get_topic_prefix() + "/set_target_velocity",
-                                                                   self.on_twist,
-                                                                   qos_profile=10)
+            self.twist_control_subscriber = self.node.new_subscription(Twist,
+                                                                       self.get_topic_prefix() + "/set_target_velocity",
+                                                                       self.on_twist,
+                                                                       qos_profile=10)
 
     def destroy(self):
         """
@@ -66,8 +69,10 @@ class ActorControl(PseudoActor):
 
         :return:
         """
-        self.node.destroy_subscription(self.set_location_subscriber)
-        self.node.destroy_subscription(self.twist_control_subscriber)
+        if self.set_location_subscriber is not None:
+            self.node.destroy_subscription(self.set_location_subscriber)
+        if self.twist_control_subscriber is not None:
+            self.node.destroy_subscription(self.twist_control_subscriber)
         super(ActorControl, self).destroy()
 
     @staticmethod

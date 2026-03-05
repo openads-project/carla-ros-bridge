@@ -71,6 +71,11 @@ class CarlaRosBridge(CompatibleNode):
         Initialize the bridge
         """
         self.parameters = params
+        if self.parameters.get("native_interface", False) and \
+                self.parameters["synchronous_mode_wait_for_vehicle_control_command"]:
+            self.logwarn(
+                "native_interface enabled: disabling synchronous_mode_wait_for_vehicle_control_command")
+            self.parameters["synchronous_mode_wait_for_vehicle_control_command"] = False
         self.carla_world = carla_world
 
         if self.parameters["start_unix_time_stamp"] < 0:
@@ -423,6 +428,7 @@ def main(args=None):
     parameters['fixed_delta_seconds'] = carla_bridge.get_param('fixed_delta_seconds', 0.05)
     parameters['start_unix_time_stamp'] = carla_bridge.get_param('start_unix_time_stamp', 0)
     parameters['register_all_sensors'] = carla_bridge.get_param('register_all_sensors', True)
+    parameters['native_interface'] = carla_bridge.get_param('native_interface', False)
     parameters['town'] = carla_bridge.get_param('town', None)
     parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 'inf')
     role_name = carla_bridge.get_param('ego_vehicle_role_name',

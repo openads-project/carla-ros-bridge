@@ -22,6 +22,8 @@
   <!-- enable/disable the registration of all sensors. If disabled, only sensors
   spawned by the bridge are registered -->
   <arg name='register_all_sensors' default='True'/>
+  <!-- enable CARLA native DDS interfaces (no bridge sensor publishers/control subscribers) -->
+  <arg name='native_interface' default='False'/>
   <!-- 
     the role name of the vehicles that acts as ego vehicle for this ros bridge instance
     Only the vehicles within this list are controllable from within ROS.
@@ -62,6 +64,7 @@
     <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
     <param name="start_unix_time_stamp" value="$(arg start_unix_time_stamp)"/>
     <param name="register_all_sensors" value="$(arg register_all_sensors)"/>
+    <param name="native_interface" value="$(arg native_interface)"/>
     <param name="town" value="$(arg town)"/>
     <param name="ego_vehicle_role_name" value="$(arg ego_vehicle_role_name)"/>
     <param name="rt_factor" value="$(arg rt_factor)"/>

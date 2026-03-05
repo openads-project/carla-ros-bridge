@@ -82,6 +82,9 @@ class ActorFactory(object):
 
         self.thread = Thread(target=self._update_thread)
 
+    def _native_interface_enabled(self):
+        return bool(self.node.parameters.get("native_interface", False))
+
     def start(self):
         # create initially existing actors
         self.update_available_objects()
@@ -111,6 +114,12 @@ class ActorFactory(object):
         self.lock.acquire()
         for actor_id in spawned_actors:
             carla_actor = self.world.get_actor(actor_id)
+            if carla_actor is None:
+                continue
+            if self._native_interface_enabled() and isinstance(carla_actor, carla.Sensor):
+                if hasattr(carla_actor, "enable_for_ros"):
+                    carla_actor.enable_for_ros()
+                continue
             if self.node.parameters["register_all_sensors"] or not isinstance(carla_actor, carla.Sensor):
                 self._create_object_from_actor(carla_actor)
 
@@ -126,7 +135,8 @@ class ActorFactory(object):
 
                 if task_type == ActorFactory.TaskType.SPAWN_ACTOR and not self.node.shutdown.is_set():
                     carla_actor = self.world.get_actor(actor_id)
-                    self._create_object_from_actor(carla_actor, req)
+                    if carla_actor is not None:
+                        self._create_object_from_actor(carla_actor, req)
                 elif task_type == ActorFactory.TaskType.SPAWN_PSEUDO_ACTOR and not self.node.shutdown.is_set():
                     self._create_object(actor_id, req.type, req.id, req.attach_to, req.transform, req.attributes)
                 elif task_type == ActorFactory.TaskType.DESTROY_ACTOR:
@@ -218,6 +228,8 @@ class ActorFactory(object):
         else:
             blueprint = self.blueprint_lib.find(req.type)
         blueprint.set_attribute('role_name', req.id)
+        if req.type.startswith("vehicle.") or req.type.startswith("sensor."):
+            blueprint.set_attribute("ros_name", req.id)
 
         for attribute in req.attributes:
             blueprint.set_attribute(attribute.key, attribute.value)
@@ -259,6 +271,12 @@ class ActorFactory(object):
             transform.location.y,
             transform.location.z))
         carla_actor = self.world.spawn_actor(blueprint, transform, attach_to)
+        if self._native_interface_enabled() and isinstance(carla_actor, carla.Sensor):
+            if hasattr(carla_actor, "enable_for_ros"):
+                carla_actor.enable_for_ros()
+            else:
+                self.node.logwarn(
+                    "native_interface enabled, but actor '{}' has no enable_for_ros()".format(req.type))
         return carla_actor.id
 
     def _create_object_from_actor(self, carla_actor, req=None):
@@ -266,6 +284,8 @@ class ActorFactory(object):
         create a object for a given carla actor
         Creates also the object for its parent, if not yet existing
         """
+        if carla_actor is None:
+            return None
         parent = None
         # the transform relative to the carla_map
         if req == None:
@@ -304,6 +324,11 @@ class ActorFactory(object):
 
     def _destroy_object(self, actor_id, delete_actor):
         if actor_id not in self.actors:
+            if delete_actor:
+                carla_actor = self.world.get_actor(actor_id)
+                if carla_actor is not None:
+                    carla_actor.destroy()
+                    self.node.loginfo("Removed Actor(id={})".format(actor_id))
             return
         actor = self.actors[actor_id]
         del self.actors[actor_id]
@@ -325,6 +350,9 @@ class ActorFactory(object):
     def _create_object(self, uid, type_id, name, attach_to, spawn_pose, attributes, carla_actor=None):
         # check that the actor is not already created.
         if carla_actor is not None and carla_actor.id in self.actors:
+            return None
+
+        if self._native_interface_enabled() and carla_actor is not None and isinstance(carla_actor, carla.Sensor):
             return None
 
         if attach_to != 0:

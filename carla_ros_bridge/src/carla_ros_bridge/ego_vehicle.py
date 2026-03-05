@@ -70,29 +70,34 @@ class EgoVehicle(Vehicle):
             "/vehicle_info",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
-        self.control_subscriber = node.new_subscription(
-            CarlaEgoVehicleControl,
-            self.get_topic_prefix() + "/vehicle_control_cmd",
-            lambda data: self.control_command_updated(data, manual_override=False),
-            qos_profile=10)
+        self.control_subscriber = None
+        self.manual_control_subscriber = None
+        self.control_override_subscriber = None
+        self.enable_autopilot_subscriber = None
+        if not self.node.parameters.get("native_interface", False):
+            self.control_subscriber = node.new_subscription(
+                CarlaEgoVehicleControl,
+                self.get_topic_prefix() + "/vehicle_control_cmd",
+                lambda data: self.control_command_updated(data, manual_override=False),
+                qos_profile=10)
 
-        self.manual_control_subscriber = node.new_subscription(
-            CarlaEgoVehicleControl,
-            self.get_topic_prefix() + "/vehicle_control_cmd_manual",
-            lambda data: self.control_command_updated(data, manual_override=True),
-            qos_profile=10)
+            self.manual_control_subscriber = node.new_subscription(
+                CarlaEgoVehicleControl,
+                self.get_topic_prefix() + "/vehicle_control_cmd_manual",
+                lambda data: self.control_command_updated(data, manual_override=True),
+                qos_profile=10)
 
-        self.control_override_subscriber = node.new_subscription(
-            Bool,
-            self.get_topic_prefix() + "/vehicle_control_manual_override",
-            self.control_command_override,
-            qos_profile=QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+            self.control_override_subscriber = node.new_subscription(
+                Bool,
+                self.get_topic_prefix() + "/vehicle_control_manual_override",
+                self.control_command_override,
+                qos_profile=QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
-        self.enable_autopilot_subscriber = node.new_subscription(
-            Bool,
-            self.get_topic_prefix() + "/enable_autopilot",
-            self.enable_autopilot_updated,
-            qos_profile=10)
+            self.enable_autopilot_subscriber = node.new_subscription(
+                Bool,
+                self.get_topic_prefix() + "/enable_autopilot",
+                self.enable_autopilot_updated,
+                qos_profile=10)
 
     def get_marker_color(self):
         """
@@ -198,10 +203,14 @@ class EgoVehicle(Vehicle):
         :return:
         """
         self.node.logdebug("Destroy Vehicle(id={})".format(self.get_id()))
-        self.node.destroy_subscription(self.control_subscriber)
-        self.node.destroy_subscription(self.enable_autopilot_subscriber)
-        self.node.destroy_subscription(self.control_override_subscriber)
-        self.node.destroy_subscription(self.manual_control_subscriber)
+        if self.control_subscriber is not None:
+            self.node.destroy_subscription(self.control_subscriber)
+        if self.enable_autopilot_subscriber is not None:
+            self.node.destroy_subscription(self.enable_autopilot_subscriber)
+        if self.control_override_subscriber is not None:
+            self.node.destroy_subscription(self.control_override_subscriber)
+        if self.manual_control_subscriber is not None:
+            self.node.destroy_subscription(self.manual_control_subscriber)
         self.node.destroy_publisher(self.vehicle_status_publisher)
         self.node.destroy_publisher(self.vehicle_info_publisher)
         Vehicle.destroy(self)
