@@ -432,9 +432,9 @@ def main(args=None):
 
     roscomp.on_shutdown(carla_bridge.destroy)
 
-    parameters['host'] = carla_bridge.get_param('host', 'localhost')
+    parameters['host'] = carla_bridge.get_param('host', 'carla-server')
     parameters['port'] = carla_bridge.get_param('port', 2000)
-    parameters['timeout'] = carla_bridge.get_param('timeout', 2)
+    parameters['timeout'] = carla_bridge.get_param('timeout', 5000)
     parameters['passive'] = carla_bridge.get_param('passive', False)
     parameters['synchronous_mode'] = carla_bridge.get_param('synchronous_mode', True)
     parameters['synchronous_mode_wait_for_vehicle_control_command'] = carla_bridge.get_param(
@@ -442,15 +442,15 @@ def main(args=None):
     parameters['fixed_delta_seconds'] = carla_bridge.get_param('fixed_delta_seconds', 0.05)
     parameters['start_unix_time_stamp'] = carla_bridge.get_param('start_unix_time_stamp', 0)
     parameters['register_all_sensors'] = carla_bridge.get_param('register_all_sensors', True)
-    parameters['native_interface'] = carla_bridge.get_param('native_interface', False)
+    parameters['native_interface'] = carla_bridge.get_param('native_interface', True)
     parameters['town'] = carla_bridge.get_param('town', None)
-    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 'inf')
+    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 1.0)
     role_name = carla_bridge.get_param('ego_vehicle_role_name',
                                        ["hero", "ego_vehicle", "hero1", "hero2", "hero3"])
     parameters['ego_vehicle'] = {'role_name': role_name}
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['publish_compressed_images'] = carla_bridge.get_param('publish_compressed_images', True)
-    parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
+    parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', True)
     parameters['georeference_substitution'] = carla_bridge.get_param('georeference_substitution', "")
     parameters['grid_convergence'] = carla_bridge.get_param('grid_convergence', None)
 
@@ -459,8 +459,8 @@ def main(args=None):
     parameters['publisher_mapem_timer_period'] = carla_bridge.get_param('publisher_mapem_timer_period', 1.0)
     parameters['publisher_spatem_timer_period'] = carla_bridge.get_param('publisher_spatem_timer_period', 0.1)
     parameters['integrate_junctions_without_traffic_lights'] = carla_bridge.get_param('integrate_junctions_without_traffic_lights', False)
-    parameters['traffic_light_junction_search_ignored_ids'] = carla_bridge.get_param('traffic_light_junction_search_ignored_ids', [])
-    parameters['traffic_light_junction_max_search_count'] = carla_bridge.get_param('traffic_light_junction_max_search_count', 12)
+    parameters['traffic_light_junction_search_ignored_ids'] = carla_bridge.get_param('traffic_light_junction_search_ignored_ids', [-1])
+    parameters['traffic_light_junction_max_search_count'] = carla_bridge.get_param('traffic_light_junction_max_search_count', 13)
     parameters['waypoints_search_distance'] = carla_bridge.get_param('waypoints_search_distance', 1.0)
     parameters['lane_waypoints_count'] = carla_bridge.get_param('lane_waypoints_count', 10)
     parameters['debug_traffic_light_information'] = carla_bridge.get_param('debug_traffic_light_information', False)

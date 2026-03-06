@@ -1,257 +1,177 @@
-import launch
-import launch_ros.actions
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, Shutdown
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node, SetParameter
 
 
 def generate_launch_description():
-    ld = launch.LaunchDescription([
-        launch.actions.DeclareLaunchArgument(
+
+    args = [
+        DeclareLaunchArgument(
             name='use_sim_time',
             default_value='True',
             description='use_sim_time'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='host',
-            default_value='localhost',
+            default_value='carla-server',
             description='IP of the CARLA server'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='port',
             default_value='2000',
             description='TCP port of the CARLA server'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='timeout',
             default_value='5000',
             description='Time to wait for a successful connection to the CARLA server'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='passive',
             default_value='False',
             description='When enabled, the ROS bridge will take a backseat and another client must tick the world (only in synchronous mode)'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='synchronous_mode',
             default_value='True',
             description='Enable/disable synchronous mode. If enabled, the ROS bridge waits until the expected data is received for all sensors'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='synchronous_mode_wait_for_vehicle_control_command',
             default_value='False',
             description='When enabled, pauses the tick until a vehicle control is completed (only in synchronous mode)'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='fixed_delta_seconds',
             default_value='0.05',
             description='Simulation time (delta seconds) between simulation steps'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='start_unix_time_stamp',
             default_value='0',
             description='Start unix stamp of simulation time'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='town',
             default_value='',
             description='Either use an available CARLA town (eg. "Town01") or an OpenDRIVE file (ending in .xodr)'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='rt_factor',
-            default_value='inf',
+            default_value='1.0',
             description='Desired Realtime-Factor of the simulation'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='register_all_sensors',
             default_value='True',
             description='Enable/disable the registration of all sensors. If disabled, only sensors spawned by the bridge are registered'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='native_interface',
-            default_value='False',
+            default_value='True',
             description='Enable CARLA native DDS interfaces: bridge will not create sensor publishers and control subscribers'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='ego_vehicle_role_name',
-            default_value=["hero", "ego_vehicle", "hero0", "hero1", "hero2",
-                           "hero3", "hero4", "hero5", "hero6", "hero7", "hero8", "hero9"],
+            default_value=['hero', 'ego_vehicle', 'hero0', 'hero1', 'hero2', 'hero3'],
             description='Role names to identify ego vehicles. '
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='publish_static_vehicles',
             default_value='True',
             description='Enable/disable object list with static vehicles'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='publish_compressed_images',
             default_value='True',
             description='Enable/disable compressed image publishing'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='ignore_altitude',
-            default_value='False',
+            default_value='True',
             description='Disable altitude information'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='georeference_substitution',
             default_value='',
             description='Substitutes the content of the georeference xml file from the CARLA OpenDRIVE file if not empty. Can be used to set the origin of the WorldInfo without changing the original OpenDRIVE file.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='grid_convergence',
             default_value='None',
             description='Apply grid convergence when publishing the map frame transform (True/False/None for auto)'
         ),
-
-        # etsi traffic_light parameters
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='publish_etsi_messages',
             default_value='True',
             description='Flag if Etsi Mapem and Spatem messages should be published. Saves computation time if not needed.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='publisher_mapem_timer_period',
             default_value='1.0',
             description='Time between publishing the Etsi Mapem message'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='publisher_spatem_timer_period',
             default_value='0.1',
             description='Time between publishing the Etsi Spatem message'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='integrate_junctions_without_traffic_lights',
             default_value='False',
             description='Flag if additionaly junctions without traffic lights should be integrated into the map. Saves computation time if not needed.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='traffic_light_junction_search_ignored_ids',
-            default_value='[-1]', # list can not be empty
+            default_value='[-1]',  # list can not be empty
             description='In convoluted junctions, the search for traffic light junctions can output additional junctions which are not desired. Junctions with the given OpenDRIVE ids are discarded in the junction search. If empty, all junctions are searched.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='traffic_light_junction_max_search_count',
             default_value='13',
             description='The number of waypoints to search for traffic light junctions, starting from inside each trigger box of a traffic light.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='waypoints_search_distance',
             default_value='1.0',
             description='The search distance for waypoints in meters.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='lane_waypoints_count',
             default_value='10',
             description='Number of waypoints included in the Etsi Mapem Egress/Ingress lanes.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='debug_traffic_light_information',
             default_value='False',
             description='Flag if traffic light junction search debug information should be published. Saves computation time if not needed.'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='publisher_debug_traffic_light_information_timer_period',
             default_value='1.0',
             description='Time between publishing the debug traffic light junction search information'
         ),
-        
-        launch_ros.actions.Node(
+    ]
+
+    nodes = [
+        Node(
             package='carla_ros_bridge',
             executable='bridge',
             name='carla_ros_bridge',
+            parameters=[LaunchConfiguration("params")],
+            arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
             output='screen',
-            emulate_tty='True',
-            on_exit=launch.actions.Shutdown(),
-            parameters=[
-                {
-                    'use_sim_time': launch.substitutions.LaunchConfiguration('use_sim_time')
-                },
-                {
-                    'host': launch.substitutions.LaunchConfiguration('host')
-                },
-                {
-                    'port': launch.substitutions.LaunchConfiguration('port')
-                },
-                {
-                    'timeout': launch.substitutions.LaunchConfiguration('timeout')
-                },
-                {
-                    'passive': launch.substitutions.LaunchConfiguration('passive')
-                },
-                {
-                    'synchronous_mode': launch.substitutions.LaunchConfiguration('synchronous_mode')
-                },
-                {
-                    'synchronous_mode_wait_for_vehicle_control_command': launch.substitutions.LaunchConfiguration('synchronous_mode_wait_for_vehicle_control_command')
-                },
-                {
-                    'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds')
-                },
-                {
-                    'start_unix_time_stamp': launch.substitutions.LaunchConfiguration('start_unix_time_stamp')
-                },
-                {
-                    'town': launch.substitutions.LaunchConfiguration('town')
-                },
-                {
-                    'rt_factor': launch.substitutions.LaunchConfiguration('rt_factor')
-                },
-                {
-                    'register_all_sensors': launch.substitutions.LaunchConfiguration('register_all_sensors')
-                },
-                {
-                    'native_interface': launch.substitutions.LaunchConfiguration('native_interface')
-                },
-                {
-                    'ego_vehicle_role_name': launch.substitutions.LaunchConfiguration('ego_vehicle_role_name')
-                },
-                {
-                    'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles')
-                },
-                {
-                    'publish_compressed_images': launch.substitutions.LaunchConfiguration('publish_compressed_images')
-                },
-                {
-                    'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude')
-                },
-                {
-                    'georeference_substitution': launch.substitutions.LaunchConfiguration('georeference_substitution')
-                },
-                {
-                    'grid_convergence': launch.substitutions.LaunchConfiguration('grid_convergence')
-                },
-                {
-                    'publish_etsi_messages': launch.substitutions.LaunchConfiguration('publish_etsi_messages')
-                },
-                {
-                    'publisher_mapem_timer_period': launch.substitutions.LaunchConfiguration('publisher_mapem_timer_period')
-                },
-                {
-                    'publisher_spatem_timer_period': launch.substitutions.LaunchConfiguration('publisher_spatem_timer_period')
-                },
-                {
-                    'integrate_junctions_without_traffic_lights': launch.substitutions.LaunchConfiguration('integrate_junctions_without_traffic_lights')
-                },
-                {
-                    'traffic_light_junction_search_ignored_ids': launch.substitutions.LaunchConfiguration('traffic_light_junction_search_ignored_ids')
-                },
-                {
-                    'traffic_light_junction_max_search_count': launch.substitutions.LaunchConfiguration('traffic_light_junction_max_search_count')
-                },
-                {
-                    'waypoints_search_distance': launch.substitutions.LaunchConfiguration('waypoints_search_distance')
-                },
-                {
-                    'lane_waypoints_count': launch.substitutions.LaunchConfiguration('lane_waypoints_count')
-                },
-                {
-                    'debug_traffic_light_information': launch.substitutions.LaunchConfiguration('debug_traffic_light_information')
-                },                
-                {
-                    'publisher_debug_traffic_light_information_timer_period': launch.substitutions.LaunchConfiguration('publisher_debug_traffic_light_information_timer_period')
-                }
-            ]
+            emulate_tty=True,
+            on_exit=Shutdown(),
         )
+    ]
+
+    return LaunchDescription([
+        *args,
+        SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
+        *nodes,
     ])
-    return ld
 
 
 if __name__ == '__main__':
