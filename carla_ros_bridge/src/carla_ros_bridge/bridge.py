@@ -131,7 +131,11 @@ class CarlaRosBridge(CompatibleNode):
         self.debug_helper = DebugHelper(carla_world.debug, self)
 
         # Communication topics
-        self.clock_publisher = self.new_publisher(Clock, 'clock', 10)
+        self.clock_publisher = None
+        if not self.parameters["native_interface"]:
+            self.clock_publisher = self.new_publisher(Clock, 'clock', 10)
+        else:
+            self.loginfo("native_interface enabled: '/clock' publishing is disabled.")
 
         self.status_publisher = CarlaStatusPublisher(
             self.carla_settings.synchronous_mode,
@@ -304,7 +308,7 @@ class CarlaRosBridge(CompatibleNode):
             
             # real-time factor while loop
             factor = self.parameters['rt_factor']
-            if isinstance(factor, (float, int)):
+            if isinstance(factor, (float, int)) and factor > 0:
                 while(world_snapshot.timestamp.delta_seconds > (time.time()-last_tick)*factor):
                     if time.time() - self.last_loginfo > 1:
                         self.loginfo("Waiting to reach desired realtime-factor!")
@@ -366,6 +370,8 @@ class CarlaRosBridge(CompatibleNode):
         :type carla_timestamp: carla.Timestamp
         :return:
         """
+        if self.clock_publisher is None:
+            return
         if roscomp.ok():
             self.ros_timestamp = roscomp.ros_timestamp(carla_timestamp.elapsed_seconds + self.parameters["start_unix_time_stamp"], from_sec=True)
             self.clock_publisher.publish(Clock(clock=self.ros_timestamp))
@@ -412,7 +418,7 @@ def main(args=None):
     executor = None
     parameters = {}
 
-    executor = roscomp.executors.MultiThreadedExecutor()
+    executor = roscomp.executors.SingleThreadedExecutor()
     carla_bridge = CarlaRosBridge()
     executor.add_node(carla_bridge)
 

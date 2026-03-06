@@ -353,6 +353,9 @@ class ActorFactory(object):
             return None
 
         if self._native_interface_enabled() and carla_actor is not None and isinstance(carla_actor, carla.Sensor):
+            self.node.loginfo(
+                "Skipping bridge-side sensor actor creation for id={} ('{}') because native_interface is enabled.".format(
+                    carla_actor.id, carla_actor.type_id))
             return None
 
         if attach_to != 0:
