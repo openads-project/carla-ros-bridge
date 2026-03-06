@@ -155,6 +155,17 @@ class CarlaSpawnObjects(CompatibleNode):
         :return: response id
         """
 
+        attr_preview = ", ".join(
+            ["{}={}".format(attr.key, attr.value) for attr in spawn_object_request.attributes]
+        )
+        self.loginfo(
+            "SpawnObject request -> type='{}', id='{}', attach_to={}, random_pose={}, attributes=[{}]".format(
+                spawn_object_request.type,
+                spawn_object_request.id,
+                spawn_object_request.attach_to,
+                spawn_object_request.random_pose,
+                attr_preview))
+
         response_id = -1
         response = self.call_service(self.spawn_object_service, spawn_object_request, spin_until_response_received=True)
         response_id = response.id
@@ -603,9 +614,17 @@ class CarlaSpawnObjects(CompatibleNode):
         if parent is None:
             static_transform.header.frame_id = self.world_frame
         else:
-            static_transform.header.frame_id = parent['name']
+            static_transform.header.frame_id = parent.get('name', '')
 
-        static_transform.child_frame_id = group["name"]
+        static_transform.child_frame_id = group.get("name", "")
+        if not static_transform.header.frame_id or not static_transform.child_frame_id:
+            self.logwarn(
+                "Skipping invalid static transform for group '{}': frame_id='{}', child_frame_id='{}'".format(
+                    group.get("id", "<unknown>"),
+                    static_transform.header.frame_id,
+                    static_transform.child_frame_id))
+            return
+
         static_transform.transform.translation.x = group['local_transform'].position.x
         static_transform.transform.translation.y = group['local_transform'].position.y
         static_transform.transform.translation.z = group['local_transform'].position.z
