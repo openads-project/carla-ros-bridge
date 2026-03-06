@@ -77,6 +77,7 @@ class CarlaRosBridge(CompatibleNode):
                 "native_interface enabled: disabling synchronous_mode_wait_for_vehicle_control_command")
             self.parameters["synchronous_mode_wait_for_vehicle_control_command"] = False
         self.carla_world = carla_world
+        self.rt_factor = float(self.parameters.get("rt_factor", 1.0))
 
         if self.parameters["start_unix_time_stamp"] < 0:
             self.parameters["start_unix_time_stamp"] = time.time()
@@ -273,6 +274,7 @@ class CarlaRosBridge(CompatibleNode):
         execution loop for synchronous mode
         """
         while not self.shutdown.is_set() and roscomp.ok():
+            cycle_start = time.perf_counter()
             self.process_run_state()
 
             if self.parameters['synchronous_mode_wait_for_vehicle_control_command']:
@@ -286,7 +288,6 @@ class CarlaRosBridge(CompatibleNode):
 
             self.actor_factory.update_available_objects()
             frame = self.carla_world.tick()
-            last_tick=time.time()
 
             world_snapshot = self.carla_world.get_snapshot()
 
@@ -306,16 +307,23 @@ class CarlaRosBridge(CompatibleNode):
                                                                                 self._expected_ego_vehicle_control_command_ids))
                     self._all_vehicle_control_commands_received.clear()
             
-            # real-time factor while loop
-            factor = self.parameters['rt_factor']
-            if isinstance(factor, (float, int)) and factor > 0:
-                while(world_snapshot.timestamp.delta_seconds > (time.time()-last_tick)*factor):
+            # real-time factor throttling (accounting for in-cycle processing time)
+            if self.rt_factor > 0.0:
+                desired_cycle_time = world_snapshot.timestamp.delta_seconds / self.rt_factor
+                elapsed_cycle_time = time.perf_counter() - cycle_start
+                sleep_time = desired_cycle_time - elapsed_cycle_time
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
                     if time.time() - self.last_loginfo > 1:
                         self.loginfo("Waiting to reach desired realtime-factor!")
                         self.last_loginfo = time.time()
-                
+
                 if time.time() - self.last_loginfo > 1:
-                    self.loginfo("Actual realtime-factor: {:.2f} / Desired realtime-factor: {}".format(world_snapshot.timestamp.delta_seconds / (time.time()-last_tick), factor))
+                    total_cycle_time = time.perf_counter() - cycle_start
+                    actual_factor = world_snapshot.timestamp.delta_seconds / \
+                        total_cycle_time if total_cycle_time > 0 else float("inf")
+                    self.loginfo("Actual realtime-factor: {:.2f} / Desired realtime-factor: {}".format(
+                        actual_factor, self.rt_factor))
                     self.last_loginfo = time.time()
 
     def _carla_time_tick(self, carla_snapshot):
