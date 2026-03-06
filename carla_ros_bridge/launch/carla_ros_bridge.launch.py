@@ -9,6 +9,7 @@ def generate_launch_description():
         'use_sim_time',
         'host',
         'port',
+        'tm_port',
         'timeout',
         'passive',
         'synchronous_mode',
@@ -52,6 +53,11 @@ def generate_launch_description():
             name='port',
             default_value='2000',
             description='TCP port of the CARLA server'
+        ),
+        DeclareLaunchArgument(
+            name='tm_port',
+            default_value='8000',
+            description='Port of the CARLA Traffic Manager'
         ),
         DeclareLaunchArgument(
             name='timeout',
