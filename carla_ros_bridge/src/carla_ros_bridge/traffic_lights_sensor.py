@@ -10,6 +10,7 @@ a sensor that reports the state of all traffic lights
 """
 import pyproj
 import rclpy
+from rclpy.time import Time
 from collections import namedtuple
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 import numpy as np
@@ -108,6 +109,7 @@ class TrafficLightsSensor(PseudoActor):
         self.traffic_light_actors = []
         self.traffic_light_stop_waypoints = {}  # cache for traffic light stop waypoints
         self.carla_to_utm_rotation_matrix_initialized = False
+        self._mapem_publish_warned = False
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
@@ -488,7 +490,7 @@ class TrafficLightsSensor(PseudoActor):
             self.inverse_transform = self.tf_buffer.lookup_transform(
                 world_info.world_frame,  # target frame
                 world_info.map_frame,  # source frame
-                world_info.transform_utm_to_carla.header.stamp,
+                Time(),
                 timeout=rclpy.duration.Duration(seconds=1.0)
             )
             
@@ -822,68 +824,76 @@ class TrafficLightsSensor(PseudoActor):
 
         if not self.check_is_initialized():
             return
-        
-        # create MAPEM data
-        mapem = MAPEM()
-        mapem.map.msg_issue_revision.value = 0
-    
-        for junction_id in self.junctions:
-            junction = self.get_junction(junction_id)
-            junction_position = self.get_junction_position(junction_id)
-            junction_ingress_lanes = self.get_junction_ingress_lanes(junction_id)
-            junction_egress_lanes = self.get_junction_egress_lanes(junction_id)
 
-            # create intersection geometry
-            intersection_geometry = IntersectionGeometry()
-            intersection_geometry.id.id.value = junction.id
-            intersection_geometry.ref_point.elevation_is_present = True
+        try:
+            # create MAPEM data
+            mapem = MAPEM()
+            mapem.map.msg_issue_revision.value = 0
 
-            # set the lat/lon coordinates of junction as mean of corresponding traffic light positions
-            projection_string = self.node.world_info.projection_string
-            lat, lon = TrafficLightsSensor.carla_to_latlon(
-                projection_string, junction_position[0], junction_position[1]
-            )
-            TrafficLightsSensor.set_etsi_lat_lon_junction(
-                intersection_geometry, lat, lon, junction_position[2]
-            )
+            for junction_id in self.junctions:
+                junction = self.get_junction(junction_id)
+                junction_position = self.get_junction_position(junction_id)
+                junction_ingress_lanes = self.get_junction_ingress_lanes(junction_id)
+                junction_egress_lanes = self.get_junction_egress_lanes(junction_id)
 
-            # create junction ingress lanes
-            for ingress_lane in junction_ingress_lanes:
-                    
-                # create ingress lane which lead through the junction into an egress lane
-                generic_lane_ingress = self.create_junction_lane(
-                    ingress_lane.lane_id, ingress_lane.lane_type, True, ingress_lane.waypoint_junction, junction_position
+                # create intersection geometry
+                intersection_geometry = IntersectionGeometry()
+                intersection_geometry.id.id.value = junction.id
+                intersection_geometry.ref_point.elevation_is_present = True
+
+                # set the lat/lon coordinates of junction as mean of corresponding traffic light positions
+                projection_string = self.node.world_info.projection_string
+                lat, lon = TrafficLightsSensor.carla_to_latlon(
+                    projection_string, junction_position[0], junction_position[1]
                 )
-                
-                intersection_geometry.lane_set.array.append(generic_lane_ingress)
-
-                # connect Ingress lanes to Egess lanes and the traffic light signal, if available
-                generic_lane_ingress.connects_to_is_present = True
-                
-                for egress_lane_id in ingress_lane.connected_egress_lane_ids:
-                    connection = Connection()
-                    
-                    if ingress_lane.traffic_light != None:
-                        connection.signal_group_is_present = True
-                        connection.signal_group.value = ingress_lane.traffic_light.id
-
-                    # add the lane of the connection
-                    connection.connecting_lane.lane.value = egress_lane_id
-                    generic_lane_ingress.connects_to.array.append(connection)
-            
-            # create junction egress lanes
-            for egress_lane in junction_egress_lanes:
-                # create egress lane
-                generic_lane_egress = self.create_junction_lane(
-                    egress_lane.lane_id, egress_lane.lane_type, False, egress_lane.waypoint_junction, junction_position
+                TrafficLightsSensor.set_etsi_lat_lon_junction(
+                    intersection_geometry, lat, lon, junction_position[2]
                 )
-                
-                intersection_geometry.lane_set.array.append(generic_lane_egress)
 
-            mapem.map.intersections_is_present = True
-            mapem.map.intersections.array.append(intersection_geometry)
+                # create junction ingress lanes
+                for ingress_lane in junction_ingress_lanes:
 
-        self.etsi_mapem_publisher.publish(mapem)
+                    # create ingress lane which lead through the junction into an egress lane
+                    generic_lane_ingress = self.create_junction_lane(
+                        ingress_lane.lane_id, ingress_lane.lane_type, True, ingress_lane.waypoint_junction, junction_position
+                    )
+
+                    intersection_geometry.lane_set.array.append(generic_lane_ingress)
+
+                    # connect Ingress lanes to Egess lanes and the traffic light signal, if available
+                    generic_lane_ingress.connects_to_is_present = True
+
+                    for egress_lane_id in ingress_lane.connected_egress_lane_ids:
+                        connection = Connection()
+
+                        if ingress_lane.traffic_light != None:
+                            connection.signal_group_is_present = True
+                            connection.signal_group.value = ingress_lane.traffic_light.id
+
+                        # add the lane of the connection
+                        connection.connecting_lane.lane.value = egress_lane_id
+                        generic_lane_ingress.connects_to.array.append(connection)
+
+                # create junction egress lanes
+                for egress_lane in junction_egress_lanes:
+                    # create egress lane
+                    generic_lane_egress = self.create_junction_lane(
+                        egress_lane.lane_id, egress_lane.lane_type, False, egress_lane.waypoint_junction, junction_position
+                    )
+
+                    intersection_geometry.lane_set.array.append(generic_lane_egress)
+
+                mapem.map.intersections_is_present = True
+                mapem.map.intersections.array.append(intersection_geometry)
+
+            self.etsi_mapem_publisher.publish(mapem)
+            self._mapem_publish_warned = False
+        except Exception as e:
+            # keep node alive when TF data is temporarily unavailable
+            self.carla_to_utm_rotation_matrix_initialized = False
+            if not self._mapem_publish_warned:
+                self.node.logwarn("Skipping ETSI MAPEM publish this cycle: {}".format(e))
+                self._mapem_publish_warned = True
 
     def debug_publish_traffic_information(self):
         """
