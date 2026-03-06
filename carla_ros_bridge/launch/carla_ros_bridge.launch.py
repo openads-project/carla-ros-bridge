@@ -5,6 +5,37 @@ from launch_ros.actions import Node, SetParameter
 
 
 def generate_launch_description():
+    bridge_parameter_names = [
+        'use_sim_time',
+        'host',
+        'port',
+        'timeout',
+        'passive',
+        'synchronous_mode',
+        'synchronous_mode_wait_for_vehicle_control_command',
+        'fixed_delta_seconds',
+        'start_unix_time_stamp',
+        'town',
+        'rt_factor',
+        'register_all_sensors',
+        'native_interface',
+        'ego_vehicle_role_name',
+        'publish_static_vehicles',
+        'publish_compressed_images',
+        'ignore_altitude',
+        'georeference_substitution',
+        'grid_convergence',
+        'publish_etsi_messages',
+        'publisher_mapem_timer_period',
+        'publisher_spatem_timer_period',
+        'integrate_junctions_without_traffic_lights',
+        'traffic_light_junction_search_ignored_ids',
+        'traffic_light_junction_max_search_count',
+        'waypoints_search_distance',
+        'lane_waypoints_count',
+        'debug_traffic_light_information',
+        'publisher_debug_traffic_light_information_timer_period',
+    ]
 
     args = [
         DeclareLaunchArgument(
@@ -152,6 +183,11 @@ def generate_launch_description():
             default_value='1.0',
             description='Time between publishing the debug traffic light junction search information'
         ),
+        DeclareLaunchArgument(
+            name="log_level", 
+            default_value="info",
+            description="ROS logging level (debug, info, warn, error, fatal)"
+        ),
     ]
 
     nodes = [
@@ -159,11 +195,11 @@ def generate_launch_description():
             package='carla_ros_bridge',
             executable='bridge',
             name='carla_ros_bridge',
-            parameters=[LaunchConfiguration("params")],
             arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
             output='screen',
             emulate_tty=True,
             on_exit=Shutdown(),
+            parameters=[{name: LaunchConfiguration(name)} for name in bridge_parameter_names],
         )
     ]
 
