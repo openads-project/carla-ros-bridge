@@ -47,18 +47,15 @@ class ActorControl(PseudoActor):
                                            parent=parent,
                                            node=node)
 
-        self.set_location_subscriber = None
-        self.twist_control_subscriber = None
-        if not self.node.parameters.get("native_interface", False):
-            self.set_location_subscriber = self.node.new_subscription(Pose,
-                                                                      self.get_topic_prefix() + "/set_transform",
-                                                                      self.on_pose,
-                                                                      qos_profile=10)
+        self.set_location_subscriber = self.node.new_subscription(Pose,
+                                                                  self.get_topic_prefix() + "/set_transform",
+                                                                  self.on_pose,
+                                                                  qos_profile=10)
 
-            self.twist_control_subscriber = self.node.new_subscription(Twist,
-                                                                       self.get_topic_prefix() + "/set_target_velocity",
-                                                                       self.on_twist,
-                                                                       qos_profile=10)
+        self.twist_control_subscriber = self.node.new_subscription(Twist,
+                                                                   self.get_topic_prefix() + "/set_target_velocity",
+                                                                   self.on_twist,
+                                                                   qos_profile=10)
 
     def destroy(self):
         """

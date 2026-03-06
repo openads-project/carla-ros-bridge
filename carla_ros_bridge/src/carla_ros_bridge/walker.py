@@ -45,13 +45,11 @@ class Walker(TrafficParticipant):
                                      node=node,
                                      carla_actor=carla_actor)
 
-        self.control_subscriber = None
-        if not self.node.parameters.get("native_interface", False):
-            self.control_subscriber = self.node.new_subscription(
-                CarlaWalkerControl,
-                self.get_topic_prefix() + "/walker_control_cmd",
-                self.control_command_updated,
-                qos_profile=10)
+        self.control_subscriber = self.node.new_subscription(
+            CarlaWalkerControl,
+            self.get_topic_prefix() + "/walker_control_cmd",
+            self.control_command_updated,
+            qos_profile=10)
 
     def destroy(self):
         """
