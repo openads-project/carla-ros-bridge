@@ -66,10 +66,8 @@ class ActorControl(PseudoActor):
 
         :return:
         """
-        if self.set_location_subscriber is not None:
-            self.node.destroy_subscription(self.set_location_subscriber)
-        if self.twist_control_subscriber is not None:
-            self.node.destroy_subscription(self.twist_control_subscriber)
+        self.node.destroy_subscription(self.set_location_subscriber)
+        self.node.destroy_subscription(self.twist_control_subscriber)
         super(ActorControl, self).destroy()
 
     @staticmethod

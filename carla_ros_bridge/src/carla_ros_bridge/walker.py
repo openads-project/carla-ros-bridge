@@ -61,8 +61,7 @@ class Walker(TrafficParticipant):
         :return:
         """
         super(Walker, self).destroy()
-        if self.control_subscriber is not None:
-            self.node.destroy_subscription(self.control_subscriber)
+        self.node.destroy_subscription(self.control_subscriber)
 
     def control_command_updated(self, ros_walker_control):
         """

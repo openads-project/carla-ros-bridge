@@ -59,7 +59,7 @@ class EgoVehicle(Vehicle):
         self.vehicle_info_published = False
         self.vehicle_control_override = False
         self._vehicle_control_applied_callback = vehicle_control_applied_callback
-        self.native_interface_enabled = bool(self.node.parameters.get("native_interface", False))
+        self.native_interface_enabled = bool(self.node.parameters["native_interface"])
 
         self.vehicle_status_publisher = node.new_publisher(
             CarlaEgoVehicleStatus,

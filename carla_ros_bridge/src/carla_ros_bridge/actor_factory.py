@@ -82,9 +82,6 @@ class ActorFactory(object):
 
         self.thread = Thread(target=self._update_thread)
 
-    def _native_interface_enabled(self):
-        return bool(self.node.parameters.get("native_interface", False))
-
     def start(self):
         # create initially existing actors
         self.update_available_objects()
@@ -116,7 +113,7 @@ class ActorFactory(object):
             carla_actor = self.world.get_actor(actor_id)
             if carla_actor is None:
                 continue
-            if self._native_interface_enabled() and isinstance(carla_actor, carla.Sensor):
+            if self.node.parameters["native_interface"] and isinstance(carla_actor, carla.Sensor):
                 if hasattr(carla_actor, "enable_for_ros"):
                     carla_actor.enable_for_ros()
                 continue
@@ -228,7 +225,8 @@ class ActorFactory(object):
         else:
             blueprint = self.blueprint_lib.find(req.type)
         blueprint.set_attribute('role_name', req.id)
-        if req.type.startswith("vehicle.") or req.type.startswith("sensor."):
+        if self.node.parameters["native_interface"] and \
+                (req.type.startswith("vehicle.") or req.type.startswith("sensor.")):
             blueprint.set_attribute("ros_name", req.id)
 
         for attribute in req.attributes:
@@ -271,7 +269,7 @@ class ActorFactory(object):
             transform.location.y,
             transform.location.z))
         carla_actor = self.world.spawn_actor(blueprint, transform, attach_to)
-        if self._native_interface_enabled() and isinstance(carla_actor, carla.Sensor):
+        if self.node.parameters["native_interface"] and isinstance(carla_actor, carla.Sensor):
             if hasattr(carla_actor, "enable_for_ros"):
                 carla_actor.enable_for_ros()
             else:
@@ -352,7 +350,7 @@ class ActorFactory(object):
         if carla_actor is not None and carla_actor.id in self.actors:
             return None
 
-        if self._native_interface_enabled() and carla_actor is not None and isinstance(carla_actor, carla.Sensor):
+        if self.node.parameters["native_interface"] and carla_actor is not None and isinstance(carla_actor, carla.Sensor):
             self.node.loginfo(
                 "Skipping bridge-side sensor actor creation for id={} ('{}') because native_interface is enabled.".format(
                     carla_actor.id, carla_actor.type_id))
