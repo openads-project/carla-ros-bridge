@@ -47,7 +47,7 @@
   <arg name='grid_convergence' default='None'/>
       
   <!-- traffic light etsi messages-->
-  <arg name='publish_etsi_messages' default='True'/>
+  <arg name='publish_etsi_messages' default='False'/>
   <arg name='waypoints_search_distance' default='1.0'/>
   <arg name='lane_waypoints_count' default='10'/>
   <arg name='traffic_light_junction_max_search_count' default='13'/>

@@ -141,7 +141,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             name='publish_etsi_messages',
-            default_value='True',
+            default_value='False',
             description='Flag if Etsi Mapem and Spatem messages should be published. Saves computation time if not needed.'
         ),
         DeclareLaunchArgument(

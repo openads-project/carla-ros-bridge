@@ -456,7 +456,7 @@ def main(args=None):
     parameters['grid_convergence'] = carla_bridge.get_param('grid_convergence', None)
 
     # etsi its traffic_light parameters
-    parameters['publish_etsi_messages'] = carla_bridge.get_param('publish_etsi_messages', True)
+    parameters['publish_etsi_messages'] = carla_bridge.get_param('publish_etsi_messages', False)
     parameters['publisher_mapem_timer_period'] = carla_bridge.get_param('publisher_mapem_timer_period', 1.0)
     parameters['publisher_spatem_timer_period'] = carla_bridge.get_param('publisher_spatem_timer_period', 0.1)
     parameters['integrate_junctions_without_traffic_lights'] = carla_bridge.get_param('integrate_junctions_without_traffic_lights', False)
