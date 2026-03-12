@@ -71,7 +71,7 @@ class Gnss(Sensor):
         """
         navsatfix_msg = NavSatFix()
         navsatfix_msg.header = self.get_msg_header(timestamp=carla_gnss_measurement.timestamp)
-        if self.node.parameters.get('georeference_substitution'):
+        if self.node.parameters['georeference_substitution']:
             navsatfix_msg.latitude, navsatfix_msg.longitude = self._update_lat_lon(carla_gnss_measurement)
         else:
             navsatfix_msg.latitude = carla_gnss_measurement.latitude

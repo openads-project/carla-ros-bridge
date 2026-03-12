@@ -152,6 +152,23 @@ class Sensor(Actor):
 
     def publish_tf(self, pose, timestamp):
         transform = self.get_ros_transform(pose, timestamp)
+        if transform is None:
+            self.node.logwarn(
+                "Sensor {} ('{}'): Skipping TF publish because transform is None.".format(
+                    self.uid, self.get_prefix()))
+            return
+        if not transform.header.frame_id or not transform.child_frame_id:
+            self.node.logwarn(
+                "Sensor {} ('{}'): Invalid TF (frame_id='{}', child_frame_id='{}'). "
+                "parent='{}', role_name='{}'".format(
+                    self.uid,
+                    self.get_prefix(),
+                    transform.header.frame_id,
+                    transform.child_frame_id,
+                    self.parent.get_prefix() if self.parent is not None else "<none>",
+                    self.carla_actor.attributes.get("role_name", "<missing>")
+                    if self.carla_actor is not None else "<no-actor>"))
+            return
         try:
             self._tf_broadcaster.sendTransform(transform)
         except roscomp.exceptions.ROSException:

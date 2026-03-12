@@ -59,6 +59,7 @@ class EgoVehicle(Vehicle):
         self.vehicle_info_published = False
         self.vehicle_control_override = False
         self._vehicle_control_applied_callback = vehicle_control_applied_callback
+        self.native_interface_enabled = bool(self.node.parameters["native_interface"])
 
         self.vehicle_status_publisher = node.new_publisher(
             CarlaEgoVehicleStatus,
@@ -70,9 +71,21 @@ class EgoVehicle(Vehicle):
             "/vehicle_info",
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
-        self.control_subscriber = node.new_subscription(
+        self.automated_control_subscriber = None
+        self.manual_control_subscriber = None
+        self.control_override_subscriber = None
+        self.enable_autopilot_subscriber = None
+        self.control_cmd_publisher = None
+
+        if self.native_interface_enabled:
+            self.control_cmd_publisher = node.new_publisher(
+                CarlaEgoVehicleControl,
+                self.get_topic_prefix() + "/vehicle_control_cmd",
+                qos_profile=10)
+
+        self.automated_control_subscriber = node.new_subscription(
             CarlaEgoVehicleControl,
-            self.get_topic_prefix() + "/vehicle_control_cmd",
+            self.get_topic_prefix() + "/vehicle_control_cmd_automated",
             lambda data: self.control_command_updated(data, manual_override=False),
             qos_profile=10)
 
@@ -198,10 +211,16 @@ class EgoVehicle(Vehicle):
         :return:
         """
         self.node.logdebug("Destroy Vehicle(id={})".format(self.get_id()))
-        self.node.destroy_subscription(self.control_subscriber)
-        self.node.destroy_subscription(self.enable_autopilot_subscriber)
-        self.node.destroy_subscription(self.control_override_subscriber)
-        self.node.destroy_subscription(self.manual_control_subscriber)
+        if self.automated_control_subscriber is not None:
+            self.node.destroy_subscription(self.automated_control_subscriber)
+        if self.enable_autopilot_subscriber is not None:
+            self.node.destroy_subscription(self.enable_autopilot_subscriber)
+        if self.control_override_subscriber is not None:
+            self.node.destroy_subscription(self.control_override_subscriber)
+        if self.manual_control_subscriber is not None:
+            self.node.destroy_subscription(self.manual_control_subscriber)
+        if self.control_cmd_publisher is not None:
+            self.node.destroy_publisher(self.control_cmd_publisher)
         self.node.destroy_publisher(self.vehicle_status_publisher)
         self.node.destroy_publisher(self.vehicle_info_publisher)
         Vehicle.destroy(self)
@@ -214,13 +233,12 @@ class EgoVehicle(Vehicle):
 
     def control_command_updated(self, ros_vehicle_control, manual_override):
         """
-        Receive a CarlaEgoVehicleControl msg and send to CARLA
+        Receive a CarlaEgoVehicleControl msg.
 
         This function gets called whenever a ROS CarlaEgoVehicleControl is received.
-        If the mode is valid (either normal or manual), the received ROS message is
-        converted into carla.VehicleControl command and sent to CARLA.
-        This bridge is not responsible for any restrictions on velocity or steering.
-        It's just forwarding the ROS input to CARLA
+        If the mode is valid (either normal or manual):
+        - native_interface: forward the message to /vehicle_control_cmd
+        - bridge mode: convert to carla.VehicleControl and apply via Python API
 
         :param manual_override: manually override the vehicle control command
         :param ros_vehicle_control: current vehicle control input received via ROS
@@ -228,6 +246,10 @@ class EgoVehicle(Vehicle):
         :return:
         """
         if manual_override == self.vehicle_control_override:
+            if self.native_interface_enabled and self.control_cmd_publisher is not None:
+                self.control_cmd_publisher.publish(ros_vehicle_control)
+                return
+
             vehicle_control = VehicleControl()
             vehicle_control.hand_brake = ros_vehicle_control.hand_brake
             vehicle_control.brake = ros_vehicle_control.brake
