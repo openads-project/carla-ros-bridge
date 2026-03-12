@@ -7,7 +7,6 @@
   <!-- the network connection for the python connection to CARLA -->
   <arg name='host' default='carla-server'/>
   <arg name='port' default='2000'/>
-  <arg name='tm_port' default='8000'/>
   <arg name='timeout' default='5000'/>
   <!-- 
     enable/disable synchronous mode. If enabled ros-bridge waits until
@@ -61,7 +60,6 @@
   <node pkg="carla_ros_bridge" name="carla_ros_bridge" type="bridge.py" output="screen" required="true">
     <param name="host" value="$(arg host)"/>
     <param name="port" value="$(arg port)"/>
-    <param name="tm_port" value="$(arg tm_port)"/>
     <param name="timeout" value="$(arg timeout)"/>
     <param name="passive" value="$(arg passive)"/>
     <param name="synchronous_mode" value="$(arg synchronous_mode)"/>

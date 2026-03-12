@@ -434,7 +434,6 @@ def main(args=None):
 
     parameters['host'] = carla_bridge.get_param('host', 'carla-server')
     parameters['port'] = carla_bridge.get_param('port', 2000)
-    parameters['tm_port'] = carla_bridge.get_param('tm_port', 8000)
     parameters['timeout'] = carla_bridge.get_param('timeout', 5000)
     parameters['passive'] = carla_bridge.get_param('passive', False)
     parameters['synchronous_mode'] = carla_bridge.get_param('synchronous_mode', True)
@@ -507,13 +506,6 @@ def main(args=None):
                     carla_world = carla_client.load_world(parameters["town"])
             carla_world.tick()
 
-        if parameters["synchronous_mode"]:
-            carla_bridge.loginfo("Setting Traffic Manager to synchronous mode...")
-            traffic_manager = carla_client.get_trafficmanager(parameters["tm_port"])
-            traffic_manager.set_synchronous_mode(True)
-            carla_bridge.loginfo(
-                "Traffic Manager (port {}) set to synchronous mode.".format(
-                    parameters["tm_port"]))
         carla_bridge.initialize_bridge(carla_client.get_world(), parameters)
 
         carla_bridge.spin()
