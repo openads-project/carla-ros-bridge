@@ -133,9 +133,6 @@ class WorldInfo(object):
                             ox, oy))
 
                     # find lat/lon of projection origin and map origin
-                    # (0, 0) is the OpenDRIVE map origin in projected coordinates,
-                    # not the projection's false-origin (+x_0/+y_0).
-                    lon_map_origin, lat_map_origin = proj_xodr(0, 0, inverse=True)
                     lon_proj_origin, lat_proj_origin = proj_xodr(ox, oy, inverse=True)
 
                     # derive UTM zone and world frame name from projection origin
@@ -154,7 +151,7 @@ class WorldInfo(object):
                                         preserve_units=False)
 
                     # calculate world origin in CARLA coordinates
-                    self.world_x, self.world_y = p(lon_map_origin, lat_map_origin)
+                    self.world_x, self.world_y = p(lon_proj_origin, lat_proj_origin)
                     self.node.loginfo("World transform set: frame='{}' translation=({}, {}, 0.0)".format(
                         self.world_frame, self.world_x, self.world_y))
 
