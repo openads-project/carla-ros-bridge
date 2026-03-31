@@ -18,6 +18,7 @@ import ros_compatibility as roscomp
 from carla_ros_bridge.pseudo_actor import PseudoActor
 
 from geometry_msgs.msg import TransformStamped
+from tf_transformations import euler_from_quaternion, quaternion_from_euler
 
 ROS_VERSION = roscomp.get_ros_version()
 
@@ -72,6 +73,17 @@ class TFSensor(PseudoActor):
 
             if self.node.parameters['ignore_altitude']:
                 transform.translation.z = 0.0
+
+            q = transform.rotation
+            quaternion = [q.x, q.y, q.z, q.w]
+
+            roll, pitch, yaw = euler_from_quaternion(quaternion)
+            new_q = quaternion_from_euler(0.0, 0.0, yaw)
+
+            transform.rotation.x = new_q[0]
+            transform.rotation.y = new_q[1]
+            transform.rotation.z = new_q[2]
+            transform.rotation.w = new_q[3]
 
         except AttributeError:
             # parent actor disappeared, do not send tf
