@@ -104,8 +104,7 @@ def carla_rotation_to_RPY(carla_rotation):
     return (roll, pitch, yaw)
 
 
-def carla_rotation_to_ros_quaternion(carla_rotation,
-                                     zero_roll_and_pitch=False):
+def carla_rotation_to_ros_quaternion(carla_rotation):
     """
     Convert a carla rotation to a ROS quaternion
 
@@ -116,16 +115,10 @@ def carla_rotation_to_ros_quaternion(carla_rotation,
 
     :param carla_rotation: the carla rotation
     :type carla_rotation: carla.Rotation
-    :param zero_roll_and_pitch: if True, set roll and pitch to zero
-        before converting and keep yaw only
-    :type zero_roll_and_pitch: bool
     :return: a ROS quaternion
     :rtype: geometry_msgs.msg.Quaternion
     """
     roll, pitch, yaw = carla_rotation_to_RPY(carla_rotation)
-    if zero_roll_and_pitch:
-        roll = 0.0
-        pitch = 0.0
     quat = euler2quat(roll, pitch, yaw, axes=CARLA_EULER_AXES)
     ros_quaternion = Quaternion(w=quat[0], x=quat[1], y=quat[2], z=quat[3])
     return ros_quaternion
@@ -332,6 +325,21 @@ def ros_quaternion_to_carla_rotation(ros_quaternion):
                                    ros_quaternion.z],
                                   axes=CARLA_EULER_AXES)
     return RPY_to_carla_rotation(roll, pitch, yaw)
+
+
+def remove_pitch_roll(ros_quaternion):
+    """
+    Roll and pitch are set to zero while keeping yaw unchanged.
+
+    :param ros_quaternion: the ROS quaternion
+    :type ros_quaternion: geometry_msgs.msg.Quaternion
+    :return: a ROS quaternion with roll and pitch zeroed
+    :rtype: geometry_msgs.msg.Quaternion
+    """
+    carla_rotation = ros_quaternion_to_carla_rotation(ros_quaternion)
+    carla_rotation.roll = 0.0
+    carla_rotation.pitch = 0.0
+    return carla_rotation_to_ros_quaternion(carla_rotation)
 
 
 def ros_pose_to_carla_transform(ros_pose):

@@ -78,7 +78,7 @@ The following settings are available:
 *  __ego_vehicle__: Role names to identify ego vehicles. Relevant topics will be created so these vehicles will be able to be controlled from ROS.
 * __town__: Either use an available CARLA town (eg. 'town01') or an OpenDRIVE file (ending in `.xodr`).
 * __ignore_altitude__: Disable altitude information in the TF output.
-* __ignore_pitch_and_roll__: Disable pitch and roll in the pseudo TF sensor output and in the object list pose output. Yaw is preserved.
+* __ignore_pitch_and_roll__: Disable pitch and roll in pseudo TF, odometry, and object list pose output. Yaw is preserved.
 *  __register_all_sensors__:
 	*  __If false__: Only sensors spawned by the bridge are registered.
 	*  __If true (default)__: All the sensors present in the simulation are registered.
