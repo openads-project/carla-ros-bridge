@@ -60,7 +60,7 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='ignore_pitch_and_roll',
-            default_value='False'
+            default_value='True'
         ),
         launch.actions.DeclareLaunchArgument(
             name='grid_convergence',

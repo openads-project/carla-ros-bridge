@@ -29,7 +29,7 @@
   <!-- Disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
   <!-- Disable pitch and roll information in the TF sensor output -->
-  <arg name='ignore_pitch_and_roll' default='False'/>
+  <arg name='ignore_pitch_and_roll' default='True'/>
   <!-- Enable/disable grid convergence -->
   <arg name='grid_convergence' default='None'/>
 

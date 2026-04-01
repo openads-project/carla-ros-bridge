@@ -126,7 +126,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             name='ignore_pitch_and_roll',
-            default_value='False',
+            default_value='True',
             description='Disable pitch and roll information in the TF sensor output'
         ),
         DeclareLaunchArgument(

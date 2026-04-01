@@ -41,7 +41,7 @@
   <!-- disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
   <!-- disable pitch and roll information in the TF sensor output -->
-  <arg name='ignore_pitch_and_roll' default='False'/>
+  <arg name='ignore_pitch_and_roll' default='True'/>
   <!-- georeference substitution -->
   <arg name='georeference_substitution' default=''/>
   <!-- enable/disable grid convergence -->
