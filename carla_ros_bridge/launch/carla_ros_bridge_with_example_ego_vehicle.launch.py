@@ -59,6 +59,10 @@ def generate_launch_description():
             default_value='False'
         ),
         launch.actions.DeclareLaunchArgument(
+            name='ignore_pitch_and_roll',
+            default_value='False'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='grid_convergence',
             default_value='None'
         ),
@@ -78,6 +82,7 @@ def generate_launch_description():
                 'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles'),
                 'publish_compressed_images': launch.substitutions.LaunchConfiguration('publish_compressed_images'),
                 'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude'),
+                'ignore_pitch_and_roll': launch.substitutions.LaunchConfiguration('ignore_pitch_and_roll'),
                 'grid_convergence': launch.substitutions.LaunchConfiguration('grid_convergence')
             }.items()
         ),

@@ -74,16 +74,16 @@ class TFSensor(PseudoActor):
             if self.node.parameters['ignore_altitude']:
                 transform.translation.z = 0.0
 
-            q = transform.rotation
-            quaternion = [q.x, q.y, q.z, q.w]
+            if self.node.parameters['ignore_pitch_and_roll']:
+                q = transform.rotation
+                quaternion = [q.x, q.y, q.z, q.w]
+                _, _, yaw = euler_from_quaternion(quaternion)
+                new_q = quaternion_from_euler(0.0, 0.0, yaw)
 
-            roll, pitch, yaw = euler_from_quaternion(quaternion)
-            new_q = quaternion_from_euler(0.0, 0.0, yaw)
-
-            transform.rotation.x = new_q[0]
-            transform.rotation.y = new_q[1]
-            transform.rotation.z = new_q[2]
-            transform.rotation.w = new_q[3]
+                transform.rotation.x = new_q[0]
+                transform.rotation.y = new_q[1]
+                transform.rotation.z = new_q[2]
+                transform.rotation.w = new_q[3]
 
         except AttributeError:
             # parent actor disappeared, do not send tf

@@ -451,6 +451,7 @@ def main(args=None):
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['publish_compressed_images'] = carla_bridge.get_param('publish_compressed_images', True)
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)
+    parameters['ignore_pitch_and_roll'] = carla_bridge.get_param('ignore_pitch_and_roll', False)
     parameters['georeference_substitution'] = carla_bridge.get_param('georeference_substitution', "")
     parameters['grid_convergence'] = carla_bridge.get_param('grid_convergence', None)
 
