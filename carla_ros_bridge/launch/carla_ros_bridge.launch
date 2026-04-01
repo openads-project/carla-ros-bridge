@@ -39,7 +39,7 @@
   <arg name='publish_compressed_images' default='True'/>
 
   <!-- disable altitude information -->
-  <arg name='ignore_altitude' default='True'/>
+  <arg name='ignore_altitude' default='False'/>
   <!-- georeference substitution -->
   <arg name='georeference_substitution' default=''/>
   <!-- enable/disable grid convergence -->

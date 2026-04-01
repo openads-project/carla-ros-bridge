@@ -120,7 +120,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             name='ignore_altitude',
-            default_value='True',
+            default_value='False',
             description='Disable altitude information'
         ),
         DeclareLaunchArgument(
