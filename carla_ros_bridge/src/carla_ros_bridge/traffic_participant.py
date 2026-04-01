@@ -78,7 +78,13 @@ class TrafficParticipant(Actor):
 
         if self.node.parameters['ignore_altitude']:
             obj.pose.position.z = 0.0
-    
+
+        if self.node.parameters['ignore_pitch_and_roll']:
+            carla_rotation = trans.ros_quaternion_to_carla_rotation(
+                obj.pose.orientation)
+            obj.pose.orientation = trans.carla_rotation_to_ros_quaternion(
+                carla_rotation, zero_roll_and_pitch=True)
+
         # Twist
         obj.twist = self.get_current_ros_twist()
         # Acceleration

@@ -87,7 +87,13 @@ class ObjectSensor(PseudoActor):
 
         if self.node.parameters['ignore_altitude']:
             obj.pose.position.z = 0.0
-            
+
+        if self.node.parameters['ignore_pitch_and_roll']:
+            carla_rotation = trans.ros_quaternion_to_carla_rotation(
+                obj.pose.orientation)
+            obj.pose.orientation = trans.carla_rotation_to_ros_quaternion(
+                carla_rotation, zero_roll_and_pitch=True)
+
         # only static obj
         obj.twist = trans.carla_velocity_to_ros_twist(carla.Vector3D(0.0, 0.0, 0.0), carla.Vector3D(0.0, 0.0, 0.0))
         obj.accel = trans.carla_acceleration_to_ros_accel(carla.Vector3D(0.0, 0.0, 0.0))
