@@ -19,6 +19,12 @@ from transforms3d.euler import euler2mat, quat2euler, euler2quat
 from transforms3d.quaternions import quat2mat, mat2quat
 
 
+# CARLA rotations are interpreted as intrinsic roll/pitch/yaw (rotating axes).
+# Keep this explicit for all Euler<->quat/matrix conversions to avoid
+# convention mismatches in downstream nodes.
+CARLA_EULER_AXES = 'rxyz'
+
+
 def carla_location_to_numpy_vector(carla_location):
     """
     Convert a carla location to a ROS vector3
@@ -105,6 +111,7 @@ def carla_rotation_to_ros_quaternion(carla_rotation):
     Considers the conversion from left-handed system (unreal) to right-handed
     system (ROS).
     Considers the conversion from degrees (carla) to radians (ROS).
+    Uses intrinsic XYZ Euler axes for CARLA roll/pitch/yaw.
 
     :param carla_rotation: the carla rotation
     :type carla_rotation: carla.Rotation
@@ -112,7 +119,7 @@ def carla_rotation_to_ros_quaternion(carla_rotation):
     :rtype: geometry_msgs.msg.Quaternion
     """
     roll, pitch, yaw = carla_rotation_to_RPY(carla_rotation)
-    quat = euler2quat(roll, pitch, yaw)
+    quat = euler2quat(roll, pitch, yaw, axes=CARLA_EULER_AXES)
     ros_quaternion = Quaternion(w=quat[0], x=quat[1], y=quat[2], z=quat[3])
     return ros_quaternion
 
@@ -124,6 +131,7 @@ def carla_rotation_to_numpy_rotation_matrix(carla_rotation):
     Considers the conversion from left-handed system (unreal) to right-handed
     system (ROS).
     Considers the conversion from degrees (carla) to radians (ROS).
+    Uses intrinsic XYZ Euler axes for CARLA roll/pitch/yaw.
 
     :param carla_rotation: the carla rotation
     :type carla_rotation: carla.Rotation
@@ -131,7 +139,7 @@ def carla_rotation_to_numpy_rotation_matrix(carla_rotation):
     :rtype: numpy.array
     """
     roll, pitch, yaw = carla_rotation_to_RPY(carla_rotation)
-    numpy_array = euler2mat(roll, pitch, yaw)
+    numpy_array = euler2mat(roll, pitch, yaw, axes=CARLA_EULER_AXES)
     rotation_matrix = numpy_array[:3, :3]
     return rotation_matrix
 
@@ -314,7 +322,8 @@ def ros_quaternion_to_carla_rotation(ros_quaternion):
     roll, pitch, yaw = quat2euler([ros_quaternion.w,
                                    ros_quaternion.x,
                                    ros_quaternion.y,
-                                   ros_quaternion.z])
+                                   ros_quaternion.z],
+                                  axes=CARLA_EULER_AXES)
     return RPY_to_carla_rotation(roll, pitch, yaw)
 
 
