@@ -318,7 +318,7 @@ def ros_quaternion_to_carla_rotation(ros_quaternion):
     return RPY_to_carla_rotation(roll, pitch, yaw)
 
 
-def remove_pitch_roll(ros_quaternion):
+def reset_tilt_angles(ros_quaternion):
     """
     Roll and pitch are set to zero while keeping yaw unchanged.
 

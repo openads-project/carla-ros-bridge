@@ -89,7 +89,7 @@ class ObjectSensor(PseudoActor):
             obj.pose.position.z = 0.0
 
         if self.node.parameters['ignore_tilt']:
-            obj.pose.orientation = trans.remove_pitch_roll(
+            obj.pose.orientation = trans.reset_tilt_angles(
                 obj.pose.orientation)
 
         # only static obj

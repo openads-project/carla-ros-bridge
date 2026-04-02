@@ -72,7 +72,7 @@ class OdometrySensor(PseudoActor):
                 odometry.pose.pose.position.z = 0.0
 
             if self.node.parameters['ignore_tilt']:
-                odometry.pose.pose.orientation = trans.remove_pitch_roll(
+                odometry.pose.pose.orientation = trans.reset_tilt_angles(
                     odometry.pose.pose.orientation)
 
             odometry.twist.twist = self.parent.get_current_ros_twist_rotated()
