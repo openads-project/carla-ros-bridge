@@ -78,7 +78,7 @@ class ImuSensor(Sensor):
 
         ros_quaternion = trans.carla_rotation_to_ros_quaternion(
             carla_imu_measurement.transform.rotation)
-        if self.node.parameters['ignore_pitch_and_roll']:
+        if self.node.parameters['ignore_tilt']:
             ros_quaternion = trans.remove_pitch_roll(ros_quaternion)
         imu_msg.orientation.w = ros_quaternion.w
         imu_msg.orientation.x = ros_quaternion.x

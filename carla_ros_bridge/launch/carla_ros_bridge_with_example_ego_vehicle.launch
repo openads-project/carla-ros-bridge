@@ -29,7 +29,7 @@
   <!-- Disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
   <!-- Disable pitch and roll information in the TF sensor output -->
-  <arg name='ignore_pitch_and_roll' default='True'/>
+  <arg name='ignore_tilt' default='True'/>
   <!-- Enable/disable grid convergence -->
   <arg name='grid_convergence' default='None'/>
 
@@ -44,7 +44,7 @@
     <arg name='publish_static_vehicles' value='$(arg publish_static_vehicles)'/>
     <arg name='publish_compressed_images' value='$(arg publish_compressed_images)'/>
     <arg name='ignore_altitude' value='$(arg ignore_altitude)'/>
-    <arg name='ignore_pitch_and_roll' value='$(arg ignore_pitch_and_roll)'/>
+    <arg name='ignore_tilt' value='$(arg ignore_tilt)'/>
     <arg name='grid_convergence' value='$(arg grid_convergence)'/>
   </include>
 

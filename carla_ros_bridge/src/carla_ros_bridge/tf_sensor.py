@@ -74,7 +74,7 @@ class TFSensor(PseudoActor):
             if self.node.parameters['ignore_altitude']:
                 transform.translation.z = 0.0
 
-            if self.node.parameters['ignore_pitch_and_roll']:
+            if self.node.parameters['ignore_tilt']:
                 q = transform.rotation
                 quaternion = [q.x, q.y, q.z, q.w]
                 _, _, yaw = euler_from_quaternion(quaternion)

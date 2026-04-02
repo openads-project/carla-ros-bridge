@@ -41,7 +41,7 @@
   <!-- disable altitude information -->
   <arg name='ignore_altitude' default='False'/>
   <!-- disable pitch and roll information in the TF sensor output -->
-  <arg name='ignore_pitch_and_roll' default='True'/>
+  <arg name='ignore_tilt' default='True'/>
   <!-- georeference substitution -->
   <arg name='georeference_substitution' default=''/>
   <!-- enable/disable grid convergence -->
@@ -76,7 +76,7 @@
     <param name='publish_static_vehicles' value='$(arg publish_static_vehicles)'/>
     <param name='publish_compressed_images' value='$(arg publish_compressed_images)'/>
     <param name='ignore_altitude' value='$(arg ignore_altitude)'/>
-    <param name='ignore_pitch_and_roll' value='$(arg ignore_pitch_and_roll)'/>
+    <param name='ignore_tilt' value='$(arg ignore_tilt)'/>
     <param name='georeference_substitution' value='$(arg georeference_substitution)'/>
     <param name='grid_convergence' value='$(arg grid_convergence)'/>
     <param name='publish_etsi_messages' value='$(arg publish_etsi_messages)'/>

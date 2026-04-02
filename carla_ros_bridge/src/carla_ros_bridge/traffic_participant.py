@@ -79,7 +79,7 @@ class TrafficParticipant(Actor):
         if self.node.parameters['ignore_altitude']:
             obj.pose.position.z = 0.0
 
-        if self.node.parameters['ignore_pitch_and_roll']:
+        if self.node.parameters['ignore_tilt']:
             obj.pose.orientation = trans.remove_pitch_roll(
                 obj.pose.orientation)
 

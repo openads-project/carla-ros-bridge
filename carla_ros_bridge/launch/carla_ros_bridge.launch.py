@@ -23,7 +23,7 @@ def generate_launch_description():
         'publish_static_vehicles',
         'publish_compressed_images',
         'ignore_altitude',
-        'ignore_pitch_and_roll',
+        'ignore_tilt',
         'georeference_substitution',
         'grid_convergence',
         'publish_etsi_messages',
@@ -125,7 +125,7 @@ def generate_launch_description():
             description='Disable altitude information'
         ),
         DeclareLaunchArgument(
-            name='ignore_pitch_and_roll',
+            name='ignore_tilt',
             default_value='True',
             description='Disable pitch and roll information in the TF sensor output'
         ),
