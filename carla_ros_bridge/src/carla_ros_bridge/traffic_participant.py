@@ -78,7 +78,11 @@ class TrafficParticipant(Actor):
 
         if self.node.parameters['ignore_altitude']:
             obj.pose.position.z = 0.0
-    
+
+        if self.node.parameters['ignore_tilt']:
+            obj.pose.orientation = trans.reset_tilt_angles(
+                obj.pose.orientation)
+
         # Twist
         obj.twist = self.get_current_ros_twist()
         # Acceleration

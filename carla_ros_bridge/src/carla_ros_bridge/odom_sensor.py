@@ -9,6 +9,8 @@
 handle a odom sensor
 """
 
+import carla_common.transforms as trans
+
 from carla_ros_bridge.pseudo_actor import PseudoActor
 
 from nav_msgs.msg import Odometry
@@ -68,7 +70,11 @@ class OdometrySensor(PseudoActor):
 
             if self.node.parameters['ignore_altitude']:
                 odometry.pose.pose.position.z = 0.0
-    
+
+            if self.node.parameters['ignore_tilt']:
+                odometry.pose.pose.orientation = trans.reset_tilt_angles(
+                    odometry.pose.pose.orientation)
+
             odometry.twist.twist = self.parent.get_current_ros_twist_rotated()
         except AttributeError:
             # parent actor disappeared, do not send tf

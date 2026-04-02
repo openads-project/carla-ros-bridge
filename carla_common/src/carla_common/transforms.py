@@ -318,6 +318,21 @@ def ros_quaternion_to_carla_rotation(ros_quaternion):
     return RPY_to_carla_rotation(roll, pitch, yaw)
 
 
+def reset_tilt_angles(ros_quaternion):
+    """
+    Roll and pitch are set to zero while keeping yaw unchanged.
+
+    :param ros_quaternion: the ROS quaternion
+    :type ros_quaternion: geometry_msgs.msg.Quaternion
+    :return: a ROS quaternion with roll and pitch zeroed
+    :rtype: geometry_msgs.msg.Quaternion
+    """
+    carla_rotation = ros_quaternion_to_carla_rotation(ros_quaternion)
+    carla_rotation.roll = 0.0
+    carla_rotation.pitch = 0.0
+    return carla_rotation_to_ros_quaternion(carla_rotation)
+
+
 def ros_pose_to_carla_transform(ros_pose):
     """
     Convert a ROS pose a carla transform.

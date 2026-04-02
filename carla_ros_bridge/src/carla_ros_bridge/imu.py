@@ -7,8 +7,6 @@
 Classes to handle Carla imu sensor
 """
 
-from transforms3d.euler import euler2quat
-
 import carla_common.transforms as trans
 
 from carla_ros_bridge.sensor import Sensor
@@ -78,11 +76,13 @@ class ImuSensor(Sensor):
         imu_msg.linear_acceleration.y = -carla_imu_measurement.accelerometer.y
         imu_msg.linear_acceleration.z = carla_imu_measurement.accelerometer.z
 
-        roll, pitch, yaw = trans.carla_rotation_to_RPY(carla_imu_measurement.transform.rotation)
-        quat = euler2quat(roll, pitch, yaw)
-        imu_msg.orientation.w = quat[0]
-        imu_msg.orientation.x = quat[1]
-        imu_msg.orientation.y = quat[2]
-        imu_msg.orientation.z = quat[3]
+        ros_quaternion = trans.carla_rotation_to_ros_quaternion(
+            carla_imu_measurement.transform.rotation)
+        if self.node.parameters['ignore_tilt']:
+            ros_quaternion = trans.reset_tilt_angles(ros_quaternion)
+        imu_msg.orientation.w = ros_quaternion.w
+        imu_msg.orientation.x = ros_quaternion.x
+        imu_msg.orientation.y = ros_quaternion.y
+        imu_msg.orientation.z = ros_quaternion.z
 
         self.imu_publisher.publish(imu_msg)

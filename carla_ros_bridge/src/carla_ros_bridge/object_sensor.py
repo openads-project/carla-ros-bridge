@@ -87,7 +87,11 @@ class ObjectSensor(PseudoActor):
 
         if self.node.parameters['ignore_altitude']:
             obj.pose.position.z = 0.0
-            
+
+        if self.node.parameters['ignore_tilt']:
+            obj.pose.orientation = trans.reset_tilt_angles(
+                obj.pose.orientation)
+
         # only static obj
         obj.twist = trans.carla_velocity_to_ros_twist(carla.Vector3D(0.0, 0.0, 0.0), carla.Vector3D(0.0, 0.0, 0.0))
         obj.accel = trans.carla_acceleration_to_ros_accel(carla.Vector3D(0.0, 0.0, 0.0))
