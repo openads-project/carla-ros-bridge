@@ -110,6 +110,9 @@ class TrafficLightsSensor(PseudoActor):
         self.traffic_light_stop_waypoints = {}  # cache for traffic light stop waypoints
         self.carla_to_utm_rotation_matrix_initialized = False
         self._mapem_publish_warned = False
+        self.etsi_mapem_publisher = None
+        self.etsi_spatem_publisher = None
+        self.debug_marker_publisher = None
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
@@ -203,14 +206,14 @@ class TrafficLightsSensor(PseudoActor):
         self.actor_list = None
         self.node.destroy_publisher(self.traffic_lights_info_publisher)
         self.node.destroy_publisher(self.traffic_lights_status_publisher)
-        
-        if self.publish_etsi_messages:
+
+        if self.etsi_mapem_publisher is not None:
             self.node.destroy_publisher(self.etsi_mapem_publisher)
-            
-        if self.etsi_spatem_publisher:
+
+        if self.etsi_spatem_publisher is not None:
             self.node.destroy_publisher(self.etsi_spatem_publisher)
-            
-        if self.debug_traffic_light_information:
+
+        if self.debug_marker_publisher is not None:
             self.node.destroy_publisher(self.debug_marker_publisher)
 
     @staticmethod
