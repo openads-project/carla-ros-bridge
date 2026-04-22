@@ -133,10 +133,13 @@ class CarlaRosBridge(CompatibleNode):
 
         # Communication topics
         self.clock_publisher = None
-        if not self.parameters["native_interface"]:
-            self.clock_publisher = self.new_publisher(Clock, 'clock', 10)
+        if self.parameters.get("publish_clock", True):
+            if not self.parameters["native_interface"]:
+                self.clock_publisher = self.new_publisher(Clock, 'clock', 10)
+            else:
+                self.loginfo("native_interface enabled: '/clock' publishing is disabled.")
         else:
-            self.loginfo("native_interface enabled: '/clock' publishing is disabled.")
+            self.loginfo("/clock publishing is disabled.")
 
         self.status_publisher = CarlaStatusPublisher(
             self.carla_settings.synchronous_mode,
@@ -436,6 +439,7 @@ def main(args=None):
     parameters['port'] = carla_bridge.get_param('port', 2000)
     parameters['timeout'] = carla_bridge.get_param('timeout', 5000)
     parameters['passive'] = carla_bridge.get_param('passive', False)
+    parameters['publish_clock'] = carla_bridge.get_param('publish_clock', True)
     parameters['synchronous_mode'] = carla_bridge.get_param('synchronous_mode', True)
     parameters['synchronous_mode_wait_for_vehicle_control_command'] = carla_bridge.get_param(
         'synchronous_mode_wait_for_vehicle_control_command', False)

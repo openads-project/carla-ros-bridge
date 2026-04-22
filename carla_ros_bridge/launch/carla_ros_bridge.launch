@@ -13,6 +13,7 @@
     expected data is received for all sensors
   -->
   <arg name="passive" default='False'/>
+  <arg name="publish_clock" default='True'/>
   <arg name='synchronous_mode' default='True'/>
   <arg name='synchronous_mode_wait_for_vehicle_control_command' default='False'/>
   <!-- set the fixed timestep length -->
@@ -64,6 +65,7 @@
     <param name="port" value="$(arg port)"/>
     <param name="timeout" value="$(arg timeout)"/>
     <param name="passive" value="$(arg passive)"/>
+    <param name="publish_clock" value="$(arg publish_clock)"/>
     <param name="synchronous_mode" value="$(arg synchronous_mode)"/>
     <param name="synchronous_mode_wait_for_vehicle_control_command" value="$(arg synchronous_mode_wait_for_vehicle_control_command)"/>
     <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>

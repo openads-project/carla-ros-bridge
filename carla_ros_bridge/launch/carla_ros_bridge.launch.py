@@ -11,6 +11,7 @@ def generate_launch_description():
         'port',
         'timeout',
         'passive',
+        'publish_clock',
         'synchronous_mode',
         'synchronous_mode_wait_for_vehicle_control_command',
         'fixed_delta_seconds',
@@ -63,6 +64,11 @@ def generate_launch_description():
             name='passive',
             default_value='False',
             description='When enabled, the ROS bridge will take a backseat and another client must tick the world (only in synchronous mode)'
+        ),
+        DeclareLaunchArgument(
+            name='publish_clock',
+            default_value='True',
+            description='When disabled, the ROS bridge will not publish clock messages (another component is expected to do so)'
         ),
         DeclareLaunchArgument(
             name='synchronous_mode',
