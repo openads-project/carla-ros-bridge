@@ -176,14 +176,12 @@ class EgoVehicle(Vehicle):
             vehicle_info.max_rpm = vehicle_physics.max_rpm
             vehicle_info.max_rpm = vehicle_physics.max_rpm
             vehicle_info.moi = vehicle_physics.rev_up_moi
-            vehicle_info.damping_rate_full_throttle = vehicle_physics.damping_rate_full_throttle
-            vehicle_info.damping_rate_zero_throttle_clutch_engaged = \
-                vehicle_physics.damping_rate_zero_throttle_clutch_engaged
-            vehicle_info.damping_rate_zero_throttle_clutch_disengaged = \
-                vehicle_physics.damping_rate_zero_throttle_clutch_disengaged
-            vehicle_info.use_gear_autobox = vehicle_physics.use_gear_autobox
-            vehicle_info.gear_switch_time = vehicle_physics.gear_switch_time
-            vehicle_info.clutch_strength = vehicle_physics.clutch_strength
+            vehicle_info.damping_rate_full_throttle = 0.0  # not contained in UE5
+            vehicle_info.damping_rate_zero_throttle_clutch_engaged = 0.0  # not contained in UE5
+            vehicle_info.damping_rate_zero_throttle_clutch_disengaged = 0.0  # not contained in UE5
+            vehicle_info.use_gear_autobox = vehicle_physics.use_automatic_gears
+            vehicle_info.gear_switch_time = vehicle_physics.gear_change_time
+            vehicle_info.clutch_strength = 0.0  # not contained in UE5
             vehicle_info.mass = vehicle_physics.mass
             vehicle_info.drag_coefficient = vehicle_physics.drag_coefficient
             vehicle_info.center_of_mass.x = vehicle_physics.center_of_mass.x
