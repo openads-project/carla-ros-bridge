@@ -154,17 +154,19 @@ class EgoVehicle(Vehicle):
             for wheel in vehicle_physics.wheels:
                 wheel_info = CarlaEgoVehicleInfoWheel()
                 wheel_info.tire_friction = wheel.friction_force_multiplier
-                wheel_info.damping_rate = wheel.suspension_damping_ratio
+                wheel_info.damping_rate = 0.0  # not contained in UE5
                 wheel_info.max_steer_angle = math.radians(wheel.max_steer_angle)
                 wheel_info.radius = wheel.wheel_radius
                 wheel_info.max_brake_torque = wheel.max_brake_torque
-                wheel_info.max_handbrake_torque = wheel.max_handbrake_torque
+                wheel_info.max_handbrake_torque = wheel.max_hand_brake_torque
 
                 inv_T = numpy.array(self.carla_actor.get_transform().get_inverse_matrix(), dtype=float)
-                wheel_pos_in_map = numpy.array([wheel.location.x/100.0,
-                                        wheel.location.y/100.0,
-                                        wheel.location.z/100.0,
-                                        1.0])
+                wheel_pos_in_map = numpy.array([
+                    wheel.location.x,
+                    wheel.location.y,
+                    wheel.location.z,
+                    1.0,
+                ])
                 wheel_pos_in_ego_vehicle = numpy.matmul(inv_T, wheel_pos_in_map)
                 wheel_info.position.x = wheel_pos_in_ego_vehicle[0]
                 wheel_info.position.y = -wheel_pos_in_ego_vehicle[1]
