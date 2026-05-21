@@ -175,7 +175,7 @@ class EgoVehicle(Vehicle):
 
             vehicle_info.max_rpm = vehicle_physics.max_rpm
             vehicle_info.max_rpm = vehicle_physics.max_rpm
-            vehicle_info.moi = vehicle_physics.moi
+            vehicle_info.moi = vehicle_physics.rev_up_moi
             vehicle_info.damping_rate_full_throttle = vehicle_physics.damping_rate_full_throttle
             vehicle_info.damping_rate_zero_throttle_clutch_engaged = \
                 vehicle_physics.damping_rate_zero_throttle_clutch_engaged
