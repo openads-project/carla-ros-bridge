@@ -20,10 +20,7 @@ position.
 import ros_compatibility as roscomp
 from ros_compatibility.node import CompatibleNode
 ROS_VERSION = roscomp.get_ros_version()
-if ROS_VERSION == 1:
-    import rospy
-else:
-    from rclpy.duration import Duration
+from rclpy.duration import Duration
 
 import tf2_geometry_msgs
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose
@@ -64,7 +61,7 @@ class SetInitialPose(CompatibleNode):
         try:
             if not self.tf_buffer.can_transform(
                     self.world_frame, initial_pose.header.frame_id,
-                    initial_pose.header.stamp, self._get_tf_timeout()):
+                    initial_pose.header.stamp, Duration(seconds=self.tf_wait_timeout)):
                 raise RuntimeError("Timed out waiting for transform")
             pose_carla = self.tf_buffer.transform(
                 initial_pose, self.world_frame)
@@ -76,12 +73,6 @@ class SetInitialPose(CompatibleNode):
         pose_to_publish = pose_carla.pose.pose
         pose_to_publish.position.z += 2.0
         self.transform_publisher.publish(pose_to_publish)
-
-    def _get_tf_timeout(self):
-        if ROS_VERSION == 1:
-            return rospy.Duration(self.tf_wait_timeout)
-        return Duration(seconds=self.tf_wait_timeout)
-
 
 def main():
     """
