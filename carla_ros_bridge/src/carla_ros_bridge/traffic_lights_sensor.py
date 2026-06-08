@@ -26,7 +26,7 @@ from carla_ros_bridge.traffic import TrafficLight
 from carla_msgs.msg import CarlaTrafficLightStatusList, CarlaTrafficLightInfoList
 
 from carla_msgs.msg import CarlaTrafficLightStatus
-from carla.libcarla import LaneType
+from carla import LaneType
 
 from etsi_its_mapem_ts_msgs.msg import MAPEM
 from etsi_its_mapem_ts_msgs.msg import IntersectionGeometry

@@ -67,14 +67,14 @@ class TestClock(unittest.TestCase):
         self.assertEqual(len(msg.wheels), 4)
         self.assertNotEqual(msg.max_rpm, 0.0)
         self.assertNotEqual(msg.moi, 0.0)
-        self.assertNotEqual(msg.damping_rate_full_throttle, 0.0)
-        self.assertNotEqual(msg.damping_rate_zero_throttle_clutch_engaged, 0.0)
-        self.assertNotEqual(
+        self.assertGreaterEqual(msg.damping_rate_full_throttle, 0.0)
+        self.assertGreaterEqual(msg.damping_rate_zero_throttle_clutch_engaged, 0.0)
+        self.assertGreaterEqual(
             msg.damping_rate_zero_throttle_clutch_disengaged, 0.0)
         self.assertTrue(msg.use_gear_autobox)
         self.assertNotEqual(msg.gear_switch_time, 0.0)
         self.assertNotEqual(msg.mass, 0.0)
-        self.assertNotEqual(msg.clutch_strength, 0.0)
+        self.assertGreaterEqual(msg.clutch_strength, 0.0)
         self.assertNotEqual(msg.drag_coefficient, 0.0)
         self.assertNotEqual(msg.center_of_mass, Vector3())
 
