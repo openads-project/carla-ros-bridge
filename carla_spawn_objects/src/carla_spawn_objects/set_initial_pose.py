@@ -47,7 +47,7 @@ class SetInitialPose(CompatibleNode):
         if ROS_VERSION == 1:
             self.tf_listener = TransformListener(self.tf_buffer)
         else:
-            self.tf_listener = TransformListener(self.tf_buffer, self, spin_thread=True)
+            self.tf_listener = TransformListener(self.tf_buffer, self, spin_thread=False)
 
         self.transform_publisher = self.new_publisher(
             Pose,
