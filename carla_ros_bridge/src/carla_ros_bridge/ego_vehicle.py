@@ -153,7 +153,7 @@ class EgoVehicle(Vehicle):
 
             for wheel in vehicle_physics.wheels:
                 wheel_info = CarlaEgoVehicleInfoWheel()
-                wheel_info.tire_friction = wheel.friction_force_multiplier
+                wheel_info.tire_friction = 0.0  # not contained in UE5
                 wheel_info.damping_rate = 0.0  # not contained in UE5
                 wheel_info.max_steer_angle = math.radians(wheel.max_steer_angle)
                 wheel_info.radius = wheel.wheel_radius
