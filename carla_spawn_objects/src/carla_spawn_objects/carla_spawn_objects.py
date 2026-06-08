@@ -19,6 +19,7 @@ import copy
 import json
 import math
 import os
+import time
 
 import ros_compatibility as roscomp
 from ros_compatibility.exceptions import *
@@ -27,6 +28,7 @@ ROS_VERSION = roscomp.get_ros_version()
 if ROS_VERSION == 1:
     import rospy
 else:
+    import rclpy
     from rclpy.duration import Duration
 
 from carla_msgs.msg import CarlaActorList
@@ -76,7 +78,7 @@ class CarlaSpawnObjects(CompatibleNode):
         if ROS_VERSION == 1:
             self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         else:
-            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, spin_thread=True)
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, spin_thread=False)
         self._utm_proj_cache = {}
 
         # lists of spawned entities
@@ -116,9 +118,7 @@ class CarlaSpawnObjects(CompatibleNode):
         try:
             self.loginfo("Waiting up to {}s for transform '{}' -> '{}'.".format(
                 self.tf_wait_timeout, frame_id, self.world_frame))
-            if not self.tf_buffer.can_transform(
-                    self.world_frame, frame_id, utm_pose.header.stamp, self._get_tf_timeout()):
-                raise RuntimeError("Timed out waiting for transform")
+            self._wait_for_transform(self.world_frame, frame_id, utm_pose.header.stamp)
             carla_pose = self.tf_buffer.transform(
                 utm_pose, self.world_frame)
             return carla_pose.pose
@@ -132,6 +132,17 @@ class CarlaSpawnObjects(CompatibleNode):
             return rospy.Duration(self.tf_wait_timeout)
         return Duration(seconds=self.tf_wait_timeout)
 
+    def _wait_for_transform(self, target_frame, source_frame, stamp):
+
+        timeout = time.monotonic() + self.tf_wait_timeout
+        while roscomp.ok():
+            if self.tf_buffer.can_transform(target_frame, source_frame, stamp, Duration(seconds=0.05)):
+                return
+            if time.monotonic() >= timeout:
+                break
+            rclpy.spin_once(self, timeout_sec=0.1)
+
+        raise RuntimeError("Timed out waiting for transform")
 
     def resolve_spawn_point(self, spawn_point):
         """
