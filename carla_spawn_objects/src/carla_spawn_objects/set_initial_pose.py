@@ -19,6 +19,11 @@ position.
 
 import ros_compatibility as roscomp
 from ros_compatibility.node import CompatibleNode
+ROS_VERSION = roscomp.get_ros_version()
+if ROS_VERSION == 1:
+    import rospy
+else:
+    from rclpy.duration import Duration
 
 import tf2_geometry_msgs
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose
@@ -37,8 +42,12 @@ class SetInitialPose(CompatibleNode):
         self.control_id = self.get_param("control_id", "control")
 
         self.world_frame = "carla_map"
+        self.tf_wait_timeout = 15.0
         self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
+        if ROS_VERSION == 1:
+            self.tf_listener = TransformListener(self.tf_buffer)
+        else:
+            self.tf_listener = TransformListener(self.tf_buffer, self, spin_thread=True)
 
         self.transform_publisher = self.new_publisher(
             Pose,
@@ -52,11 +61,26 @@ class SetInitialPose(CompatibleNode):
             qos_profile=10)
 
     def intial_pose_callback(self, initial_pose):
-        pose_carla = self.tf_buffer.transform(initial_pose, self.world_frame)
+        try:
+            if not self.tf_buffer.can_transform(
+                    self.world_frame, initial_pose.header.frame_id,
+                    initial_pose.header.stamp, self._get_tf_timeout()):
+                raise RuntimeError("Timed out waiting for transform")
+            pose_carla = self.tf_buffer.transform(
+                initial_pose, self.world_frame)
+        except Exception as e:
+            self.logerr("Could not transform initial pose from '{}' to '{}': {}".format(
+                initial_pose.header.frame_id, self.world_frame, e))
+            return
 
         pose_to_publish = pose_carla.pose.pose
         pose_to_publish.position.z += 2.0
         self.transform_publisher.publish(pose_to_publish)
+
+    def _get_tf_timeout(self):
+        if ROS_VERSION == 1:
+            return rospy.Duration(self.tf_wait_timeout)
+        return Duration(seconds=self.tf_wait_timeout)
 
 
 def main():

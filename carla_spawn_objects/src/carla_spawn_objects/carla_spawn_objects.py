@@ -26,6 +26,8 @@ from ros_compatibility.node import CompatibleNode
 ROS_VERSION = roscomp.get_ros_version()
 if ROS_VERSION == 1:
     import rospy
+else:
+    from rclpy.duration import Duration
 
 from carla_msgs.msg import CarlaActorList
 from carla_msgs.srv import SpawnObject, DestroyObject
@@ -69,8 +71,12 @@ class CarlaSpawnObjects(CompatibleNode):
             'blueprint': self.process_blueprint
         }
         self.world_frame = "carla_map"
+        self.tf_wait_timeout = 15.0
         self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        if ROS_VERSION == 1:
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        else:
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, spin_thread=True)
         self._utm_proj_cache = {}
 
         # lists of spawned entities
@@ -104,16 +110,27 @@ class CarlaSpawnObjects(CompatibleNode):
 
         utm_pose = geometry_msgs.msg.PoseStamped()
         utm_pose.header.frame_id = frame_id
-        utm_pose.header.stamp = roscomp.ros_timestamp()
+        utm_pose.header.stamp = roscomp.ros_timestamp(sec=0.0, from_sec=True)
         utm_pose.pose = self.create_spawn_point(utm_x, utm_y, alt, roll, pitch, yaw)
 
         try:
-            carla_pose = self.tf_buffer.transform(utm_pose, self.world_frame)
+            self.loginfo("Waiting up to {}s for transform '{}' -> '{}'.".format(
+                self.tf_wait_timeout, frame_id, self.world_frame))
+            if not self.tf_buffer.can_transform(
+                    self.world_frame, frame_id, utm_pose.header.stamp, self._get_tf_timeout()):
+                raise RuntimeError("Timed out waiting for transform")
+            carla_pose = self.tf_buffer.transform(
+                utm_pose, self.world_frame)
             return carla_pose.pose
 
         except Exception as e:
             self.logerr("Could not transform spawn point from '{}' to '{}': {}".format(frame_id, self.world_frame, e))
             raise
+
+    def _get_tf_timeout(self):
+        if ROS_VERSION == 1:
+            return rospy.Duration(self.tf_wait_timeout)
+        return Duration(seconds=self.tf_wait_timeout)
 
 
     def resolve_spawn_point(self, spawn_point):
