@@ -127,11 +127,6 @@ class CarlaSpawnObjects(CompatibleNode):
             self.logerr("Could not transform spawn point from '{}' to '{}': {}".format(frame_id, self.world_frame, e))
             raise
 
-    def _get_tf_timeout(self):
-        if ROS_VERSION == 1:
-            return rospy.Duration(self.tf_wait_timeout)
-        return Duration(seconds=self.tf_wait_timeout)
-
     def _wait_for_transform(self, target_frame, source_frame, stamp):
 
         timeout = time.monotonic() + self.tf_wait_timeout
