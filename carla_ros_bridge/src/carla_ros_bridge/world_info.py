@@ -53,6 +53,7 @@ class WorldInfo(object):
 
         self.map_published = False
         self.map_frame = "carla_map"
+        self.map_transform_published = False
         self.world_set = False
         self.georeference_substitution = (self.node.parameters['georeference_substitution'])
         self.grid_convergence_override = self.node.parameters['grid_convergence']
@@ -72,9 +73,9 @@ class WorldInfo(object):
             qos_profile=QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL))
 
         if ROS_VERSION == 1:
-            self._tf_broadcaster = tf2_ros.TransformBroadcaster()       # ROS 1
+            self._tf_broadcaster = tf2_ros.StaticTransformBroadcaster()       # ROS 1
         elif ROS_VERSION == 2:
-            self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)   # ROS 2
+            self._tf_broadcaster = tf2_ros.StaticTransformBroadcaster(node)   # ROS 2
 
 
     def destroy(self):
@@ -178,7 +179,7 @@ class WorldInfo(object):
             self.world_info_publisher.publish(open_drive_msg)
             self.map_published = True
 
-            # if no geo reference found in OpenDRIVE, align 'carla_map' frame with 'map' frame
+            # if no geo reference found in OpenDRIVE, align 'carla_map' frame with default ROS 'map' frame
             if not self.world_set:
                 self.world_frame = "map"
                 self.world_x = 0.0
@@ -187,26 +188,28 @@ class WorldInfo(object):
                 self.node.logwarn("No valid geoReference found. Falling back to world frame '{}'.".format(
                     self.world_frame))
 
-        # create transform message
-        t = geometry_msgs.msg.TransformStamped()
-        t.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
-        t.header.frame_id = self.world_frame
-        t.child_frame_id = self.map_frame
+        if not self.map_transform_published:
+            # create transform message
+            t = geometry_msgs.msg.TransformStamped()
+            t.header.stamp = roscomp.ros_timestamp(sec=0.0, from_sec=True)
+            t.header.frame_id = self.world_frame
+            t.child_frame_id = self.map_frame
 
-        t.transform.translation.x = self.world_x
-        t.transform.translation.y = self.world_y
-        t.transform.translation.z = 0.0
-        t.transform.rotation.x = self.q_grid_convergence[0]
-        t.transform.rotation.y = self.q_grid_convergence[1]
-        t.transform.rotation.z = self.q_grid_convergence[2]
-        t.transform.rotation.w = self.q_grid_convergence[3]
+            t.transform.translation.x = self.world_x
+            t.transform.translation.y = self.world_y
+            t.transform.translation.z = 0.0
+            t.transform.rotation.x = self.q_grid_convergence[0]
+            t.transform.rotation.y = self.q_grid_convergence[1]
+            t.transform.rotation.z = self.q_grid_convergence[2]
+            t.transform.rotation.w = self.q_grid_convergence[3]
 
-        self.transform_utm_to_carla = t
+            self.transform_utm_to_carla = t
 
-        # publish transform message
-        self._tf_broadcaster.sendTransform(t)
-        self.node.logdebug("Published transform {} -> {} at x={} y={}".format(
-            self.world_frame, self.map_frame, self.world_x, self.world_y))
+            # publish static transform message
+            self._tf_broadcaster.sendTransform(t)
+            self.map_transform_published = True
+            self.node.loginfo("Published static transform {} -> {} at x={} y={}".format(
+                self.world_frame, self.map_frame, self.world_x, self.world_y))
 
 
 
