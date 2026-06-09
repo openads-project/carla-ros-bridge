@@ -16,8 +16,10 @@ from carla import Vector3D
 
 import carla_common.transforms as trans
 
+from carla_ros_bridge.map_utils import lift_if_below_road
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.sensor import Sensor
+from carla_ros_bridge.traffic_participant import TrafficParticipant
 
 from geometry_msgs.msg import Pose, Twist
 
@@ -80,7 +82,16 @@ class ActorControl(PseudoActor):
 
     def on_pose(self, pose):
         if self.parent and self.parent.carla_actor.is_alive:
-            self.parent.carla_actor.set_transform(trans.ros_pose_to_carla_transform(pose))
+            transform = trans.ros_pose_to_carla_transform(pose)
+            if isinstance(self.parent, TrafficParticipant):
+                if lift_if_below_road(
+                        self.parent.carla_actor.get_world(),
+                        transform,
+                        loginfo=self.node.loginfo):
+                    self.node.loginfo(
+                        "Update transform altitude because of map elevation: actor={} z={}".format(
+                            self.parent.carla_actor.type_id, transform.location.z))
+            self.parent.carla_actor.set_transform(transform)
             if isinstance(self.parent, Sensor):
                 self.parent.relative_spawn_pose = pose
 
