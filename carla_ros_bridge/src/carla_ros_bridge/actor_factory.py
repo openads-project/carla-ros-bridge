@@ -30,6 +30,7 @@ from carla_ros_bridge.gnss import Gnss
 from carla_ros_bridge.imu import ImuSensor
 from carla_ros_bridge.lane_invasion_sensor import LaneInvasionSensor
 from carla_ros_bridge.lidar import Lidar, SemanticLidar
+from carla_ros_bridge.map_utils import get_road_altitude, lift_if_below_road
 from carla_ros_bridge.marker_sensor import MarkerSensor
 from carla_ros_bridge.object_sensor import ObjectSensor
 from carla_ros_bridge.ideal_object_sensor import IdealObjectSensor
@@ -206,14 +207,7 @@ class ActorFactory(object):
         """
         get the altitude of the map at a given position
         """
-        carla_map = self.world.get_map()
-        waypoint = carla_map.get_waypoint(l, project_to_road=True, lane_type=carla.LaneType.Driving)
-
-        if waypoint is not None:
-            return waypoint.transform.location.z
-        else:
-            self.node.loginfo("Could not find waypoint for position x={}, y={}".format(l.x, l.y))
-            return l.z
+        return get_road_altitude(self.world, l, self.node.loginfo)
 
     def _spawn_carla_actor(self, req):
         """
@@ -246,13 +240,9 @@ class ActorFactory(object):
             self.node.loginfo("Checking spawn altitude for actor={} at z={}".format(
                 req.type, transform.location.z))
 
-            map_altitude = self._get_altitude_on_map(transform.location)
-            dz = transform.location.z - map_altitude
-            
             # spawn vehicle 3 m above map if desired height is below map
-            if dz < 0:
-                transform.location.z = map_altitude + 3.0
-
+            if lift_if_below_road(
+                    self.world, transform, loginfo=self.node.loginfo):
                 self.node.loginfo("Update spawn altitude because of map elevation: actor={} z={}".format(
                     req.type, transform.location.z))
 
