@@ -1,116 +1,110 @@
 import os
 
-import launch
 from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
-    ld = launch.LaunchDescription([
-        launch.actions.DeclareLaunchArgument(
-            name='host',
-            default_value='localhost'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='port',
-            default_value='2000'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='timeout',
-            default_value='10'
-        ),
-        launch.actions.DeclareLaunchArgument(
+    bridge_launch_arguments = [
+        ('use_sim_time', 'True'),
+        ('host', 'carla-server'),
+        ('port', '2000'),
+        ('timeout', '5000'),
+        ('passive', 'False'),
+        ('publish_clock', 'True'),
+        ('synchronous_mode', 'True'),
+        ('synchronous_mode_wait_for_vehicle_control_command', 'False'),
+        ('fixed_delta_seconds', '0.05'),
+        ('start_unix_time_stamp', '0'),
+        ('town', ''),
+        ('rt_factor', '1.0'),
+        ('register_all_sensors', 'True'),
+        ('native_interface', 'True'),
+        ('ego_vehicle_role_name', ['hero', 'ego_vehicle', 'hero0', 'hero1', 'hero2', 'hero3']),
+        ('publish_static_vehicles', 'True'),
+        ('publish_compressed_images', 'True'),
+        ('ignore_altitude', 'False'),
+        ('ignore_tilt', 'True'),
+        ('georeference_substitution', ''),
+        ('grid_convergence', 'None'),
+        ('publish_etsi_messages', 'False'),
+        ('publisher_mapem_timer_period', '1.0'),
+        ('publisher_spatem_timer_period', '0.1'),
+        ('integrate_junctions_without_traffic_lights', 'False'),
+        ('traffic_light_junction_search_ignored_ids', '[-1]'),
+        ('traffic_light_junction_max_search_count', '13'),
+        ('waypoints_search_distance', '1.0'),
+        ('lane_waypoints_count', '10'),
+        ('debug_traffic_light_information', 'False'),
+        ('publisher_debug_traffic_light_information_timer_period', '1.0'),
+        ('log_level', 'info'),
+    ]
+
+    args = [
+        *[
+            DeclareLaunchArgument(
+                name=name,
+                default_value=default_value
+            )
+            for name, default_value in bridge_launch_arguments
+        ],
+        DeclareLaunchArgument(
             name='role_name',
             default_value='ego_vehicle'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='vehicle_filter',
             default_value='vehicle.*'
         ),
-        launch.actions.DeclareLaunchArgument(
+        DeclareLaunchArgument(
             name='spawn_point',
             default_value='None'
         ),
-        launch.actions.DeclareLaunchArgument(
-            name='town',
-            default_value='Town01'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='passive',
-            default_value='False'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='synchronous_mode_wait_for_vehicle_control_command',
-            default_value='False'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='fixed_delta_seconds',
-            default_value='0.05'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='publish_static_vehicles',
-            default_value='True'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='publish_compressed_images',
-            default_value='True'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='ignore_altitude',
-            default_value='False'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='ignore_tilt',
-            default_value='True'
-        ),
-        launch.actions.DeclareLaunchArgument(
-            name='grid_convergence',
-            default_value='None'
-        ),
-        launch.actions.IncludeLaunchDescription(
-            launch.launch_description_sources.PythonLaunchDescriptionSource(
+    ]
+
+    includes = [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
                 os.path.join(get_package_share_directory(
                     'carla_ros_bridge'), 'carla_ros_bridge.launch.py')
             ),
             launch_arguments={
-                'host': launch.substitutions.LaunchConfiguration('host'),
-                'port': launch.substitutions.LaunchConfiguration('port'),
-                'town': launch.substitutions.LaunchConfiguration('town'),
-                'timeout': launch.substitutions.LaunchConfiguration('timeout'),
-                'passive': launch.substitutions.LaunchConfiguration('passive'),
-                'synchronous_mode_wait_for_vehicle_control_command': launch.substitutions.LaunchConfiguration('synchronous_mode_wait_for_vehicle_control_command'),
-                'fixed_delta_seconds': launch.substitutions.LaunchConfiguration('fixed_delta_seconds'),
-                'publish_static_vehicles': launch.substitutions.LaunchConfiguration('publish_static_vehicles'),
-                'publish_compressed_images': launch.substitutions.LaunchConfiguration('publish_compressed_images'),
-                'ignore_altitude': launch.substitutions.LaunchConfiguration('ignore_altitude'),
-                'ignore_tilt': launch.substitutions.LaunchConfiguration('ignore_tilt'),
-                'grid_convergence': launch.substitutions.LaunchConfiguration('grid_convergence')
+                name: LaunchConfiguration(name)
+                for name, _ in bridge_launch_arguments
             }.items()
         ),
-        launch.actions.IncludeLaunchDescription(
-            launch.launch_description_sources.PythonLaunchDescriptionSource(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
                 os.path.join(get_package_share_directory(
                     'carla_spawn_objects'), 'carla_example_ego_vehicle.launch.py')
             ),
             launch_arguments={
-                'host': launch.substitutions.LaunchConfiguration('host'),
-                'port': launch.substitutions.LaunchConfiguration('port'),
-                'timeout': launch.substitutions.LaunchConfiguration('timeout'),
-                'vehicle_filter': launch.substitutions.LaunchConfiguration('vehicle_filter'),
-                'role_name': launch.substitutions.LaunchConfiguration('role_name'),
-                'spawn_point': launch.substitutions.LaunchConfiguration('spawn_point')
+                'host': LaunchConfiguration('host'),
+                'port': LaunchConfiguration('port'),
+                'timeout': LaunchConfiguration('timeout'),
+                'vehicle_filter': LaunchConfiguration('vehicle_filter'),
+                'role_name': LaunchConfiguration('role_name'),
+                'spawn_point': LaunchConfiguration('spawn_point')
             }.items()
         ),
-        launch.actions.IncludeLaunchDescription(
-            launch.launch_description_sources.PythonLaunchDescriptionSource(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
                 os.path.join(get_package_share_directory(
                     'carla_manual_control'), 'carla_manual_control.launch.py')
             ),
             launch_arguments={
-                'role_name': launch.substitutions.LaunchConfiguration('role_name')
+                'role_name': LaunchConfiguration('role_name')
             }.items()
         )
+    ]
+
+    return LaunchDescription([
+        *args,
+        *includes,
     ])
-    return ld
 
 
 if __name__ == '__main__':

@@ -225,7 +225,6 @@ class ActorFactory(object):
 
         for attribute in req.attributes:
             blueprint.set_attribute(attribute.key, attribute.value)
-
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
         else:
@@ -233,14 +232,14 @@ class ActorFactory(object):
             transform = secure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
 
-        # Check altitude (due to map elevation) if not attached to another actor
+        # Check altitude if not attached to another actor
         # Only apply altitude correction for vehicles and walkers, not for static props or sensors
         # Static props and sensors should spawn at their exact specified position
         if req.attach_to == 0 and (req.type.startswith('vehicle.') or req.type.startswith('walker.')):
             self.node.loginfo("Checking spawn altitude for actor={} at z={}".format(
                 req.type, transform.location.z))
 
-            # spawn vehicle 3 m above map if desired height is below map
+            # spawn vehicle above map if desired height is below map
             if lift_if_below_road(
                     self.world, transform, loginfo=self.node.loginfo):
                 self.node.loginfo("Update spawn altitude because of map elevation: actor={} z={}".format(

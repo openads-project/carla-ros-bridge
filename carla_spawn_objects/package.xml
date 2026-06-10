@@ -22,7 +22,6 @@
   <build_export_depend condition="$ROS_VERSION == 1">rospy</build_export_depend>
   <exec_depend condition="$ROS_VERSION == 1">rospy</exec_depend>
   <exec_depend condition="$ROS_VERSION == 1">topic_tools</exec_depend>
-  <exec_depend condition="$ROS_VERSION == 1">tf2</exec_depend>
 
   <export>
     <build_type condition="$ROS_VERSION == 1">catkin</build_type>

@@ -40,7 +40,6 @@ from rosgraph_msgs.msg import Clock
 
 import time
 
-
 class CarlaRosBridge(CompatibleNode):
 
     """
@@ -185,7 +184,7 @@ class CarlaRosBridge(CompatibleNode):
         self.carla_weather_subscriber = \
             self.new_subscription(CarlaWeatherParameters, "/carla/weather_control",
                                   self.on_weather_changed, qos_profile=10, callback_group=self.callback_group)
-        
+
     def spawn_object(self, req, response=None):
         response = roscomp.get_service_response(SpawnObject)
         if not self.shutdown.is_set():
@@ -309,7 +308,7 @@ class CarlaRosBridge(CompatibleNode):
                                      "Missing command from actor ids {}".format(CarlaRosBridge.VEHICLE_CONTROL_TIMEOUT,
                                                                                 self._expected_ego_vehicle_control_command_ids))
                     self._all_vehicle_control_commands_received.clear()
-            
+
             # real-time factor throttling (accounting for in-cycle processing time)
             if self.rt_factor > 0.0:
                 desired_cycle_time = world_snapshot.timestamp.delta_seconds / self.rt_factor
@@ -445,12 +444,12 @@ def main(args=None):
         'synchronous_mode_wait_for_vehicle_control_command', False)
     parameters['fixed_delta_seconds'] = carla_bridge.get_param('fixed_delta_seconds', 0.05)
     parameters['start_unix_time_stamp'] = carla_bridge.get_param('start_unix_time_stamp', 0)
+    parameters['town'] = carla_bridge.get_param('town', "")
+    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 1.0)
     parameters['register_all_sensors'] = carla_bridge.get_param('register_all_sensors', True)
     parameters['native_interface'] = carla_bridge.get_param('native_interface', True)
-    parameters['town'] = carla_bridge.get_param('town', None)
-    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 1.0)
     role_name = carla_bridge.get_param('ego_vehicle_role_name',
-                                       ["hero", "ego_vehicle", "hero1", "hero2", "hero3"])
+                                       ["hero", "ego_vehicle", "hero0", "hero1", "hero2", "hero3"])
     parameters['ego_vehicle'] = {'role_name': role_name}
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['publish_compressed_images'] = carla_bridge.get_param('publish_compressed_images', True)

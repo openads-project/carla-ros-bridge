@@ -74,6 +74,7 @@ class SetInitialPose(CompatibleNode):
         pose_to_publish.position.z += 2.0
         self.transform_publisher.publish(pose_to_publish)
 
+
 def main():
     """
     main function

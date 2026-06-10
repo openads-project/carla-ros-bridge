@@ -34,15 +34,14 @@ class ScenarioRunnerRunner(ApplicationRunner):
         Executes scenario
         """
         if ROS_VERSION == 1:
-            python_path = "/usr/bin/python3"
+            python_path = "/usr/bin/python"
         elif ROS_VERSION == 2:
             python_path = "/usr/bin/python3"
         cmdline = [python_path, "{}/scenario_runner.py".format(self._path),
                    "--openscenario", "{}".format(scenario_file),
                    "--timeout", "1000000",
                    "--host", self._host,
-                   "--port", str(self._port),
-                   "--output"]
+                   "--port", str(self._port)]
         if self._wait_for_ego:
             cmdline.append("--waitForEgo")
         return self.execute(cmdline, env=os.environ)
