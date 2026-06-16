@@ -33,7 +33,7 @@
 
 - Compressed image support for cameras (!51)
 - Optionally publish static objects (!14)
-- Ideal Object Sensor (!28)
+- [Ideal Object Sensor](./docs/ros_sensors.md#ideal-object-sensor) (!28)
 - ETSI MAPEM/SPATEM conversion (!46)
   TODO: documented somewhere?
 - Prevent similar sensor names and thus duplicated topics
@@ -41,7 +41,7 @@
 
 ## Controlling
 
-- Enable automatic disabling of the automated control command by interaction (!32)
+- Disable automated control commands while manual control is active (!32)
 - Add Xbox wireless controller support (!43)
 - Use `AckermannDriveStamped` instead of `AckermannDrive` (!55)
 
