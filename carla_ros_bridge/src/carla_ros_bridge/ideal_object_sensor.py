@@ -12,8 +12,6 @@ import ros_compatibility as roscomp
 ROS_VERSION = roscomp.get_ros_version()
 
 import math
-import numpy as np
-
 import carla
 import carla_common.transforms as trans
 from carla_ros_bridge.vehicle import Vehicle
@@ -21,10 +19,14 @@ from carla_ros_bridge.walker import Walker
 from carla_ros_bridge.object_sensor import ObjectSensor
 
 from derived_object_msgs.msg import ObjectArray
-from geometry_msgs.msg import Point, PointStamped, TransformStamped
+from geometry_msgs.msg import Point, PointStamped
 
 import tf2_ros
 from tf2_geometry_msgs import do_transform_point
+
+if ROS_VERSION == 2:
+    from rclpy.time import Time
+    from rclpy.duration import Duration
 
 class IdealObjectSensor(ObjectSensor):
 
@@ -93,8 +95,6 @@ class IdealObjectSensor(ObjectSensor):
             "enable_occlusion_filter":      {"default": False},
             "hit_point_blanking_radius":    {"default": 0.0,    "lower_boundary": 0}
         }
-        self._last_detection_debug_frame = None
-
         # Extract and check attributes and set default values if not available or values are not set in parameter boundaries
         for key, current_dict in attributes_dict.items():
             try:
@@ -146,12 +146,6 @@ class IdealObjectSensor(ObjectSensor):
 
         return azimuth, elevation
 
-    def record_visibility_result(self, result, detail=None):
-        if hasattr(self, "_visibility_debug_counts"):
-            self._visibility_debug_counts[result] += 1
-        if detail and hasattr(self, "_visibility_debug_examples"):
-            self._visibility_debug_examples.setdefault(result, detail)
-
     def check_visibility(self, carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
 
         # FILTER 1
@@ -160,10 +154,6 @@ class IdealObjectSensor(ObjectSensor):
 
         # Filter objects that are far outside the sensor range based on the target center.
         if distance > self.range + self.target_center_range_margin:
-            self.record_visibility_result(
-                "target_center_range",
-                "distance={:.2f} > range+margin={:.2f}".format(
-                    distance, self.range + self.target_center_range_margin))
             return False
 
         # FILTER 2
@@ -177,10 +167,6 @@ class IdealObjectSensor(ObjectSensor):
             corner_list_filter_2.append([corner_num, corner, corner_distance])
 
         if len(corner_list_filter_2) < self.min_corner_amount:
-            self.record_visibility_result(
-                "corner_range",
-                "corners_in_range={} < min_corner_amount={}".format(
-                    len(corner_list_filter_2), self.min_corner_amount))
             return False
 
         # FILTER 3
@@ -205,14 +191,9 @@ class IdealObjectSensor(ObjectSensor):
             corner_list_filter_3.append(corner[1])
         
         if len(corner_list_filter_3) < self.min_corner_amount:
-            self.record_visibility_result(
-                "fov",
-                "corners_in_fov={} < min_corner_amount={}".format(
-                    len(corner_list_filter_3), self.min_corner_amount))
             return False
 
         if not self.enable_occlusion_filter:
-            self.record_visibility_result("visible")
             return True
 
         # FILTER 4
@@ -241,13 +222,8 @@ class IdealObjectSensor(ObjectSensor):
             corner_list_filter_4.append(corner)
 
         if len(corner_list_filter_4) < self.min_corner_amount:
-            self.record_visibility_result(
-                "occlusion",
-                "corners_not_occluded={} < min_corner_amount={}".format(
-                    len(corner_list_filter_4), self.min_corner_amount))
             return False
 
-        self.record_visibility_result("visible")
         return True
 
     def point_to_pointstamped(self, point):
@@ -268,26 +244,6 @@ class IdealObjectSensor(ObjectSensor):
 
         return ros_corners_in_sensor_frame
 
-    @staticmethod
-    def matrix_to_transform(matrix, target_frame, source_frame):
-        pose = trans.transform_matrix_to_ros_pose(matrix)
-        transform = TransformStamped()
-        transform.header.frame_id = target_frame
-        transform.child_frame_id = source_frame
-        transform.transform.translation.x = pose.position.x
-        transform.transform.translation.y = pose.position.y
-        transform.transform.translation.z = pose.position.z
-        transform.transform.rotation = pose.orientation
-        return transform
-
-    def get_sensor_pose_matrix(self):
-        sensor_pose_matrix = trans.ros_pose_to_transform_matrix(self.relative_spawn_pose)
-        if self.parent is not None:
-            parent_pose_matrix = trans.ros_pose_to_transform_matrix(
-                self.parent.get_current_ros_pose())
-            sensor_pose_matrix = np.matmul(parent_pose_matrix, sensor_pose_matrix)
-        return sensor_pose_matrix
-
     def get_ros_transform(self, timestamp):
         # Get transform of idealObjectSensor
         if not self.relative_spawn_pose:
@@ -299,7 +255,7 @@ class IdealObjectSensor(ObjectSensor):
             frame_id = "carla_map"
         child_frame_id = self.get_prefix()
 
-        transform = TransformStamped()
+        transform = tf2_ros.TransformStamped()
         transform.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
         transform.header.frame_id = frame_id
         transform.child_frame_id = child_frame_id
@@ -347,39 +303,33 @@ class IdealObjectSensor(ObjectSensor):
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
-        # Calculate sensor pose directly from the parent pose and relative sensor transform.
+        # Get ROS transform from IdealObjectSensor to carla_map and vice versa
         sensor_frame = self.get_prefix()
-        sensor_pose_matrix = self.get_sensor_pose_matrix()
-        ros_tf_carla_map_to_sensor = self.matrix_to_transform(
-            np.linalg.inv(sensor_pose_matrix), sensor_frame, 'carla_map')
-        ros_sensor_pose_in_carla_map = trans.transform_matrix_to_ros_pose(sensor_pose_matrix)
+        time_latest_tf = Time(seconds=0)
+        duration_timeout = Duration(seconds=0)
+        try:
+            ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
+            ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
+        except:
+            self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
+                self.__class__.__name__, sensor_frame, 'carla_map', frame))
+            return
 
         # Extract sensor location in carla_map from ROS transform and convert into geometry_msgs/Point
         ros_point_sensor_in_carla_map = Point(
-            x=ros_sensor_pose_in_carla_map.position.x,
-            y=ros_sensor_pose_in_carla_map.position.y,
-            z=ros_sensor_pose_in_carla_map.position.z
+            x=ros_tf_sensor_to_carla_map.transform.translation.x,
+            y=ros_tf_sensor_to_carla_map.transform.translation.y,
+            z=ros_tf_sensor_to_carla_map.transform.translation.z
         )
         carla_location_sensor_in_carla_map = trans.ros_point_to_carla_location(ros_point_sensor_in_carla_map)
-        self._visibility_debug_counts = {
-            "target_center_range": 0,
-            "corner_range": 0,
-            "fov": 0,
-            "occlusion": 0,
-            "visible": 0
-        }
-        self._visibility_debug_examples = {}
 
         # Iterate over all dynamic actors
-        dynamic_targets_checked = 0
-        dynamic_targets_visible = 0
         for actor_id in self.actor_list.keys():
 
             # Currently only vehicles and walkers are added to the object array
             if self.parent is None or self.parent.uid != actor_id:
                 actor = self.actor_list[actor_id]
                 if isinstance(actor, Vehicle) or isinstance(actor, Walker):
-                    dynamic_targets_checked += 1
 
                     # Get CARLA target location in carla_map
                     carla_location_target_in_carla_map = actor.carla_actor.get_location()
@@ -391,13 +341,10 @@ class IdealObjectSensor(ObjectSensor):
 
                     # Check visibility of the target
                     if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
-                        dynamic_targets_visible += 1
                         ros_objects.objects.append(actor.get_object_info())
 
         # Iterate over all static vehicles
         if(self.node.parameters['publish_static_vehicles']):
-            static_targets_checked = 0
-            static_targets_visible = 0
             for object_key, object_value in self.OBJECT_LABELS.items():
 
                 static_vehicles = self.world.get_environment_objects(object_key)
@@ -405,7 +352,6 @@ class IdealObjectSensor(ObjectSensor):
                 for vehicle in static_vehicles:
                     # Take only vehicles with bounding_box attribute set
                     if hasattr(vehicle, "bounding_box"):
-                        static_targets_checked += 1
 
                         # Get target location in carla_map
                         carla_location_target_in_carla_map = vehicle.transform.location
@@ -416,42 +362,7 @@ class IdealObjectSensor(ObjectSensor):
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
-                            static_targets_visible += 1
                             vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
                             ros_objects.objects.append(vehicle_obj)
-        else:
-            static_targets_checked = 0
-            static_targets_visible = 0
-
-        if frame == 0 or frame % 100 == 0 or (
-                not ros_objects.objects and self._last_detection_debug_frame is None):
-            rejection_examples = ", ".join(
-                "{}: {}".format(result, detail)
-                for result, detail in sorted(self._visibility_debug_examples.items())
-            )
-            self.node.loginfo(
-                "{}: IdealObjectSensor frame {} detected {} object(s). "
-                "Dynamic checked/visible: {}/{}. Static checked/visible: {}/{}. "
-                "Filter results: target_center_range={}, corner_range={}, fov={}, "
-                "occlusion={}, visible={}. Sensor location: x={:.2f}, y={:.2f}, z={:.2f}, "
-                "range={}. Rejection examples: {}.".format(
-                    self.get_prefix(),
-                    frame,
-                    len(ros_objects.objects),
-                    dynamic_targets_checked,
-                    dynamic_targets_visible,
-                    static_targets_checked,
-                    static_targets_visible,
-                    self._visibility_debug_counts["target_center_range"],
-                    self._visibility_debug_counts["corner_range"],
-                    self._visibility_debug_counts["fov"],
-                    self._visibility_debug_counts["occlusion"],
-                    self._visibility_debug_counts["visible"],
-                    carla_location_sensor_in_carla_map.x,
-                    carla_location_sensor_in_carla_map.y,
-                    carla_location_sensor_in_carla_map.z,
-                    self.range,
-                    rejection_examples if rejection_examples else "none"))
-            self._last_detection_debug_frame = frame
 
         self.object_publisher.publish(ros_objects)
