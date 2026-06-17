@@ -171,6 +171,11 @@ class CarlaSpawnObjects(CompatibleNode):
                 pitch,
                 yaw)
 
+        raise ValueError(
+            "Invalid spawn point definition. Expected either 'x'/'y' for CARLA coordinates "
+            "or 'lat'/'lon' for WGS84 coordinates, got keys: {}".format(
+                sorted(spawn_point.keys())))
+
     def spawn_object(self, spawn_object_request):
         """
         Spawns the object defined by the object input request via ROS service

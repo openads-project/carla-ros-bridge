@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2024 Institute for Automotive Engineering (ika) RWTH Aachen University
+# Copyright (c) Institute for Automotive Engineering (ika), RWTH Aachen University
 #
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.

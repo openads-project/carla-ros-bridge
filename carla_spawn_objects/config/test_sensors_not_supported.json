@@ -17,7 +17,7 @@
                 },
                 {
                     "id": "fail_vehicle_B_1",
-                    "type": "vehicle.unicaragil.autoshuttle",
+                    "type": "vehicle.ika.karl",
                     "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0}
                 },
                 {
@@ -42,12 +42,12 @@
         },
         {
             "id": "ego_vehicle",
-            "type": "vehicle.unicaragil.autoshuttle",
+            "type": "vehicle.ika.karl",
             "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0},
             "children": [
                 {
                     "id": "fail_vehicle_B_2",
-                    "type": "vehicle.unicaragil.autoshuttle",
+                    "type": "vehicle.ika.karl",
                     "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0}
                 }
             ]
@@ -60,7 +60,7 @@
             "children": [
                 {
                     "id": "fail_vehicle_B_3",
-                    "type": "vehicle.unicaragil.autoshuttle",
+                    "type": "vehicle.ika.karl",
                     "spawn_point": {"x": -50.0, "y": -20.0, "z": 1.0, "roll": 0.0, "pitch": 0.0, "yaw": 90.0}
                 }
             ]
