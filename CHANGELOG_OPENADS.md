@@ -2,50 +2,50 @@
 
 ## General
 
-- Support ROS 2 native interface (!67)
-- Bump to CARLA 0.10.0 using Unreal Engine 5 and update Python API (!74)
+- Support the CARLA ROS 2 native interface via the [`native_interface`](./docs/run_ros.md) launch argument. When enabled, native CARLA sensor publishers are used and bridge-side sensor actors are skipped where possible.
+- Bump the supported CARLA version to [0.10.0](./carla_ros_bridge/src/carla_ros_bridge/CARLA_VERSION) using Unreal Engine 5 and the corresponding Python API updates.
+- Use a [`SingleThreadedExecutor`](./carla_ros_bridge/src/carla_ros_bridge/bridge.py) for the bridge node. The CARLA world tick already runs in a separate thread, so a `MultiThreadedExecutor` can conflict with the tick/update flow.
 
 ## Timing Related
 
-- Support real-time control (!7)
-- Support `start_unix_time_stamp` (!24)
-- Support disabling the ROS clock (!70)
-- Support `use_sim_time` in all nodes (!23)
+- Support real-time control by decoupling CARLA ticking from ROS callback processing in the bridge.
+- Add [`start_unix_time_stamp`](./docs/run_ros.md) to offset ROS simulation timestamps or start them from the current Unix time.
+- Allow disabling bridge-side `/clock` publishing when the CARLA native interface provides time synchronization.
+- Support [`use_sim_time`](./docs/run_ros.md) consistently across bridge, spawning, and control nodes.
 
 ## Map Related
 
 - Rename `frame_id` from `map` to `carla_map`
-- Publish `utm_XX` to `carla_map` static transform based on georeference in OpenDRIVE data or customized by launch argument (!29, !75)
-- Apply grid-convergence correction if needed (!63)
+- Publish a static transform from the OpenDRIVE georeferenced UTM frame to `carla_map`; the georeference can also be overridden through [`georeference_substitution`](./docs/run_ros.md).
+- Apply grid-convergence correction for projected map frames where needed, with override support through [`grid_convergence`](./docs/run_ros.md).
 
 ## Transform Related
 
-- Ignore altitude (!38)
-- Ignore tilt (!72)
+- Add [`ignore_altitude`](./docs/run_ros.md) to flatten altitude in TF, odometry, GNSS, and object-list outputs where supported.
+- Add [`ignore_tilt`](./docs/run_ros.md) to suppress pitch and roll while preserving yaw in pseudo TF, odometry, IMU, and object-list pose outputs.
 
 ## Spawning Related
 
-- Add automatic spawn altitude correction for maps with elevation (!64)
-- Use group and blueprint feature for `carla_spawn_objects` (!26)
-- Add WGS84/global spawn point support (!56, !57)
+- Add automatic spawn altitude correction for maps with elevation.
+- Extend [`carla_spawn_objects`](./carla_spawn_objects/README.md) with `group` and `blueprint` placeholders to spawn a specific vehicle and its sensor equipment in a reproducible setup.
+- Add WGS84/global spawn point support for object definitions; spawn points can use `lat`/`lon` in addition to CARLA `x`/`y` coordinates.
 
 ## Sensor Related
 
-- Compressed image support for cameras (!51)
-- Optionally publish static objects (!14)
-- [Ideal Object Sensor](./docs/ros_sensors.md#ideal-object-sensor) (!28)
-- ETSI MAPEM/SPATEM conversion (!46)
-  TODO: documented somewhere?
+- Add optional compressed image publishing for cameras via [`publish_compressed_images`](./docs/run_ros.md).
+- Optionally include static map objects in object-list output.
+- Add an [Ideal Object Sensor](./docs/ros_sensors.md#ideal-object-sensor), which detects vehicles and walkers by range, field of view, bounding-box vertices, and optional occlusion checks.
+- Add ETSI MAPEM/SPATEM conversion for traffic-light and junction information in the [Traffic Lights Sensor](./docs/etsi_its_conversion.md).
 - Prevent similar sensor names and thus duplicated topics
-- Add weather publisher (!45)
+- Add `/carla/weather` publishing and `/carla/weather_control` handling for CARLA weather parameters.
 
 ## Controlling
 
-- Disable automated control commands while manual control is active (!32)
-- Add Xbox wireless controller support (!43)
-- Use `AckermannDriveStamped` instead of `AckermannDrive` (!55)
+- Disable automated control commands while manual control is active.
+- Add Xbox wireless controller support to [manual control](./carla_manual_control/src/carla_manual_control/carla_manual_control.py).
+- Use [`AckermannDriveStamped`](./docs/carla_ackermann_control.md) instead of `AckermannDrive` for Ackermann control input.
 
 ## Misc
 
-- Disable CARLA hard version check
-- Add docker-ros pipeline (!15)
+- Disable CARLA hard version checks
+- Add [`docker-ros`](github.com/ika-rwth-aachen/docker-ros) CI pipeline support.
