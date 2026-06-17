@@ -276,8 +276,11 @@ class IdealObjectSensor(ObjectSensor):
     def publish_tf(self, timestamp):
         # Publish transform of idealObjectSensor
         transform = self.get_ros_transform(timestamp)
+        if transform is None:
+            return
         try:
             self._tf_broadcaster.sendTransform(transform)
+            self.tf_buffer.set_transform(transform, "carla_ros_bridge")
         except roscomp.exceptions.ROSException:
             if roscomp.ok():
                 self.node.logwarn("Sensor {} failed to send transform.".format(self.uid))
