@@ -460,8 +460,8 @@ def main(args=None):
 
     # etsi its traffic_light parameters
     parameters['publish_etsi_messages'] = carla_bridge.get_param('publish_etsi_messages', False)
-    parameters['publisher_mapem_timer_period'] = carla_bridge.get_param('publisher_mapem_timer_period', 1.0)
-    parameters['publisher_spatem_timer_period'] = carla_bridge.get_param('publisher_spatem_timer_period', 0.1)
+    parameters['mapem_timer_period'] = carla_bridge.get_param('mapem_timer_period', 1.0)
+    parameters['spatem_timer_period'] = carla_bridge.get_param('spatem_timer_period', 0.1)
     parameters['integrate_junctions_without_traffic_lights'] = carla_bridge.get_param('integrate_junctions_without_traffic_lights', False)
     parameters['traffic_light_junction_search_ignored_ids'] = carla_bridge.get_param('traffic_light_junction_search_ignored_ids', [-1])
     parameters['traffic_light_junction_max_search_count'] = carla_bridge.get_param('traffic_light_junction_max_search_count', 13)

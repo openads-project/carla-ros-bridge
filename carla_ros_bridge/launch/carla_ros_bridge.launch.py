@@ -28,8 +28,8 @@ def generate_launch_description():
         'georeference_substitution',
         'grid_convergence',
         'publish_etsi_messages',
-        'publisher_mapem_timer_period',
-        'publisher_spatem_timer_period',
+        'mapem_timer_period',
+        'spatem_timer_period',
         'integrate_junctions_without_traffic_lights',
         'traffic_light_junction_search_ignored_ids',
         'traffic_light_junction_max_search_count',
@@ -151,12 +151,12 @@ def generate_launch_description():
             description='Flag if Etsi Mapem and Spatem messages should be published. Saves computation time if not needed.'
         ),
         DeclareLaunchArgument(
-            name='publisher_mapem_timer_period',
+            name='mapem_timer_period',
             default_value='1.0',
             description='Time between publishing the Etsi Mapem message'
         ),
         DeclareLaunchArgument(
-            name='publisher_spatem_timer_period',
+            name='spatem_timer_period',
             default_value='0.1',
             description='Time between publishing the Etsi Spatem message'
         ),

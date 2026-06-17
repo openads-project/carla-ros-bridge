@@ -71,14 +71,14 @@ class IdealObjectSensor(ObjectSensor):
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
-        
+
         # Set up Buffer and TransformListener to lookup transforms between frames
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.transform_listener.TransformListener(self.tf_buffer, node, spin_thread=False)
 
         # Set up TransformBroadcaster to publish sensor transform
         self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
-        
+
         # Extract (relative) spawn pose
         self.relative_spawn_pose = relative_spawn_pose
 
@@ -90,23 +90,21 @@ class IdealObjectSensor(ObjectSensor):
             "upper_fov":                    {"default": 90.0,   "lower_boundary": 0,    "upper_boundary": 90},
             "lower_fov":                    {"default": -90.0,  "lower_boundary": -90,  "upper_boundary": 0},
             "min_corner_amount":            {"default": 1,      "lower_boundary": 1,    "upper_boundary": 8},
-            "range_tolerance":              {"default": 10.0,   "lower_boundary": 0}, # 10 Meters based on the length of a truck
-            "hit_point_blanking_radius":    {"default": 100.0,  "lower_boundary": 0}
+            "target_center_range_margin":   {"default": 10.0,   "lower_boundary": 0}, # 10 Meters based on the length of a truck
+            "enable_occlusion_filter":      {"default": False},
+            "hit_point_blanking_radius":    {"default": 0.0,    "lower_boundary": 0}
         }
 
         # Extract and check attributes and set default values if not available or values are not set in parameter boundaries
         for key, current_dict in attributes_dict.items():
             try:
-                # Extract relevant attributes and convert to float
+                # Extract relevant attributes
                 attribute = next((attribute for attribute in attributes if attribute.key == key), None)
+                if key == "enable_occlusion_filter":
+                    setattr(self, key, attribute.value.lower() in ("true", "1", "yes"))
+                    continue
                 setattr(self, key, float(attribute.value))
                 # Boundary check
-                if key == "hit_point_blanking_radius" and getattr(self, key) < current_dict.get("lower_boundary"):
-                    setattr(self, key, getattr(self, "range"))
-                    self.node.logwarn(
-                        "{} attribute of IdealObjectSensor is not in parameter boundaries! Using sensor range value as default ({}) to deactivate FILTER 4.".format(
-                            key, getattr(self, "range")))
-                    continue
                 if getattr(self, key) < current_dict.get("lower_boundary") or ("upper_boundary" in current_dict.keys() and getattr(self, key) > current_dict.get("upper_boundary")):
                     setattr(self, key, getattr(current_dict, "default"))
                     self.node.logwarn(
@@ -114,12 +112,6 @@ class IdealObjectSensor(ObjectSensor):
                             key, current_dict.get("default")))
             except:
                 # Attribute not available
-                if key == "hit_point_blanking_radius":
-                    setattr(self, key, getattr(self, "range")) # set hit_point_blanking_radius to the same value as sensor range, to deactivate FILTER 4 by default
-                    self.node.logwarn(
-                        "No {} attribute found for IdealObjectSensor. Using sensor range value as default ({}) to deactivate FILTER 4.".format(
-                            key, getattr(self, "range")))
-                    continue
                 setattr(self, key, current_dict.get("default"))
                 self.node.logwarn(
                     "No {} attribute found for IdealobjectSensor. Using default value of {}.".format(
@@ -141,7 +133,7 @@ class IdealObjectSensor(ObjectSensor):
         :return: name
         """
         return "sensor.pseudo.ideal_objects"
-    
+
     def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
         # Get location vaules of pose
         dx = target_point_in_sensor_frame.x
@@ -153,17 +145,17 @@ class IdealObjectSensor(ObjectSensor):
         elevation = math.degrees(math.asin(dz/distance))
 
         return azimuth, elevation
-    
+
     def check_visibility(self, carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
 
         # FILTER 1
         # Calculate distance between sensor and target
         distance = carla_location_sensor_in_carla_map.distance(carla_location_target_in_carla_map)
 
-        # Filter objects that are far outside the sensor range (including range tolerance)
-        if abs(distance-self.range_tolerance) > self.range:
+        # Filter objects that are far outside the sensor range based on the target center.
+        if distance > self.range + self.target_center_range_margin:
             return False
-        
+
         # FILTER 2
         # Filter corners that are outside the sensor range and return if not enough corners are visible
         corner_list_filter_2 = list()
@@ -173,10 +165,10 @@ class IdealObjectSensor(ObjectSensor):
             if corner_distance > self.range:
                 continue
             corner_list_filter_2.append([corner_num, corner, corner_distance])
-        
+
         if len(corner_list_filter_2) < self.min_corner_amount:
             return False
-        
+
         # FILTER 3
         # Filter corners outside the sensor FOV and return if not enough corners are visible
         # convert corner locations from CARLA carla_map to ROS sensor frame
@@ -189,7 +181,7 @@ class IdealObjectSensor(ObjectSensor):
 
             # Calculate azimuth and elevation
             azimuth, elevation = self.calculate_azimuth_elevation(ros_corner_pointstamped.point, corner[2])
-            
+
             # Check if corner is inside the sensor FOV
             if azimuth < self.left_fov: continue
             if azimuth > self.right_fov: continue
@@ -200,9 +192,12 @@ class IdealObjectSensor(ObjectSensor):
         
         if len(corner_list_filter_3) < self.min_corner_amount:
             return False
-        
+
+        if not self.enable_occlusion_filter:
+            return True
+
         # FILTER 4
-        # Filter corners that are covered by other objects and return if not enough corners are visible
+        # Filter corners that are occluded by other objects and return if not enough corners are visible
         corner_list_filter_4 = list()
 
         for corner in corner_list_filter_3:
@@ -225,10 +220,10 @@ class IdealObjectSensor(ObjectSensor):
                     break
                 if hit: continue
             corner_list_filter_4.append(corner)
-        
+
         if len(corner_list_filter_4) < self.min_corner_amount:
             return False
-        
+
         return True
 
     def point_to_pointstamped(self, point):
@@ -259,7 +254,7 @@ class IdealObjectSensor(ObjectSensor):
         else:
             frame_id = "carla_map"
         child_frame_id = self.get_prefix()
-        
+
         transform = tf2_ros.TransformStamped()
         transform.header.stamp = roscomp.ros_timestamp(sec=timestamp + self.node.parameters["start_unix_time_stamp"], from_sec=True)
         transform.header.frame_id = frame_id
@@ -275,7 +270,7 @@ class IdealObjectSensor(ObjectSensor):
         transform.transform.rotation.w = self.relative_spawn_pose.orientation.w
 
         return transform
-        
+
     def publish_tf(self, timestamp):
         # Publish transform of idealObjectSensor
         transform = self.get_ros_transform(timestamp)
@@ -284,7 +279,7 @@ class IdealObjectSensor(ObjectSensor):
         except roscomp.exceptions.ROSException:
             if roscomp.ok():
                 self.node.logwarn("Sensor {} failed to send transform.".format(self.uid))
-                
+
     def update(self, frame, timestamp):
         """
         Function (override) to update this object.

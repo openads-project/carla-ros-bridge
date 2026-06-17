@@ -90,8 +90,8 @@ The following launch arguments are available for `carla_ros_bridge.launch` and `
 | `georeference_substitution` | empty | Replace the OpenDRIVE georeference string before publishing world information. |
 | `grid_convergence` | `None` | Apply grid convergence when publishing the map frame transform. Use `True`, `False`, or `None` for automatic handling. |
 | `publish_etsi_messages` | `False` | Publish ETSI MAPEM and SPATEM messages for traffic light information. |
-| `publisher_mapem_timer_period` | `1.0` | Time in seconds between ETSI MAPEM publications. |
-| `publisher_spatem_timer_period` | `0.1` | Time in seconds between ETSI SPATEM publications. |
+| `mapem_timer_period` | `1.0` | Time in seconds between ETSI MAPEM publications. |
+| `spatem_timer_period` | `0.1` | Time in seconds between ETSI SPATEM publications. |
 | `integrate_junctions_without_traffic_lights` | `False` | Include junctions without traffic lights in ETSI map generation. |
 | `traffic_light_junction_search_ignored_ids` | `[-1]` | OpenDRIVE junction IDs ignored during traffic light junction search. The list cannot be empty. |
 | `traffic_light_junction_max_search_count` | `13` | Number of waypoints to search from each traffic light trigger box when finding junctions. |

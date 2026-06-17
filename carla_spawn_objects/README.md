@@ -1,6 +1,6 @@
 # CARLA Spawn Objects
 
-Find the official documentation about the CARLA Spawn Objects package [__here__](https://carla.readthedocs.io/projects/ros-bridge/en/latest/carla_spawn_objects/). The following README contains information about ika specific changes regarding the `carla_spawn_objects` package.
+Find the official documentation about the CARLA Spawn Objects package [__here__](https://carla.readthedocs.io/projects/ros-bridge/en/latest/carla_spawn_objects/). The following README contains information about OpenADS specific changes regarding the `carla_spawn_objects` package.
 
 ---
 
