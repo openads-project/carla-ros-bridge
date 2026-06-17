@@ -62,9 +62,10 @@ class ActorFactory(object):
         SPAWN_PSEUDO_ACTOR = 1
         DESTROY_ACTOR = 2
 
-    def __init__(self, node, world, sync_mode=False):
+    def __init__(self, node, world, sync_mode=False, tf_buffer=None):
         self.node = node
         self.world = world
+        self.tf_buffer = tf_buffer
         self.blueprint_lib = self.world.get_blueprint_library()
         self.spawn_points = self.world.get_map().get_spawn_points()
         self.sync_mode = sync_mode
@@ -402,7 +403,8 @@ class ActorFactory(object):
                 node=self.node,
                 actor_list=self.actors,
                 world=self.world,
-                attributes=attributes
+                attributes=attributes,
+                tf_buffer=self.tf_buffer
             )
 
         elif type_id == TrafficLightsSensor.get_blueprint_name():
@@ -412,6 +414,7 @@ class ActorFactory(object):
                 parent=parent,
                 node=self.node,
                 actor_list=self.actors,
+                tf_buffer=self.tf_buffer,
             )
 
         elif type_id == OpenDriveSensor.get_blueprint_name():

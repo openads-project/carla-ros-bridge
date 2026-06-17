@@ -15,7 +15,6 @@ from collections import namedtuple
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 import numpy as np
 
-from tf2_ros import Buffer, TransformListener
 import tf_transformations
 from geometry_msgs.msg import TransformStamped, PointStamped
 import tf2_geometry_msgs
@@ -84,7 +83,7 @@ class TrafficLightsSensor(PseudoActor):
         ["lane_id", "lane_type", "waypoint_junction"],
     )
 
-    def __init__(self, uid, name, parent, node, actor_list):
+    def __init__(self, uid, name, parent, node, actor_list, tf_buffer):
         """
         Constructor
         :param uid: unique identifier for this object
@@ -97,6 +96,8 @@ class TrafficLightsSensor(PseudoActor):
         :type node: CompatibleNode
         :param actor_list: current list of actors
         :type actor_list: map(carla-actor-id -> python-actor-object)
+        :param tf_buffer: shared transform buffer owned by the bridge node
+        :type tf_buffer: tf2_ros.Buffer
         """
 
         super(TrafficLightsSensor, self).__init__(
@@ -111,6 +112,7 @@ class TrafficLightsSensor(PseudoActor):
         self._mapem_publish_warned = False
         self.etsi_mapem_publisher = None
         self.etsi_spatem_publisher = None
+        self.tf_buffer = tf_buffer
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
@@ -141,11 +143,10 @@ class TrafficLightsSensor(PseudoActor):
         )
 
         if self.publish_etsi_messages:
+            if self.tf_buffer is None:
+                raise ValueError("TrafficLightsSensor requires a shared tf_buffer when ETSI messages are enabled")
             traffic_light_actors = self.get_traffic_light_actors()
             self.initialize_junctions(traffic_light_actors)
-
-            self.tf_buffer = Buffer()
-            self.tf_listener = TransformListener(self.tf_buffer, node)
 
             self.etsi_mapem_publisher = node.new_publisher(
                 MAPEM,

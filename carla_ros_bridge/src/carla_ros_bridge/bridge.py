@@ -24,6 +24,9 @@ import carla
 
 import ros_compatibility as roscomp
 from ros_compatibility.node import CompatibleNode
+import tf2_ros
+
+ROS_VERSION = roscomp.get_ros_version()
 
 from carla_ros_bridge.actor import Actor
 from carla_ros_bridge.actor_factory import ActorFactory
@@ -32,7 +35,6 @@ from carla_ros_bridge.debug_helper import DebugHelper
 from carla_ros_bridge.ego_vehicle import EgoVehicle
 from carla_ros_bridge.world_info import WorldInfo
 from carla_ros_bridge.weather import Weather
-from carla_ros_bridge.traffic_lights_sensor import TrafficLightsSensor
 
 from carla_msgs.msg import CarlaControl, CarlaWeatherParameters
 from carla_msgs.srv import SpawnObject, DestroyObject, GetBlueprints
@@ -86,6 +88,11 @@ class CarlaRosBridge(CompatibleNode):
 
         self.ros_timestamp = roscomp.ros_timestamp(self.parameters["start_unix_time_stamp"], from_sec=True)
         self.callback_group = roscomp.callback_groups.ReentrantCallbackGroup()
+        self.tf_buffer = tf2_ros.Buffer()
+        if ROS_VERSION == 1:
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        else:
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, spin_thread=False)
 
         self.last_loginfo = time.time()
 
@@ -121,7 +128,7 @@ class CarlaRosBridge(CompatibleNode):
         self.carla_control_queue = queue.Queue()
 
         # actor factory
-        self.actor_factory = ActorFactory(self, carla_world, self.sync_mode)
+        self.actor_factory = ActorFactory(self, carla_world, self.sync_mode, self.tf_buffer)
 
         # add world info
         self.world_info = WorldInfo(carla_world=self.carla_world, node=self)

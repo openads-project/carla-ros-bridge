@@ -35,7 +35,7 @@ class IdealObjectSensor(ObjectSensor):
     IdealObjectSensor
     """
 
-    def __init__(self, uid, name, parent, relative_spawn_pose, node, actor_list, world, attributes):
+    def __init__(self, uid, name, parent, relative_spawn_pose, node, actor_list, world, attributes, tf_buffer):
         """
         Constructor
 
@@ -53,6 +53,8 @@ class IdealObjectSensor(ObjectSensor):
         :type world: carla.World
         :param attributes: attributes of IdealObjectSensor
         :type attributes: diagnostic_msgs/KeyValue[]
+        :param tf_buffer: shared transform buffer owned by the bridge node
+        :type tf_buffer: tf2_ros.Buffer
         """
         super(IdealObjectSensor, self).__init__(uid=uid,
                                                       name=name,
@@ -72,9 +74,9 @@ class IdealObjectSensor(ObjectSensor):
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
 
-        # Set up Buffer and TransformListener to lookup transforms between frames
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.transform_listener.TransformListener(self.tf_buffer, node, spin_thread=False)
+        if tf_buffer is None:
+            raise ValueError("IdealObjectSensor requires a shared tf_buffer")
+        self.tf_buffer = tf_buffer
 
         # Set up TransformBroadcaster to publish sensor transform
         self._tf_broadcaster = tf2_ros.TransformBroadcaster(node)
@@ -293,14 +295,14 @@ class IdealObjectSensor(ObjectSensor):
             self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
             return
 
-        # Publish transform of idealObjectSensor at timestamp
+        # Publish transform of IdealObjectSensor at timestamp
         self.publish_tf(timestamp)
 
         # Generate object array to publish sensor data
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
 
-        # Get ROS transform from idealIbjectSensor to carla_map and vice versa
+        # Get ROS transform from IdealObjectSensor to carla_map and vice versa
         sensor_frame = self.get_prefix()
         time_latest_tf = Time(seconds=0)
         duration_timeout = Duration(seconds=0)
