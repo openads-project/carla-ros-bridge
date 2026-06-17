@@ -467,8 +467,6 @@ def main(args=None):
     parameters['traffic_light_junction_max_search_count'] = carla_bridge.get_param('traffic_light_junction_max_search_count', 13)
     parameters['waypoints_search_distance'] = carla_bridge.get_param('waypoints_search_distance', 1.0)
     parameters['lane_waypoints_count'] = carla_bridge.get_param('lane_waypoints_count', 10)
-    parameters['debug_traffic_light_information'] = carla_bridge.get_param('debug_traffic_light_information', False)
-    parameters['publisher_debug_traffic_light_information_timer_period'] = carla_bridge.get_param('publisher_debug_traffic_light_information_timer_period', 1.0)
 
 
     carla_bridge.loginfo("Trying to connect to {host}:{port}".format(

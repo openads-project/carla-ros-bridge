@@ -38,8 +38,6 @@ def generate_launch_description():
         ('traffic_light_junction_max_search_count', '13'),
         ('waypoints_search_distance', '1.0'),
         ('lane_waypoints_count', '10'),
-        ('debug_traffic_light_information', 'False'),
-        ('publisher_debug_traffic_light_information_timer_period', '1.0'),
         ('log_level', 'info'),
     ]
 

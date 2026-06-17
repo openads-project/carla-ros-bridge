@@ -97,8 +97,6 @@ The following launch arguments are available for `carla_ros_bridge.launch` and `
 | `traffic_light_junction_max_search_count` | `13` | Number of waypoints to search from each traffic light trigger box when finding junctions. |
 | `waypoints_search_distance` | `1.0` | Waypoint search distance in meters. |
 | `lane_waypoints_count` | `10` | Number of waypoints included in ETSI MAPEM ingress and egress lanes. |
-| `debug_traffic_light_information` | `False` | Publish debug visualization for traffic light junction search. |
-| `publisher_debug_traffic_light_information_timer_period` | `1.0` | Time in seconds between traffic light debug publications. |
 | `log_level` | `info` | ROS logging level for the bridge node (`debug`, `info`, `warn`, `error`, or `fatal`). |
 
 The `carla_ros_bridge_with_example_ego_vehicle.launch` and `carla_ros_bridge_with_example_ego_vehicle.launch.py` launch files expose all bridge arguments above and add the following arguments for the spawned example ego vehicle:

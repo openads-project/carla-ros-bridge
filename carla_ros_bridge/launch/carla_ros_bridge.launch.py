@@ -35,8 +35,6 @@ def generate_launch_description():
         'traffic_light_junction_max_search_count',
         'waypoints_search_distance',
         'lane_waypoints_count',
-        'debug_traffic_light_information',
-        'publisher_debug_traffic_light_information_timer_period',
     ]
 
     args = [
@@ -184,16 +182,6 @@ def generate_launch_description():
             name='lane_waypoints_count',
             default_value='10',
             description='Number of waypoints included in the Etsi Mapem Egress/Ingress lanes.'
-        ),
-        DeclareLaunchArgument(
-            name='debug_traffic_light_information',
-            default_value='False',
-            description='Flag if traffic light junction search debug information should be published. Saves computation time if not needed.'
-        ),
-        DeclareLaunchArgument(
-            name='publisher_debug_traffic_light_information_timer_period',
-            default_value='1.0',
-            description='Time between publishing the debug traffic light junction search information'
         ),
         DeclareLaunchArgument(
             name="log_level", 

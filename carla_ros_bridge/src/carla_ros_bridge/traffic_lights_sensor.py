@@ -46,8 +46,6 @@ from etsi_its_spatem_ts_msgs.msg import (
     MovementState,
 )
 
-from visualization_msgs.msg import Marker, MarkerArray
-
 class TrafficLightsSensor(PseudoActor):
     """
     a sensor that reports the state of all traffic lights
@@ -113,16 +111,12 @@ class TrafficLightsSensor(PseudoActor):
         self._mapem_publish_warned = False
         self.etsi_mapem_publisher = None
         self.etsi_spatem_publisher = None
-        self.debug_marker_publisher = None
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
         self.lane_waypoints_count = node.parameters["lane_waypoints_count"]
         self.taffic_light_junction_max_search_count = node.parameters[
             "traffic_light_junction_max_search_count"
-        ]
-        self.debug_traffic_light_information = node.parameters[
-            "debug_traffic_light_information"
         ]
         self.integrate_junctions_without_traffic_lights = node.parameters[
             "integrate_junctions_without_traffic_lights"
@@ -169,14 +163,6 @@ class TrafficLightsSensor(PseudoActor):
                 ),
             )
 
-            self.debug_marker_publisher = node.new_publisher(
-                MarkerArray,
-                "/carla/traffic_light_triggers",
-                qos_profile=QoSProfile(
-                    depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL
-                ),
-            )
-
             # spatem publisher callback
             timer_period = node.parameters["mapem_timer_period"]
             self.timer_mapem = node.create_timer(
@@ -188,15 +174,6 @@ class TrafficLightsSensor(PseudoActor):
             self.timer_spatem = node.create_timer(
                 timer_period, self.publish_etsi_spatem_message
             )
-
-            # publish debug information
-            if self.debug_traffic_light_information:
-                timer_period = node.parameters[
-                    "publisher_debug_traffic_light_information_timer_period"
-                ]
-                self.timer_traffic_lights_debug = node.create_timer(
-                    timer_period, self.debug_publish_traffic_information
-                )
 
     def destroy(self):
         """
@@ -213,9 +190,6 @@ class TrafficLightsSensor(PseudoActor):
 
         if self.etsi_spatem_publisher is not None:
             self.node.destroy_publisher(self.etsi_spatem_publisher)
-
-        if self.debug_marker_publisher is not None:
-            self.node.destroy_publisher(self.debug_marker_publisher)
 
     @staticmethod
     def get_blueprint_name():
@@ -911,88 +885,6 @@ class TrafficLightsSensor(PseudoActor):
             if not self._mapem_publish_warned:
                 self.node.logwarn("Skipping ETSI MAPEM publish this cycle: {}".format(e))
                 self._mapem_publish_warned = True
-
-    def debug_publish_traffic_information(self):
-        """
-        Publishes a debug MarkerArray which visualizes the steps of the method get_affected_traffic_light_waypoint()
-        """
-        marker_array = MarkerArray()
-        marker_id = 0
-
-        current_time = self.node.get_clock().now().to_msg()
-
-        for traffic_light_actor in self.traffic_light_actors:
-            stop_waypoints = traffic_light_actor.carla_actor.get_stop_waypoints()
-
-            for stop_waypoint in stop_waypoints:
-                next_waypoint = stop_waypoint
-
-                for i in range(self.taffic_light_junction_max_search_count):
-
-                    # Create marker for this traffic light trigger box
-                    marker = Marker()
-                    marker.header.frame_id = "carla_map"
-                    marker.header.stamp = current_time
-                    marker.id = marker_id
-                    marker_id += 1
-
-                    marker.type = Marker.SPHERE
-                    marker.action = Marker.ADD
-
-                    # Set marker position
-                    marker.pose.position.x = next_waypoint.transform.location.x
-                    marker.pose.position.y = -next_waypoint.transform.location.y
-
-                    marker.pose.orientation.w = 1.0
-
-                    # Set marker scale (use the extent from trigger box)
-                    marker.scale.x = 1.0
-                    marker.scale.y = 1.0
-                    marker.scale.z = 1.0
-
-                    # Set marker color based on traffic light state
-                    if next_waypoint.is_junction:
-                        junction = next_waypoint.get_junction()
-
-                        found = False
-
-                        for wp1, wp2 in junction.get_waypoints(LaneType.Driving):
-                            if wp1.road_id == stop_waypoint.road_id or wp1.road_id:
-                                found = True
-                                break
-
-                        if found:
-                            marker.color.r = 0.0
-                            marker.color.g = 0.0
-                            marker.color.b = 1.0
-
-                            marker.scale.x = 1.6
-                            marker.scale.y = 1.6
-                            marker.scale.z = 1.6
-                        else:
-                            marker.color.r = 1.0
-                            marker.color.g = 0.0
-                            marker.color.b = 0.0
-                    else:
-                        marker.color.r = 0.0
-                        marker.color.g = 1.0
-                        marker.color.b = 0.0
-
-                    marker.color.a = 1.0  # Full opacity
-                    marker.lifetime = rclpy.duration.Duration(
-                        seconds=0.2
-                    ).to_msg()  # Short lifetime until next update
-
-                    # Add to marker array
-                    marker_array.markers.append(marker)
-
-                    if next_waypoint.is_junction:
-                        break
-
-                    next_waypoint = next_waypoint.next(1)[0]
-
-        # Publish the marker array
-        self.debug_marker_publisher.publish(marker_array)
 
     def publish_etsi_spatem_message(self):
         """
