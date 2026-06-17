@@ -28,29 +28,30 @@ from carla_msgs.msg import CarlaTrafficLightStatusList, CarlaTrafficLightInfoLis
 from carla_msgs.msg import CarlaTrafficLightStatus
 from carla import LaneType
 
-from etsi_its_mapem_ts_msgs.msg import MAPEM
-from etsi_its_mapem_ts_msgs.msg import IntersectionGeometry
-from etsi_its_mapem_ts_msgs.msg import GenericLane
-from etsi_its_mapem_ts_msgs.msg import Connection
-from etsi_its_mapem_ts_msgs.msg import NodeListXY
-from etsi_its_mapem_ts_msgs.msg import NodeXY
-from etsi_its_mapem_ts_msgs.msg import LaneTypeAttributes
-
-from etsi_its_spatem_ts_msgs.msg import IntersectionState
-from etsi_its_spatem_ts_msgs.msg import MovementState
-from etsi_its_spatem_ts_msgs.msg import MovementPhaseState
-from etsi_its_spatem_ts_msgs.msg import MovementEvent
+from etsi_its_mapem_ts_msgs.msg import (
+    MAPEM,
+    Connection,
+    GenericLane,
+    IntersectionGeometry,
+    LaneDirection,
+    LaneTypeAttributes,
+    NodeListXY,
+    NodeXY,
+)
+from etsi_its_spatem_ts_msgs.msg import (
+    SPATEM,
+    IntersectionState,
+    MovementEvent,
+    MovementPhaseState,
+    MovementState,
+)
 
 from visualization_msgs.msg import Marker, MarkerArray
-from etsi_its_spatem_ts_msgs.msg import SPATEM
 
 class TrafficLightsSensor(PseudoActor):
     """
     a sensor that reports the state of all traffic lights
     """
-
-    ETSI_ITS_BITSTRING_INGRESS = 128
-    ETSI_ITS_BITSTRING_EGRESS = 64
 
     """"
     Ingress Lane data container
@@ -432,6 +433,15 @@ class TrafficLightsSensor(PseudoActor):
         return lane_actions[carla_lane_type]
 
     @staticmethod
+    def encode_single_bit_as_byte(bit_index):
+        """
+        Encode a named ETSI bit index as the corresponding byte value.
+        ETSI bit strings are encoded most-significant bit first.
+        """
+
+        return 1 << (7 - bit_index)
+
+    @staticmethod
     def convert_traffic_light_state(state: CarlaTrafficLightStatus):
         """
         Convert the type CarlaTrafficLightStatus into the corresponding ETSI type
@@ -736,11 +746,15 @@ class TrafficLightsSensor(PseudoActor):
         generic_lane.lane_id.value = lane_id
         generic_lane._lane_attributes.lane_type.choice = lane_type     
 
-        # build the bitstring for ingress line: 128 encodes ingress and 192 encodes egress in big endian format
-        generic_lane.lane_attributes.directional_use.value.append(
-            self.ETSI_ITS_BITSTRING_INGRESS if is_ingress else self.ETSI_ITS_BITSTRING_EGRESS
+        lane_direction = generic_lane.lane_attributes.directional_use
+        lane_direction_bit_index = (
+            LaneDirection.BIT_INDEX_INGRESS_PATH
+            if is_ingress else LaneDirection.BIT_INDEX_EGRESS_PATH
         )
-        generic_lane.lane_attributes.directional_use.bits_unused = 6
+        lane_direction.value.append(
+            self.encode_single_bit_as_byte(lane_direction_bit_index)
+        )
+        lane_direction.bits_unused = 8 - LaneDirection.SIZE_BITS
 
         # lane consists of a nodelist of two nodes
         generic_lane.node_list = NodeListXY()

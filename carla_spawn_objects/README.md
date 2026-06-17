@@ -6,7 +6,7 @@ Find the official documentation about the CARLA Spawn Objects package [__here__]
 
 ## Object Configuration
 
-Vehicles and sensors can be defined using a configuration file (see [objects.json](./config/objects.json)). Besides the two object types `vehicle` and `sensor`, two _placeholder_ entities are added, namely the `group` and `blueprint` type. All four entities are further described in the following.
+Vehicles and sensors can be defined using a configuration file (see [objects.json](./config/objects.json)). This is used to spawn a specific vehicle and its sensor equipment in a reproducible setup. Besides the two object types `vehicle` and `sensor`, two _placeholder_ entities are added, namely the `group` and `blueprint` type. All four entities are further described in the following.
 
 ### Vehicle
 
