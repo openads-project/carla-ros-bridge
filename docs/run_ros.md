@@ -92,9 +92,6 @@ The following launch arguments are available for `carla_ros_bridge.launch` and `
 | `publish_etsi_messages` | `False` | Publish ETSI MAPEM and SPATEM messages for traffic light information. |
 | `mapem_timer_period` | `1.0` | Time in seconds between ETSI MAPEM publications. |
 | `spatem_timer_period` | `0.1` | Time in seconds between ETSI SPATEM publications. |
-| `integrate_junctions_without_traffic_lights` | `False` | Include junctions without traffic lights in ETSI map generation. |
-| `traffic_light_junction_search_ignored_ids` | `[-1]` | OpenDRIVE junction IDs ignored during traffic light junction search. The list cannot be empty. |
-| `traffic_light_junction_max_search_count` | `13` | Number of waypoints to search from each traffic light trigger box when finding junctions. |
 | `waypoints_search_distance` | `1.0` | Waypoint search distance in meters. |
 | `lane_waypoints_count` | `10` | Number of waypoints included in ETSI MAPEM ingress and egress lanes. |
 | `log_level` | `info` | ROS logging level for the bridge node (`debug`, `info`, `warn`, `error`, or `fatal`). |
