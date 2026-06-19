@@ -32,7 +32,7 @@ elif ROS_VERSION == 2:
              ['config/objects.json']),
             (os.path.join('share', package_name), glob('launch/*.launch.py'))
         ],
-        install_requires=['setuptools'],
+        install_requires=['pyproj', 'setuptools', 'transforms3d'],
         zip_safe=True,
         maintainer='CARLA Simulator Team',
         maintainer_email='carla.simulator@gmail.com',

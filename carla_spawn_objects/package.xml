@@ -8,12 +8,17 @@
   <license>MIT</license>
 
   <exec_depend>carla_msgs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>python3-pyproj</exec_depend>
+  <exec_depend>python-transforms3d-pip</exec_depend>
   <exec_depend>ros_compatibility</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
   <exec_depend>tf2_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
 
   <!-- ROS 2 DEPENDENCIES-->
   <depend condition="$ROS_VERSION == 2">rclpy</depend>
-  <exec_depend condition="$ROS_VERSION == 2">tf2_ros</exec_depend>
 
   <!-- ROS 1 DEPENDENCIES-->
   <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>

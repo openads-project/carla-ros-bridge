@@ -38,7 +38,8 @@ from geometry_msgs.msg import Pose
 import geometry_msgs.msg
 import tf2_geometry_msgs
 import tf2_ros
-from transforms3d.euler import quat2euler, euler2quat
+from transforms3d.euler import euler2quat
+from transforms3d.quaternions import qmult, quat2mat
 import pyproj
 
 
@@ -77,8 +78,10 @@ class CarlaSpawnObjects(CompatibleNode):
         self.tf_buffer = tf2_ros.Buffer()
         if ROS_VERSION == 1:
             self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+            self.static_tf_broadcaster = tf2_ros.StaticTransformBroadcaster()
         else:
             self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, spin_thread=False)
+            self.static_tf_broadcaster = tf2_ros.StaticTransformBroadcaster(self)
         self._utm_proj_cache = {}
 
         # lists of spawned entities
@@ -360,7 +363,8 @@ class CarlaSpawnObjects(CompatibleNode):
 
         global_sensors = [obj for obj in self.objects if obj['type'].split('.')[0] == 'sensor']
 
-        found_sensor_actor_list = any(sensor['id'] == 'sensor.pseudo.actor_list' for sensor in global_sensors)
+        found_sensor_actor_list = any(
+            sensor['type'] == 'sensor.pseudo.actor_list' for sensor in global_sensors)
 
         if self.spawn_sensors_only is True and found_sensor_actor_list is False:
             raise RuntimeError("Parameter 'spawn_sensors_only' enabled, " +
@@ -379,7 +383,7 @@ class CarlaSpawnObjects(CompatibleNode):
             for vehicle in global_vehicles:
                 for actor_info in actor_info_list.actors:
                     if actor_info.type == vehicle["type"] and actor_info.rolename == vehicle["id"]:
-                        vehicle["carla_id"] = actor_info.id
+                        vehicle["response_id"] = actor_info.id
 
         # iterate through all remaining top-level objects (without sensors)
         global_objects = [obj for obj in self.objects if obj['type'].split('.')[0] != 'sensor']
@@ -403,13 +407,14 @@ class CarlaSpawnObjects(CompatibleNode):
 
         if self.spawn_sensors_only is True:
             # spawn sensors of non-ros spawned vehicles
-            try:
-                vehicle["carla_id"]
-            except KeyError as e:
+            if "response_id" not in vehicle:
                 self.logerr(
                     "Could not spawn sensors of vehicle {}, its carla ID is not known.".format(vehicle["id"]))
+                return
+
+            vehicle["name"] = vehicle["id"]
             # spawn the vehicle's sensors
-            for sensor in vehicle["sensors"]:
+            for sensor in vehicle.get("sensors", []):
                 self.process_sensor(sensor, vehicle)
         else:
             spawn_object_request = roscomp.get_service_request(SpawnObject)
@@ -485,11 +490,19 @@ class CarlaSpawnObjects(CompatibleNode):
 
         # set name, attached_vehicle_id, and transform by considering parent object
         if parent is not None:
-            
+            parent_type = parent['type'].split('.')[0]
+
             if parent['type'] == 'vehicle' and 'attached_vehicle_id' in parent:
                 raise RuntimeError("Object {} will not be spawned, the parent vehicle {} is already attached to another vehicle.".format(object["id"], parent['id']))
 
-            elif parent['type'].split('.')[0] == 'vehicle':
+            elif parent_type == 'vehicle':
+                object["name"] = parent['name'] + "/" + object["id"]
+                object["transform"] = object['local_transform']
+                object['attached_vehicle_id'] = parent['response_id']
+
+            # Preserve the legacy attached_objects behavior: the direct sensor or
+            # pseudo-actor parent, rather than its vehicle, owns the child.
+            elif parent_type in ('sensor', 'actor'):
                 object["name"] = parent['name'] + "/" + object["id"]
                 object["transform"] = object['local_transform']
                 object['attached_vehicle_id'] = parent['response_id']
@@ -517,12 +530,6 @@ class CarlaSpawnObjects(CompatibleNode):
         :param parent: parent object
         """
         if not roscomp.ok():
-            return
-        
-        # check if parent is a sensor
-        if parent is not None and parent['type'].split('.')[0] == 'sensor':
-            self.logerr(
-                    "Could not spawn sensor {}, because the parent is already a sensor.".format(sensor["id"]))
             return
 
         try:
@@ -633,10 +640,8 @@ class CarlaSpawnObjects(CompatibleNode):
         # broadcast static static transform from parent to group
         static_transform = geometry_msgs.msg.TransformStamped()
         if ROS_VERSION == 1:
-            broadcaster = tf2_ros.StaticTransformBroadcaster()
             static_transform.header.stamp = rospy.Time.now()
         elif ROS_VERSION == 2:
-            broadcaster = tf2_ros.StaticTransformBroadcaster(self)
             static_transform.header.stamp = self.get_clock().now().to_msg()
 
         if parent is None:
@@ -658,7 +663,7 @@ class CarlaSpawnObjects(CompatibleNode):
         static_transform.transform.translation.z = group['local_transform'].position.z
         static_transform.transform.rotation = group['local_transform'].orientation
 
-        broadcaster.sendTransform(static_transform) 
+        self.static_tf_broadcaster.sendTransform(static_transform)
 
     def process_blueprint(self, object, parent):
         """
@@ -735,59 +740,23 @@ class CarlaSpawnObjects(CompatibleNode):
 
         spawn_point = Pose()
 
-        # transform base orientation to euler angles
-        base_orientation = list(quat2euler([base.orientation.w,
-                                base.orientation.x,
-                                base.orientation.y,
-                                base.orientation.z]))
+        base_orientation = [base.orientation.w, base.orientation.x,
+                            base.orientation.y, base.orientation.z]
+        shift_orientation = [shift.orientation.w, shift.orientation.x,
+                             shift.orientation.y, shift.orientation.z]
 
-        base_roll = base_orientation[0]
-        base_pitch = base_orientation[1]
-        base_yaw = base_orientation[2]
-
-        # Rotate shift position by base orientation using 'sxyz' order
-        # Order: first Roll (X), then Pitch (Y), then Yaw (Z)
-        
-        # Roll (X-axis) first
-        cos_roll = math.cos(base_roll)
-        sin_roll = math.sin(base_roll)
-        x1 = shift.position.x
-        y1 = shift.position.y * cos_roll - shift.position.z * sin_roll
-        z1 = shift.position.y * sin_roll + shift.position.z * cos_roll
-
-        # Pitch (Y-axis)
-        cos_pitch = math.cos(base_pitch)
-        sin_pitch = math.sin(base_pitch)
-        x2 = x1 * cos_pitch + z1 * sin_pitch
-        y2 = y1
-        z2 = -x1 * sin_pitch + z1 * cos_pitch
-
-        # Yaw (Z-axis) last
-        cos_yaw = math.cos(base_yaw)
-        sin_yaw = math.sin(base_yaw)
-        rotated_x = x2 * cos_yaw - y2 * sin_yaw
-        rotated_y = x2 * sin_yaw + y2 * cos_yaw
-        rotated_z = z2
+        rotation = quat2mat(base_orientation)
+        shift_position = [shift.position.x, shift.position.y, shift.position.z]
+        rotated_x = sum(rotation[0][i] * shift_position[i] for i in range(3))
+        rotated_y = sum(rotation[1][i] * shift_position[i] for i in range(3))
+        rotated_z = sum(rotation[2][i] * shift_position[i] for i in range(3))
 
         # Add rotated position to base position
         spawn_point.position.x = base.position.x + rotated_x
         spawn_point.position.y = base.position.y + rotated_y
         spawn_point.position.z = base.position.z + rotated_z
 
-        shift_orientation = list(quat2euler([shift.orientation.w,
-                                shift.orientation.x,
-                                shift.orientation.y,
-                                shift.orientation.z]))
-
-        # add orientation in euler angles
-        spawn_point_orientation = [0, 0, 0]
-        spawn_point_orientation[0] = base_orientation[0] + shift_orientation[0]
-        spawn_point_orientation[1] = base_orientation[1] + shift_orientation[1]
-        spawn_point_orientation[2] = base_orientation[2] + shift_orientation[2]
-
-
-        # transform orientation to quaternion
-        quat = euler2quat(spawn_point_orientation[0], spawn_point_orientation[1], spawn_point_orientation[2])
+        quat = qmult(base_orientation, shift_orientation)
 
         # set orientation
         spawn_point.orientation.w = quat[0]
