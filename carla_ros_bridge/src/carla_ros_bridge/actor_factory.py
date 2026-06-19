@@ -285,6 +285,9 @@ class ActorFactory(object):
         if carla_actor.parent:
             if carla_actor.parent.id in self.actors:
                 parent = self.actors[carla_actor.parent.id]
+            elif self.node.parameters["native_interface"] and \
+                    isinstance(carla_actor.parent, carla.Sensor):
+                parent = self._create_native_sensor_parent(carla_actor.parent)
             else:
                 parent = self._create_object_from_actor(carla_actor.parent)
             if req is not None:
@@ -309,6 +312,28 @@ class ActorFactory(object):
         obj = self._create_object(carla_actor.id, carla_actor.type_id, name,
                                   parent_id, relative_transform, carla_actor.attributes, carla_actor)
         return obj
+
+    def _create_native_sensor_parent(self, carla_actor):
+        """Register a publisher-free wrapper when an actor needs a native sensor as parent."""
+        if carla_actor.id in self.actors:
+            return self.actors[carla_actor.id]
+
+        parent = None
+        if carla_actor.parent:
+            if carla_actor.parent.id in self.actors:
+                parent = self.actors[carla_actor.parent.id]
+            elif isinstance(carla_actor.parent, carla.Sensor):
+                parent = self._create_native_sensor_parent(carla_actor.parent)
+            else:
+                parent = self._create_object_from_actor(carla_actor.parent)
+
+        name = carla_actor.attributes.get("role_name", "") or str(carla_actor.id)
+        actor = Actor(carla_actor.id, name, parent, self.node, carla_actor)
+        self.actors[actor.uid] = actor
+        self.node.loginfo(
+            "Registered publisher-free bridge parent for native sensor id={} ('{}').".format(
+                carla_actor.id, carla_actor.type_id))
+        return actor
 
     def _destroy_object(self, actor_id, delete_actor):
         if actor_id not in self.actors:
@@ -340,7 +365,8 @@ class ActorFactory(object):
         if carla_actor is not None and carla_actor.id in self.actors:
             return None
 
-        if self.node.parameters["native_interface"] and carla_actor is not None and isinstance(carla_actor, carla.Sensor):
+        if self.node.parameters["native_interface"] and \
+                carla_actor is not None and isinstance(carla_actor, carla.Sensor):
             self.node.loginfo(
                 "Skipping bridge-side sensor actor creation for id={} ('{}') because native_interface is enabled.".format(
                     carla_actor.id, carla_actor.type_id))
@@ -348,7 +374,12 @@ class ActorFactory(object):
 
         if attach_to != 0:
             if attach_to not in self.actors:
-                raise IndexError("Parent object {} not found".format(attach_to))
+                parent_actor = self.world.get_actor(attach_to)
+                if self.node.parameters["native_interface"] and \
+                        isinstance(parent_actor, carla.Sensor):
+                    self._create_native_sensor_parent(parent_actor)
+                else:
+                    raise IndexError("Parent object {} not found".format(attach_to))
 
             parent = self.actors[attach_to]
         else:
