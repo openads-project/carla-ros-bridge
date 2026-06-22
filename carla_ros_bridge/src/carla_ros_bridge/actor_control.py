@@ -82,7 +82,7 @@ class ActorControl(PseudoActor):
 
     def on_pose(self, pose):
         if self.parent and self.parent.carla_actor.is_alive:
-            transform = trans.ros_pose_to_carla_transform(pose)
+            transform = self._resolve_transform(pose)
             if isinstance(self.parent, TrafficParticipant):
                 if lift_if_below_road(
                         self.parent.carla_actor.get_world(),
@@ -94,6 +94,19 @@ class ActorControl(PseudoActor):
             self.parent.carla_actor.set_transform(transform)
             if isinstance(self.parent, Sensor):
                 self.parent.relative_spawn_pose = pose
+
+    def _resolve_transform(self, pose):
+        """Resolve attached-actor poses relative to their physical CARLA parent."""
+        carla_parent = self.parent.carla_actor.parent
+        if carla_parent is None:
+            return trans.ros_pose_to_carla_transform(pose)
+
+        parent_pose = trans.carla_transform_to_ros_pose(carla_parent.get_transform())
+        world_matrix = numpy.dot(
+            trans.ros_pose_to_transform_matrix(parent_pose),
+            trans.ros_pose_to_transform_matrix(pose))
+        world_pose = trans.transform_matrix_to_ros_pose(world_matrix)
+        return trans.ros_pose_to_carla_transform(world_pose)
 
     def on_twist(self, twist):
         """
