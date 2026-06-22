@@ -32,6 +32,7 @@ def generate_launch_description():
         'spatem_timer_period',
         'waypoints_search_distance',
         'lane_waypoints_count',
+        'integrate_junctions_without_traffic_lights',
     ]
 
     args = [
@@ -164,6 +165,11 @@ def generate_launch_description():
             name='lane_waypoints_count',
             default_value='10',
             description='Number of waypoints included in the Etsi Mapem Egress/Ingress lanes.'
+        ),
+        DeclareLaunchArgument(
+            name='integrate_junctions_without_traffic_lights',
+            default_value='False',
+            description='If True, also create Mapem intersections for junctions without traffic lights.'
         ),
         DeclareLaunchArgument(
             name="log_level", 
