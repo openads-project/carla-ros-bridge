@@ -444,16 +444,13 @@ class TrafficLightsSensor(PseudoActor):
         """
         self.junctions = {}
 
-        # Group the traffic lights into intersections (CARLA signal groups) and
-        # index which light controls each junction-internal connecting lane. Both
-        # come from CARLA/OpenDRIVE data, no geometric map search is involved.
+        # build junction light groups and connecting lane index
         junction_light_groups, connecting_lane_index = (
             self.build_traffic_light_indices(traffic_lights)
         )
 
         all_junctions = self.get_all_junctions_from_world()
 
-        # by default only junctions with traffic lights; optionally all junctions
         if self.integrate_junctions_without_traffic_lights:
             junction_ids = all_junctions.keys()
         else:
@@ -484,8 +481,7 @@ class TrafficLightsSensor(PseudoActor):
             for waypoint_tuple in waypoint_tuples:
                 junction_entry_waypoint, junction_exit_waypoint = waypoint_tuple
 
-                # signal group controlling this ingress (connecting) lane, matched
-                # by the junction-internal connecting lane the light feeds into
+                # traffic light that controls the connecting lane
                 traffic_light = connecting_lane_index.get(
                     (junction_entry_waypoint.road_id, junction_entry_waypoint.lane_id)
                 )
@@ -531,17 +527,10 @@ class TrafficLightsSensor(PseudoActor):
 
     def build_traffic_light_indices(self, traffic_lights):
         """
-        Builds, in a single pass over the traffic lights, the two indices needed
-        for MAPEM/SPATEM. Both are derived from CARLA / OpenDRIVE data only, with
-        no geometric map search.
+        Builds the 'junction to trafficlights' groups and the 'connecting lane to trafficlight' index
         :param traffic_lights: all traffic light actors from the carla world
-        :type traffic_lights: array(carla_ros_bridge.traffic.TrafficLight)
-        :return tuple of
-            - junction_light_groups: junction id -> {light id -> carla actor},
-              the signal group of each intersection (used for SPATEM)
-            - connecting_lane_index: (road_id, lane_id) of a junction-internal
-              connecting lane -> the controlling carla actor (used to assign the
-              signal_group of each MAPEM ingress lane / connection)
+        :type traffic_lights: array(carla.TrafficLight)
+        :return junction light groups and connecting lane index
         :rtype tuple(dict, dict)
         """
         known_actor_ids = {tl.carla_actor.id for tl in traffic_lights}
@@ -562,16 +551,13 @@ class TrafficLightsSensor(PseudoActor):
             junction = connecting_waypoints[0].get_junction()
             group = junction_light_groups.setdefault(junction.id, {})
 
-            # include the whole CARLA signal group so every signal of the
-            # intersection is represented, regardless of iteration order.
-            # Store the carla actor (has .id and live .state) so the signal_group
-            # ids stay consistent between MAPEM connections and SPATEM states.
+            # add all traffic lights of the signal group to the junction
             group_members = actor.get_group_traffic_lights() or [actor]
             for member in group_members:
                 if member.id in known_actor_ids:
                     group[member.id] = member
 
-            # this specific light controls exactly the connecting lanes it feeds
+            # map each controlled connecting lane to its traffic light
             for connecting_waypoint in connecting_waypoints:
                 connecting_lane_index[
                     (connecting_waypoint.road_id, connecting_waypoint.lane_id)
@@ -581,14 +567,10 @@ class TrafficLightsSensor(PseudoActor):
 
     def get_light_connecting_lane_waypoints(self, actor):
         """
-        For every lane the traffic light affects, returns the first junction-
-        internal (connecting) lane waypoint that lane feeds into. The affected/
-        stop waypoints lie on the approach lane, so the lane is followed forward
-        into the directly adjacent junction (deterministic, the lane is single
-        before the junction) rather than searching the map.
+        Returns for each affected lane of the traffic light the first connecting lane waypoint inside its junction
         :param actor: the CARLA traffic light actor
         :type actor: carla.TrafficLight
-        :return the junction-internal connecting lane waypoints (one per fed lane)
+        :return the connecting lane waypoints inside the junction
         :rtype list(carla.Waypoint)
         """
         candidate_waypoints = actor.get_affected_lane_waypoints()
