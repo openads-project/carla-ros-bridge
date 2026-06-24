@@ -33,9 +33,9 @@ def generate_launch_description():
         ('publish_etsi_messages', 'False'),
         ('mapem_timer_period', '1.0'),
         ('spatem_timer_period', '0.1'),
+        ('integrate_junctions_without_traffic_lights', 'False'),
         ('waypoints_search_distance', '1.0'),
         ('lane_waypoints_count', '10'),
-        ('integrate_junctions_without_traffic_lights', 'False'),
         ('log_level', 'info'),
     ]
 
