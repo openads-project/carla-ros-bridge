@@ -42,12 +42,18 @@ A sensor represents a new CARLA sensor. Sensors can act globally or can be attac
 
 - the type has to start with `sensor.`
 - a sensor does not have any children
+- a sensor can contain `attached_objects`, which are spawned after the sensor and attached directly to the sensor actor
+- `attached_objects` may only contain sensor configurations with a type starting with `sensor.`
 
 Thus, a <sensor_configuration> can be configured as:
 ```
 {
   "id": "<sensor_name>",
   "type": "sensor.<sensor_type>",
+  "attached_objects": [
+    <sensor_configuration>,
+    ...
+  ],
   ...
 }
 ```
@@ -82,7 +88,7 @@ Thus, a <group_configuration> can be configured as:
 
 ### Blueprints
 
-A blueprint does not represent any CARLA entity, but acts as a placeholder. A blueprint is defined in a special blueprint-section at the bottom of the configuration file. A blueprint can represent a vehicle, sensor, group, but not another blueprint. 
+A blueprint does not represent any CARLA entity, but acts as a placeholder. A blueprint can be defined in a special blueprint section in an object definition file or in a JSON file below the configured `blueprints_directory`. A blueprint can represent a vehicle, sensor, group, but not another blueprint.
 ```
 {
   "blueprints":
@@ -100,9 +106,13 @@ A blueprint does not represent any CARLA entity, but acts as a placeholder. A bl
 }
 ```
 
+The node loads all JSON files below `blueprints_directory` recursively and merges their `blueprints` sections before loading the configured object definition files. `objects_definition_file` can contain a single file or a comma-separated list of files. Relative object definition paths are resolved against `objects_directory`.
+
+Blueprint ids must be unique. If a duplicate id is encountered, the first definition wins and later definitions with the same id are skipped with a warning. Auto-loaded blueprints from `blueprints_directory` are loaded before inline blueprints from `objects_definition_file`, so inline definitions cannot override an auto-loaded blueprint with the same id.
+
 Those defined blueprints can then be used within the `objects` section in different configurations. Either on top-level, as group child, or vehicle child. A specific blueprint can be selected by using the type `blueprint.<blueprint_id>`.
 
-Thus, the prefix `blueprint.` is required to configure a <blueprint_configuration>:
+Thus, the prefix `blueprint.` is required to configure a <blueprint_configuration>. A blueprint usage can override the resulting object's `id` and, optionally, its `spawn_point`; other fields come from the blueprint definition.
 ```
 {
   "id": "<blueprint_name>",
@@ -112,13 +122,15 @@ Thus, the prefix `blueprint.` is required to configure a <blueprint_configuratio
 
 ## Testcases
 
-All entities (vehicle, sensor, group and blueprint) can contain other entities. Therefore, 16 different configurations can be posed, where only some of them are valid with respect to the current implementation. The following table gives an overview of all supported cases. 
+Vehicles, groups and blueprints can contain other entities through `children`. Therefore, 16 different direct nesting configurations can be posed, where only some of them are valid with respect to the current implementation. The following table gives an overview of all supported direct `children` cases. The row is the parent object and the column is the child object.
 
-| entity A (column) contain entity B (row) 	| **vehicle** 	| **sensor**  	| **group**   	| **blueprint** 	|
-|--------------------------	|-------------	|-----------	|-------------	|---------------	|
-| **vehicle**              	| _invalid_ 	  | _invalid_ 	| _invalid_   	| valid         	|
-| **sensor**               	| valid       	| _invalid_ 	| valid       	| valid         	|
-| **group**                	| valid       	| _invalid_ 	| valid       	| valid         	|
-| **blueprint**            	| valid       	| _invalid_ 	| valid       	| _invalid_     	|
+| parent \ child | **vehicle** | **sensor** | **group** | **blueprint** |
+|----------------|-------------|------------|-----------|---------------|
+| **vehicle**    | _invalid_   | valid      | valid     | valid         |
+| **sensor**     | _invalid_   | _invalid_  | _invalid_ | _invalid_     |
+| **group**      | _invalid_   | valid      | valid     | valid         |
+| **blueprint**  | valid       | valid      | valid     | _invalid_     |
+
+`attached_objects` on sensors are a separate mechanism and are not covered by the `children` matrix. They are valid only for sensor configurations. Actor pseudo-objects, vehicles, groups and blueprints are not valid `attached_objects`.
 
 In addition all valid configurations are somehow contained in the example file [test_sensors_supported.json](./config/test_sensors_supported.json), whereas all invalid configurations are tested in [test_sensors_not_supported.json](./config/test_sensors_not_supported.json). However, the implementation checks for invalid configurations and shows dedicated warnings.

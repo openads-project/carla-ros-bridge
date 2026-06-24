@@ -500,8 +500,8 @@ class CarlaSpawnObjects(CompatibleNode):
                 object["transform"] = object['local_transform']
                 object['attached_vehicle_id'] = parent['response_id']
 
-            # Preserve the legacy attached_objects behavior: the direct sensor or
-            # pseudo-actor parent, rather than its vehicle, owns the child.
+            # Preserve attached_objects behavior: the direct parent actor,
+            # rather than its vehicle, owns the child sensor.
             elif parent_type in ('sensor', 'actor'):
                 object["name"] = parent['name'] + "/" + object["id"]
                 object["transform"] = object['local_transform']
@@ -549,8 +549,20 @@ class CarlaSpawnObjects(CompatibleNode):
                 # skip general attributes
                 if attribute in ["id", "type", "name", "spawn_point", "local_transform", "transform", "attached_vehicle_id", "response_id"]:
                     continue
+                if attribute == "children":
+                    self.logerr(
+                        "Children on sensor {} will not be spawned: sensors only support attached_objects.".format(
+                            sensor["id"]))
+                    continue
                 if attribute == "attached_objects":
                     for attached_object in sensor["attached_objects"]:
+                        attached_type = attached_object.get("type", "")
+                        if attached_type.split('.')[0] != "sensor":
+                            self.logerr(
+                                "Attached object {} on sensor {} will not be spawned: "
+                                "attached_objects only supports sensor configurations.".format(
+                                    attached_object.get("id", "<unknown>"), sensor["id"]))
+                            continue
                         attached_objects.append(attached_object)
                     continue
                 spawn_object_request.attributes.append(

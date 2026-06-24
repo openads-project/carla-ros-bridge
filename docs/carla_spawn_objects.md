@@ -58,6 +58,46 @@ You can find an example in the [ros-bridge repository][objectsjson] as well as f
 
 All sensor attributes are defined as described in the [blueprint library](https://carla.readthedocs.io/en/latest/bp_library/).
 
+### Groups, blueprints and multiple definition files
+
+In addition to vehicles and sensors, object definition files can use `group` and `blueprint` placeholder entries.
+
+A `group` does not spawn a CARLA actor by itself unless `physical_object` is set. It groups child sensors, groups and blueprints under a shared relative transform.
+
+A `blueprint` is a reusable object definition. Blueprints can represent vehicles, sensors or groups, but cannot reference another blueprint as their own type. Define them in a `blueprints` section:
+
+```json
+{
+  "blueprints": [
+    {
+      "id": "front_camera",
+      "type": "sensor.camera.rgb",
+      "spawn_point": {"x": 2.0, "y": 0.0, "z": 2.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
+      "image_size_x": 800,
+      "image_size_y": 600,
+      "fov": 90.0
+    }
+  ]
+}
+```
+
+Use a blueprint from the `objects` section or from another object's `children` by setting `type` to `blueprint.<blueprint_id>`:
+
+```json
+{
+  "id": "rgb_front",
+  "type": "blueprint.front_camera"
+}
+```
+
+The blueprint usage overrides the spawned object's `id` and can optionally override `spawn_point`; all other fields come from the blueprint definition.
+
+Blueprints can live inline in the same object definition file, or in JSON files below the configured `blueprints_directory`. The node loads all JSON files below `blueprints_directory` recursively before loading `objects_definition_file`. `objects_definition_file` can contain a single file or a comma-separated list of files, and relative entries are resolved against `objects_directory`.
+
+Blueprint ids must be unique. If the same id appears more than once, the first definition is taken. Because auto-loaded blueprints are loaded first, inline blueprints in `objects_definition_file` do not override a blueprint from `blueprints_directory` with the same id.
+
+Sensors still do not support `children`. To attach additional sensors directly to a spawned sensor actor, use `attached_objects` on the sensor. `attached_objects` may only contain sensor configurations with a type starting with `sensor.`; actor pseudo-objects, vehicles, groups and blueprints are not valid there.
+
 [objectsjson]: https://github.com/carla-simulator/ros-bridge/blob/master/carla_spawn_objects/config/objects.json
 
 ---
@@ -139,4 +179,3 @@ Sensors can be attached to an already existing vehicle. To do so:
 
 
 ---
-
