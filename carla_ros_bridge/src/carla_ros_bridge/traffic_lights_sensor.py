@@ -9,14 +9,9 @@
 a sensor that reports the state of all traffic lights
 """
 import pyproj
-import rclpy
-from rclpy.time import Time
 from collections import namedtuple
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
 import numpy as np
-
-from geometry_msgs.msg import PointStamped
-import tf2_geometry_msgs
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.traffic import TrafficLight
@@ -82,7 +77,7 @@ class TrafficLightsSensor(PseudoActor):
         ["lane_id", "lane_type", "waypoint_junction"],
     )
 
-    def __init__(self, uid, name, parent, node, actor_list, tf_buffer):
+    def __init__(self, uid, name, parent, node, actor_list):
         """
         Constructor
         :param uid: unique identifier for this object
@@ -95,8 +90,6 @@ class TrafficLightsSensor(PseudoActor):
         :type node: CompatibleNode
         :param actor_list: current list of actors
         :type actor_list: map(carla-actor-id -> python-actor-object)
-        :param tf_buffer: shared transform buffer owned by the bridge node
-        :type tf_buffer: tf2_ros.Buffer
         """
 
         super(TrafficLightsSensor, self).__init__(
@@ -106,11 +99,9 @@ class TrafficLightsSensor(PseudoActor):
         self.actor_list = actor_list
         self.traffic_light_status = CarlaTrafficLightStatusList()
         self.traffic_light_actors = []
-        self.carla_to_utm_rotation_matrix_initialized = False
         self._mapem_publish_warned = False
         self.etsi_mapem_publisher = None
         self.etsi_spatem_publisher = None
-        self.tf_buffer = tf_buffer
 
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
@@ -133,8 +124,6 @@ class TrafficLightsSensor(PseudoActor):
         )
 
         if self.publish_etsi_messages:
-            if self.tf_buffer is None:
-                raise ValueError("TrafficLightsSensor requires a shared tf_buffer when ETSI messages are enabled")
             traffic_light_actors = self.get_traffic_light_actors()
             self.initialize_junctions(traffic_light_actors)
 
@@ -447,37 +436,6 @@ class TrafficLightsSensor(PseudoActor):
         """
         return self.node.world_info.transform_utm_to_carla != None
 
-    def rotate_point_from_map_to_utm_frame(self, point_map):
-        """
-        # transforms a point from the map frame into the UTM world frame
-        # the point is already converted to the right handed carla map ROS frame from the left handed CARLA frame
-        
-        :param point_map: point in CARLA map coordinates (converted into right hand system)
-        :type point_map: numpy.array(3)
-        :return tranformed point in UTM frame 
-        :rtype numpy.array(3)
-        """
-        point_stamped_map = PointStamped()
-        point_stamped_map.point.x = point_map[0]
-        point_stamped_map.point.y = point_map[1]
-        point_stamped_map.point.z = point_map[2]
-        
-        if not self.carla_to_utm_rotation_matrix_initialized:            
-            world_info = self.node.world_info
-            
-            self.inverse_transform = self.tf_buffer.lookup_transform(
-                world_info.world_frame,  # target frame
-                world_info.map_frame,  # source frame
-                Time(),
-                timeout=rclpy.duration.Duration(seconds=1.0)
-            )
-            
-            self.carla_to_utm_rotation_matrix_initialized = True
-            
-        point_utm = tf2_geometry_msgs.do_transform_point(point_stamped_map, self.inverse_transform)
-        
-        return np.array([point_utm.point.x, point_utm.point.y, point_utm.point.z])
-        
     def initialize_junctions(self, traffic_lights):
         """
         Initializes the junctions of the Carla world. For each junction, all traffic lights and their corresponding lanes are stored.
@@ -711,14 +669,11 @@ class TrafficLightsSensor(PseudoActor):
             waypoint.transform.location
         )
         
-        junction_position_utm = self.rotate_point_from_map_to_utm_frame(junction_position)
-        pos_abs_utm = self.rotate_point_from_map_to_utm_frame(pos_abs)
-        
-        pos_rel_junction_utm = pos_abs_utm - junction_position_utm
-        TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction_utm)
+        pos_rel_junction = pos_abs - junction_position
+        TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction)
 
         last_wp = waypoint
-        last_pos = pos_abs_utm
+        last_pos = pos_abs
 
         # create an egress/ingress lane with a given length
         for i in range(self.lane_waypoints_count):
@@ -736,12 +691,10 @@ class TrafficLightsSensor(PseudoActor):
                     next_wp.transform.location
                 )
             )
-            
-            next_wp_position_utm = self.rotate_point_from_map_to_utm_frame(next_wp_position)
 
-            pos_rel = next_wp_position_utm - last_pos
+            pos_rel = next_wp_position - last_pos
             TrafficLightsSensor.add_lane_node(generic_lane, pos_rel)
-            last_pos = next_wp_position_utm
+            last_pos = next_wp_position
             last_wp = next_wp
 
         return generic_lane
@@ -853,8 +806,6 @@ class TrafficLightsSensor(PseudoActor):
             self.etsi_mapem_publisher.publish(mapem)
             self._mapem_publish_warned = False
         except Exception as e:
-            # keep node alive when TF data is temporarily unavailable
-            self.carla_to_utm_rotation_matrix_initialized = False
             if not self._mapem_publish_warned:
                 self.node.logwarn("Skipping ETSI MAPEM publish this cycle: {}".format(e))
                 self._mapem_publish_warned = True
