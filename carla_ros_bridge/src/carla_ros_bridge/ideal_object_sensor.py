@@ -68,11 +68,6 @@ class IdealObjectSensor(ObjectSensor):
             self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
             return
 
-        # Global object publisher
-        self.object_publisher = node.new_publisher(ObjectArray,
-                                                   self.get_topic_prefix(),
-                                                   qos_profile=10)
-
         if tf_buffer is None:
             raise ValueError("IdealObjectSensor requires a shared tf_buffer")
         self.tf_buffer = tf_buffer
@@ -97,25 +92,44 @@ class IdealObjectSensor(ObjectSensor):
         }
         # Extract and check attributes and set default values if not available or values are not set in parameter boundaries
         for key, current_dict in attributes_dict.items():
+            default = current_dict.get("default")
+            attribute = next((attribute for attribute in attributes if attribute.key == key), None)
+
+            if attribute is None:
+                setattr(self, key, default)
+                self.node.logwarn(
+                    "No {} attribute found for IdealObjectSensor. Using default value of {}.".format(
+                        key, default))
+                continue
+
             try:
-                # Extract relevant attributes
-                attribute = next((attribute for attribute in attributes if attribute.key == key), None)
                 if key == "enable_occlusion_filter":
-                    setattr(self, key, attribute.value.lower() in ("true", "1", "yes"))
+                    value = attribute.value.strip().lower()
+                    if value not in ("true", "1", "yes", "false", "0", "no"):
+                        raise ValueError
+                    setattr(self, key, value in ("true", "1", "yes"))
                     continue
-                setattr(self, key, float(attribute.value))
-                # Boundary check
-                if getattr(self, key) < current_dict.get("lower_boundary") or ("upper_boundary" in current_dict.keys() and getattr(self, key) > current_dict.get("upper_boundary")):
-                    setattr(self, key, getattr(current_dict, "default"))
+
+                value = float(attribute.value)
+                if key == "min_corner_amount":
+                    if not value.is_integer():
+                        raise ValueError
+                    value = int(value)
+
+                if value < current_dict.get("lower_boundary") or (
+                        "upper_boundary" in current_dict.keys() and value > current_dict.get("upper_boundary")):
+                    setattr(self, key, default)
                     self.node.logwarn(
                         "{} attribute for IdealObjectSensor is not in parameter boundaries! Using default value of {}.".format(
-                            key, current_dict.get("default")))
-            except:
-                # Attribute not available
-                setattr(self, key, current_dict.get("default"))
+                            key, default))
+                    continue
+
+                setattr(self, key, value)
+            except ValueError:
+                setattr(self, key, default)
                 self.node.logwarn(
-                    "No {} attribute found for IdealobjectSensor. Using default value of {}.".format(
-                        key, current_dict.get("default")))
+                    "{} attribute for IdealObjectSensor is invalid! Using default value of {}.".format(
+                        key, default))
 
     def destroy(self):
         """
@@ -135,14 +149,18 @@ class IdealObjectSensor(ObjectSensor):
         return "sensor.pseudo.ideal_objects"
 
     def calculate_azimuth_elevation(self, target_point_in_sensor_frame, distance):
-        # Get location vaules of pose
+        if distance <= 0.0:
+            return 0.0, 0.0
+
+        # Get location values of pose
         dx = target_point_in_sensor_frame.x
         dy = target_point_in_sensor_frame.y
         dz = target_point_in_sensor_frame.z
 
         # Calculate azimuth and elevation between target and sensor based on sensor frame
         azimuth = math.degrees(math.atan2(dy, dx))
-        elevation = math.degrees(math.asin(dz/distance))
+        elevation_ratio = max(-1.0, min(1.0, dz / distance))
+        elevation = math.degrees(math.asin(elevation_ratio))
 
         return azimuth, elevation
 
@@ -233,14 +251,14 @@ class IdealObjectSensor(ObjectSensor):
 
         return point_stamped
 
-    def convert_target_corners(self, carla_corners_in_carla_map, ros_tf_sensor_to_carla_map):
+    def convert_target_corners(self, carla_corners_in_carla_map, ros_tf_carla_map_to_sensor):
 
         # Convert target corners from CARLA.Location to ROS geometry_msgs/PointStamped
         ros_corners_in_carla_map_point = [trans.carla_location_to_ros_point(corner) for corner in carla_corners_in_carla_map]
         ros_corners_in_carla_map_pointstamped = [self.point_to_pointstamped(corner) for corner in ros_corners_in_carla_map_point]
 
         # Transform target corners from carla_map frame to sensor frame
-        ros_corners_in_sensor_frame = [do_transform_point(corner, ros_tf_sensor_to_carla_map) for corner in ros_corners_in_carla_map_pointstamped]
+        ros_corners_in_sensor_frame = [do_transform_point(corner, ros_tf_carla_map_to_sensor) for corner in ros_corners_in_carla_map_pointstamped]
 
         return ros_corners_in_sensor_frame
 
@@ -310,9 +328,9 @@ class IdealObjectSensor(ObjectSensor):
         try:
             ros_tf_carla_map_to_sensor = self.tf_buffer.lookup_transform(sensor_frame, 'carla_map', time_latest_tf, duration_timeout)
             ros_tf_sensor_to_carla_map = self.tf_buffer.lookup_transform('carla_map', sensor_frame, time_latest_tf, duration_timeout)
-        except:
-            self.node.loginfo("{}: Could not transform {} to {} at the Frame {}".format(
-                self.__class__.__name__, sensor_frame, 'carla_map', frame))
+        except Exception as e:
+            self.node.loginfo("{}: Could not transform {} to {} at the Frame {}: {}".format(
+                self.__class__.__name__, sensor_frame, 'carla_map', frame, e))
             return
 
         # Extract sensor location in carla_map from ROS transform and convert into geometry_msgs/Point
@@ -358,7 +376,7 @@ class IdealObjectSensor(ObjectSensor):
 
                         # Get corners from target BoundingBox
                         bounding_box = vehicle.bounding_box
-                        carla_corners_target_in_carla_map = bounding_box.get_local_vertices()
+                        carla_corners_target_in_carla_map = bounding_box.get_world_vertices(vehicle.transform)
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
