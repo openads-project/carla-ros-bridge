@@ -61,27 +61,49 @@ Configurations should be set either within the launchfile or passed as an argume
 
 
 ```sh
-roslaunch carla_ros_bridge carla_ros_bridge.launch passive:=True
+ros2 launch carla_ros_bridge carla_ros_bridge.launch.py passive:=True
 ```
 
-The following settings are available:
+The following launch arguments are available for `carla_ros_bridge.launch` and `carla_ros_bridge.launch.py`:
 
-* __use_sim_time__: This should be set to __True__ to ensure that ROS is using simulation time rather than system time. This parameter will synchronize the ROS [`/clock`][ros_clock] topic with CARLA simulation time.
-*  __host and port__: Network settings to connect to CARLA using a Python client.
-* __timeout__: Time to wait for a successful connection to the server.
-* __passive__: Passive mode is for use in scynchronous mode. When enabled, the ROS bridge will take a backseat and another client __must__ tick the world. ROS bridge will wait for all expected data from all sensors to be received.
-*  __synchronous_mode__:
-	*  __If false__: Data is published on every `world.on_tick()` and every `sensor.listen()` callback.
-	*  __If true (default)__: ROS bridge waits for all the sensor messages expected before the next tick. This might slow down the overall simulation but ensures reproducible results.
-*  __synchronous_mode_wait_for_vehicle_control_command__: In synchronous mode, pauses the tick until a vehicle control is completed.
-*  __fixed_delta_seconds__: Simulation time (delta seconds) between simulation steps. __It must be lower than 0.1__. Take a look at the [documentation](https://carla.readthedocs.io/en/latest/adv_synchrony_timestep/) to learn more about this.
-*  __ego_vehicle__: Role names to identify ego vehicles. Relevant topics will be created so these vehicles will be able to be controlled from ROS.
-* __town__: Either use an available CARLA town (eg. 'town01') or an OpenDRIVE file (ending in `.xodr`).
-* __ignore_altitude__: Disable altitude information in the TF output.
-* __ignore_tilt__: Disable pitch and roll in pseudo TF, odometry, and object list pose output. Yaw is preserved.
-*  __register_all_sensors__:
-	*  __If false__: Only sensors spawned by the bridge are registered.
-	*  __If true (default)__: All the sensors present in the simulation are registered.
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `use_sim_time` | `True` | Use simulation time instead of system time. This synchronizes ROS with the [`/clock`][ros_clock] topic. |
+| `host` | `carla-server` | IP address or hostname of the CARLA server. |
+| `port` | `2000` | TCP port of the CARLA server. |
+| `timeout` | `5000` | Time to wait for a successful connection to the CARLA server. |
+| `passive` | `False` | Let another client tick the world. This is only valid in synchronous mode; another client must tick CARLA or the simulation will freeze. |
+| `publish_clock` | `True` | Publish ROS `/clock` messages. Disable this only if another component publishes the clock. |
+| `synchronous_mode` | `True` | Enable synchronous mode. If enabled, the ROS bridge waits for the expected sensor data before the next tick. |
+| `synchronous_mode_wait_for_vehicle_control_command` | `False` | In synchronous mode, pause the tick until a vehicle control command has been received. |
+| `fixed_delta_seconds` | `0.05` | Simulation time step in seconds. It must be lower than `0.1`; see the [CARLA documentation](https://carla.readthedocs.io/en/latest/adv_synchrony_timestep/). |
+| `start_unix_time_stamp` | `0` | Start timestamp offset for ROS simulation time. Values below `0` use the current Unix time. |
+| `town` | empty | Load a CARLA town, such as `Town01`, or an OpenDRIVE file ending in `.xodr`. If empty, keep the currently loaded CARLA world. |
+| `rt_factor` | `1.0` | Desired real-time factor. Values above `0.0` throttle the bridge loop to the requested factor. |
+| `register_all_sensors` | `True` | Register all sensors already present in the simulation. If `False`, only sensors spawned by the bridge are registered. |
+| `native_interface` | `True` | Enable CARLA native DDS interfaces. The bridge will not create bridge-side sensor publishers or control subscribers for native sensors. |
+| `ego_vehicle_role_name` | `['hero', 'ego_vehicle', 'hero0', 'hero1', 'hero2', 'hero3']` | Role names used to identify ego vehicles. Relevant ROS topics are created for matching vehicles. |
+| `publish_static_vehicles` | `True` | Include static vehicles in object list outputs. |
+| `publish_compressed_images` | `True` | Publish compressed image topics in addition to raw image topics. |
+| `ignore_altitude` | `False` | Disable altitude information in TF, odometry, GNSS, and object-list outputs where supported. |
+| `ignore_tilt` | `True` | Disable pitch and roll in pseudo TF, odometry, IMU, and object-list pose output. Yaw is preserved. |
+| `georeference_substitution` | empty | Replace the OpenDRIVE georeference string before publishing world information. |
+| `grid_convergence` | `None` | Apply grid convergence when publishing the map frame transform. Use `True`, `False`, or `None` for automatic handling. |
+| `publish_etsi_messages` | `False` | Publish ETSI MAPEM and SPATEM messages for traffic light information. |
+| `mapem_timer_period` | `1.0` | Time in seconds between ETSI MAPEM publications. |
+| `spatem_timer_period` | `0.1` | Time in seconds between ETSI SPATEM publications. |
+| `integrate_all_junctions` | `False` | Include every CARLA junction in ETSI MAPEM output. If `False`, only junctions with traffic lights are included. |
+| `waypoints_search_distance` | `1.0` | Waypoint search distance in meters. |
+| `lane_waypoints_count` | `10` | Number of waypoints included in ETSI MAPEM ingress and egress lanes. |
+| `log_level` | `info` | ROS logging level for the bridge node (`debug`, `info`, `warn`, `error`, or `fatal`). |
+
+The `carla_ros_bridge_with_example_ego_vehicle.launch` and `carla_ros_bridge_with_example_ego_vehicle.launch.py` launch files expose all bridge arguments above and add the following arguments for the spawned example ego vehicle:
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `role_name` | `ego_vehicle` | Role name for the spawned ego vehicle and manual control. |
+| `vehicle_filter` | `vehicle.*` | CARLA blueprint filter used to select the spawned vehicle. |
+| `spawn_point` | `None` | Spawn transform for the vehicle. If `None`, CARLA chooses a spawn point. |
 
 
 [ros_clock]: https://wiki.ros.org/Clock

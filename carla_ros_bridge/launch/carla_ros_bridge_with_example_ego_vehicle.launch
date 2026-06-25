@@ -20,18 +20,6 @@
   <arg name='synchronous_mode_wait_for_vehicle_control_command' default='False'/>
   <arg name='fixed_delta_seconds' default='0.05'/>
 
-  <!-- Enable/disable object list with static vehicles -->
-  <arg name='publish_static_vehicles' default='True'/>
-
-    <!-- Enable/disable compressed image publishing -->
-  <arg name='publish_compressed_images' default='True'/>
-
-  <!-- Disable altitude information -->
-  <arg name='ignore_altitude' default='False'/>
-  <!-- Disable pitch and roll information in the TF sensor output -->
-  <arg name='ignore_tilt' default='True'/>
-  <!-- Enable/disable grid convergence -->
-  <arg name='grid_convergence' default='None'/>
 
   <include file="$(find carla_ros_bridge)/launch/carla_ros_bridge.launch">
     <arg name='host' value='$(arg host)'/>
@@ -41,11 +29,6 @@
     <arg name='passive' value='$(arg passive)'/>
     <arg name='synchronous_mode_wait_for_vehicle_control_command' value='$(arg synchronous_mode_wait_for_vehicle_control_command)'/>
     <arg name='fixed_delta_seconds' value='$(arg fixed_delta_seconds)'/>
-    <arg name='publish_static_vehicles' value='$(arg publish_static_vehicles)'/>
-    <arg name='publish_compressed_images' value='$(arg publish_compressed_images)'/>
-    <arg name='ignore_altitude' value='$(arg ignore_altitude)'/>
-    <arg name='ignore_tilt' value='$(arg ignore_tilt)'/>
-    <arg name='grid_convergence' value='$(arg grid_convergence)'/>
   </include>
 
   <!-- the ego vehicle, that will be controlled by an agent (e.g. carla_ad_agent) -->

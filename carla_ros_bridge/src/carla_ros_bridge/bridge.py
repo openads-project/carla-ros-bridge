@@ -24,6 +24,9 @@ import carla
 
 import ros_compatibility as roscomp
 from ros_compatibility.node import CompatibleNode
+import tf2_ros
+
+ROS_VERSION = roscomp.get_ros_version()
 
 from carla_ros_bridge.actor import Actor
 from carla_ros_bridge.actor_factory import ActorFactory
@@ -32,14 +35,12 @@ from carla_ros_bridge.debug_helper import DebugHelper
 from carla_ros_bridge.ego_vehicle import EgoVehicle
 from carla_ros_bridge.world_info import WorldInfo
 from carla_ros_bridge.weather import Weather
-from carla_ros_bridge.traffic_lights_sensor import TrafficLightsSensor
 
 from carla_msgs.msg import CarlaControl, CarlaWeatherParameters
 from carla_msgs.srv import SpawnObject, DestroyObject, GetBlueprints
 from rosgraph_msgs.msg import Clock
 
 import time
-
 
 class CarlaRosBridge(CompatibleNode):
 
@@ -87,6 +88,11 @@ class CarlaRosBridge(CompatibleNode):
 
         self.ros_timestamp = roscomp.ros_timestamp(self.parameters["start_unix_time_stamp"], from_sec=True)
         self.callback_group = roscomp.callback_groups.ReentrantCallbackGroup()
+        self.tf_buffer = tf2_ros.Buffer()
+        if ROS_VERSION == 1:
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        else:
+            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self, spin_thread=False)
 
         self.last_loginfo = time.time()
 
@@ -122,7 +128,7 @@ class CarlaRosBridge(CompatibleNode):
         self.carla_control_queue = queue.Queue()
 
         # actor factory
-        self.actor_factory = ActorFactory(self, carla_world, self.sync_mode)
+        self.actor_factory = ActorFactory(self, carla_world, self.sync_mode, self.tf_buffer)
 
         # add world info
         self.world_info = WorldInfo(carla_world=self.carla_world, node=self)
@@ -185,7 +191,7 @@ class CarlaRosBridge(CompatibleNode):
         self.carla_weather_subscriber = \
             self.new_subscription(CarlaWeatherParameters, "/carla/weather_control",
                                   self.on_weather_changed, qos_profile=10, callback_group=self.callback_group)
-        
+
     def spawn_object(self, req, response=None):
         response = roscomp.get_service_response(SpawnObject)
         if not self.shutdown.is_set():
@@ -309,7 +315,7 @@ class CarlaRosBridge(CompatibleNode):
                                      "Missing command from actor ids {}".format(CarlaRosBridge.VEHICLE_CONTROL_TIMEOUT,
                                                                                 self._expected_ego_vehicle_control_command_ids))
                     self._all_vehicle_control_commands_received.clear()
-            
+
             # real-time factor throttling (accounting for in-cycle processing time)
             if self.rt_factor > 0.0:
                 desired_cycle_time = world_snapshot.timestamp.delta_seconds / self.rt_factor
@@ -445,12 +451,12 @@ def main(args=None):
         'synchronous_mode_wait_for_vehicle_control_command', False)
     parameters['fixed_delta_seconds'] = carla_bridge.get_param('fixed_delta_seconds', 0.05)
     parameters['start_unix_time_stamp'] = carla_bridge.get_param('start_unix_time_stamp', 0)
+    parameters['town'] = carla_bridge.get_param('town', "")
+    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 1.0)
     parameters['register_all_sensors'] = carla_bridge.get_param('register_all_sensors', True)
     parameters['native_interface'] = carla_bridge.get_param('native_interface', True)
-    parameters['town'] = carla_bridge.get_param('town', None)
-    parameters['rt_factor'] = carla_bridge.get_param('rt_factor', 1.0)
     role_name = carla_bridge.get_param('ego_vehicle_role_name',
-                                       ["hero", "ego_vehicle", "hero1", "hero2", "hero3"])
+                                       ["hero", "ego_vehicle", "hero0", "hero1", "hero2", "hero3"])
     parameters['ego_vehicle'] = {'role_name': role_name}
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['publish_compressed_images'] = carla_bridge.get_param('publish_compressed_images', True)
@@ -461,15 +467,11 @@ def main(args=None):
 
     # etsi its traffic_light parameters
     parameters['publish_etsi_messages'] = carla_bridge.get_param('publish_etsi_messages', False)
-    parameters['publisher_mapem_timer_period'] = carla_bridge.get_param('publisher_mapem_timer_period', 1.0)
-    parameters['publisher_spatem_timer_period'] = carla_bridge.get_param('publisher_spatem_timer_period', 0.1)
-    parameters['integrate_junctions_without_traffic_lights'] = carla_bridge.get_param('integrate_junctions_without_traffic_lights', False)
-    parameters['traffic_light_junction_search_ignored_ids'] = carla_bridge.get_param('traffic_light_junction_search_ignored_ids', [-1])
-    parameters['traffic_light_junction_max_search_count'] = carla_bridge.get_param('traffic_light_junction_max_search_count', 13)
+    parameters['mapem_timer_period'] = carla_bridge.get_param('mapem_timer_period', 1.0)
+    parameters['spatem_timer_period'] = carla_bridge.get_param('spatem_timer_period', 0.1)
+    parameters['integrate_all_junctions'] = carla_bridge.get_param('integrate_all_junctions', False)
     parameters['waypoints_search_distance'] = carla_bridge.get_param('waypoints_search_distance', 1.0)
     parameters['lane_waypoints_count'] = carla_bridge.get_param('lane_waypoints_count', 10)
-    parameters['debug_traffic_light_information'] = carla_bridge.get_param('debug_traffic_light_information', False)
-    parameters['publisher_debug_traffic_light_information_timer_period'] = carla_bridge.get_param('publisher_debug_traffic_light_information_timer_period', 1.0)
 
 
     carla_bridge.loginfo("Trying to connect to {host}:{port}".format(

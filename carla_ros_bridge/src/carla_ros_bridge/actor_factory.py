@@ -62,9 +62,10 @@ class ActorFactory(object):
         SPAWN_PSEUDO_ACTOR = 1
         DESTROY_ACTOR = 2
 
-    def __init__(self, node, world, sync_mode=False):
+    def __init__(self, node, world, sync_mode=False, tf_buffer=None):
         self.node = node
         self.world = world
+        self.tf_buffer = tf_buffer
         self.blueprint_lib = self.world.get_blueprint_library()
         self.spawn_points = self.world.get_map().get_spawn_points()
         self.sync_mode = sync_mode
@@ -225,7 +226,6 @@ class ActorFactory(object):
 
         for attribute in req.attributes:
             blueprint.set_attribute(attribute.key, attribute.value)
-
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
         else:
@@ -233,14 +233,14 @@ class ActorFactory(object):
             transform = secure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
 
-        # Check altitude (due to map elevation) if not attached to another actor
+        # Check altitude if not attached to another actor
         # Only apply altitude correction for vehicles and walkers, not for static props or sensors
         # Static props and sensors should spawn at their exact specified position
         if req.attach_to == 0 and (req.type.startswith('vehicle.') or req.type.startswith('walker.')):
             self.node.loginfo("Checking spawn altitude for actor={} at z={}".format(
                 req.type, transform.location.z))
 
-            # spawn vehicle 3 m above map if desired height is below map
+            # spawn vehicle above map if desired height is below map
             if lift_if_below_road(
                     self.world, transform, loginfo=self.node.loginfo):
                 self.node.loginfo("Update spawn altitude because of map elevation: actor={} z={}".format(
@@ -285,6 +285,9 @@ class ActorFactory(object):
         if carla_actor.parent:
             if carla_actor.parent.id in self.actors:
                 parent = self.actors[carla_actor.parent.id]
+            elif self.node.parameters["native_interface"] and \
+                    isinstance(carla_actor.parent, carla.Sensor):
+                parent = self._create_native_sensor_parent(carla_actor.parent)
             else:
                 parent = self._create_object_from_actor(carla_actor.parent)
             if req is not None:
@@ -309,6 +312,28 @@ class ActorFactory(object):
         obj = self._create_object(carla_actor.id, carla_actor.type_id, name,
                                   parent_id, relative_transform, carla_actor.attributes, carla_actor)
         return obj
+
+    def _create_native_sensor_parent(self, carla_actor):
+        """Register a publisher-free wrapper when an actor needs a native sensor as parent."""
+        if carla_actor.id in self.actors:
+            return self.actors[carla_actor.id]
+
+        parent = None
+        if carla_actor.parent:
+            if carla_actor.parent.id in self.actors:
+                parent = self.actors[carla_actor.parent.id]
+            elif isinstance(carla_actor.parent, carla.Sensor):
+                parent = self._create_native_sensor_parent(carla_actor.parent)
+            else:
+                parent = self._create_object_from_actor(carla_actor.parent)
+
+        name = carla_actor.attributes.get("role_name", "") or str(carla_actor.id)
+        actor = Actor(carla_actor.id, name, parent, self.node, carla_actor)
+        self.actors[actor.uid] = actor
+        self.node.loginfo(
+            "Registered publisher-free bridge parent for native sensor id={} ('{}').".format(
+                carla_actor.id, carla_actor.type_id))
+        return actor
 
     def _destroy_object(self, actor_id, delete_actor):
         if actor_id not in self.actors:
@@ -340,7 +365,8 @@ class ActorFactory(object):
         if carla_actor is not None and carla_actor.id in self.actors:
             return None
 
-        if self.node.parameters["native_interface"] and carla_actor is not None and isinstance(carla_actor, carla.Sensor):
+        if self.node.parameters["native_interface"] and \
+                carla_actor is not None and isinstance(carla_actor, carla.Sensor):
             self.node.loginfo(
                 "Skipping bridge-side sensor actor creation for id={} ('{}') because native_interface is enabled.".format(
                     carla_actor.id, carla_actor.type_id))
@@ -348,7 +374,12 @@ class ActorFactory(object):
 
         if attach_to != 0:
             if attach_to not in self.actors:
-                raise IndexError("Parent object {} not found".format(attach_to))
+                parent_actor = self.world.get_actor(attach_to)
+                if self.node.parameters["native_interface"] and \
+                        isinstance(parent_actor, carla.Sensor):
+                    self._create_native_sensor_parent(parent_actor)
+                else:
+                    raise IndexError("Parent object {} not found".format(attach_to))
 
             parent = self.actors[attach_to]
         else:
@@ -403,7 +434,8 @@ class ActorFactory(object):
                 node=self.node,
                 actor_list=self.actors,
                 world=self.world,
-                attributes=attributes
+                attributes=attributes,
+                tf_buffer=self.tf_buffer
             )
 
         elif type_id == TrafficLightsSensor.get_blueprint_name():

@@ -113,26 +113,27 @@ Note: Sensors publish the tf data when the measurement is done. The child_frame_
 
 The sensor detects objects/targets (vehicles and walkers) in a specified field of view and range. The visibility of an object is checked using the corners of the object's `bounding_box`.
 
-The following parameters can be set:
+The visibility of a target is evaluated using 4 filters:
+1. Filter: Rough filtering of targets based on the distance between the sensor and the target's center. The target is kept for the following filters if the center is within `range + target_center_range_margin`.
+2. Filter: Distance measurement from the sensor to all vertices of the target's `bounding_box`.
+3. Filter: Filtering vertices by checking their location in the sensor field of view using azimuth and elevation from the sensor to the vertex in the sensor coordinate frame.
+4. Filter: If `enable_occlusion_filter` is set, filtering vertices by sending a ray from the sensor location to the vertex location to check if vertices are occluded by other objects.
+
+FILTER 4 is deactivated by default. Set `enable_occlusion_filter` to `true` to activate it. When FILTER 4 is active, `hit_point_blanking_radius` defines a radius around the sensor in which ray hit points are ignored. This can be used to ignore hits on the ego vehicle or sensor mount close to the sensor.
+
+The following parameters can be set. Distances and field-of-view angles are evaluated relative to the sensor coordinate frame, with distances measured from the sensor origin:
 
 | Parameter | Unit | Type | <div style="text-align: center">Default Value</div> | <div style="text-align: center">Range of Applicability</div> | Description |
 |-----------|------|------|---------------|------------------------|-------------|
-| `range` | Meters | `float` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Range of the sensor |
-| `left_fov` | Degrees | `float` | <div style="text-align: right">-180</div> | <div style="text-align: center">[-180 , 0]</div> | Sensor's left field of view |
-| `right_fov` | Degrees | `float` | <div style="text-align: right">180</div> | <div style="text-align: center">[0 , 180]</div> | Sensor's right field of view |
-| `upper_fov` | Degrees | `float` | <div style="text-align: right">90</div> | <div style="text-align: center">[0 , 90]</div> | Sensor's upper field of view |
-| `lower_fov` | Degrees | `float` | <div style="text-align: right">-90</div> | <div style="text-align: center">[-90 , 0]</div> | Sensor's lower field of view |
-| `min_corner_amount` | <div style="text-align: center">-</div> | `int` | <div style="text-align: right">1</div> | <div style="text-align: center">[1 , 8]</div> | Number of vertices required for a precise detection of the target |
-| `range_tolerance` | Meters | `float` | <div style="text-align: right">10</div> | <div style="text-align: center">[0 , ∞]</div> | Range tolerance for the distance measurement in FILTER 1 (10 m is chosen as default based on the length of a truck) |
-| `hit_point_blanking_radius` | Meters | `float` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Radius around the sensor where `hit_points` should be ignored (the default value is set very high due to probable discrepancies between the `ego_vehicle` mesh and `hit_points` occurring in the immediate vicinity of the sensor)  |
-
-The visibility of a target is evaluated using 4 filters:
-1. FILTER: Rough filtering of targets baded on the distance between the sensor an the target's center (including `range_tolerance`)
-2. FILTER: Distance meansurement from the sensor to all vertices of the target's `bounding_box`
-3. FILTER: Filtering vertices by checking their location in the sensor field of view using azimuth and elevation from the sensor to the vertex (in sensor frame)
-4. FILTER: Filtering vertices by sending a ray from the sensor location to the vertex location to check if vertices are covered by other objects
-
-FILTER 4 is deactivated by default! To activate the filter, the value of `hit_point_blanking_radius` must be set below the value of `range`. Please note: Very small `hit_point_blanking_radius` values may cause problems with target detection!
+| `range` | Meters | `float` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Range of the sensor, measured from the sensor origin |
+| `left_fov` | Degrees | `float` | <div style="text-align: right">-180</div> | <div style="text-align: center">[-180 , 0]</div> | Sensor's left field of view in the sensor coordinate frame |
+| `right_fov` | Degrees | `float` | <div style="text-align: right">180</div> | <div style="text-align: center">[0 , 180]</div> | Sensor's right field of view in the sensor coordinate frame |
+| `upper_fov` | Degrees | `float` | <div style="text-align: right">90</div> | <div style="text-align: center">[0 , 90]</div> | Sensor's upper field of view in the sensor coordinate frame |
+| `lower_fov` | Degrees | `float` | <div style="text-align: right">-90</div> | <div style="text-align: center">[-90 , 0]</div> | Sensor's lower field of view in the sensor coordinate frame |
+| `min_corner_amount` | <div style="text-align: center">-</div> | `int` | <div style="text-align: right">1</div> | <div style="text-align: center">[1 , 8]</div> | Number of vertices required for a precise detection of the target. Must be a whole number. |
+| `target_center_range_margin` | Meters | `float` | <div style="text-align: right">10</div> | <div style="text-align: center">[0 , ∞]</div> | Additional margin for the rough target-center range check in FILTER 1. This prevents large targets from being discarded only because their center is just outside `range` while parts of their `bounding_box` may still be inside the sensor range. |
+| `enable_occlusion_filter` | <div style="text-align: center">-</div> | `bool` | <div style="text-align: right">false</div> | <div style="text-align: center">true / false</div> | Enables FILTER 4. If disabled, object visibility is evaluated only by range, field of view, and the required number of bounding-box vertices. |
+| `hit_point_blanking_radius` | Meters | `float` | <div style="text-align: right">0</div> | <div style="text-align: center">[0 , ∞]</div> | Radius around the sensor in which ray hit points are ignored while FILTER 4 is active. |
 
 The sensor publishes on the following topic:
 

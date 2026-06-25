@@ -1,9 +1,5 @@
 ## Latest
 
-## CARLA-ROS-Bridge 0.9.13
-
-*   No changes in ROS Bridge
-
 ## CARLA-ROS-Bridge 0.9.12
 
 *   Fixed scenario runner node shutdown for foxy
