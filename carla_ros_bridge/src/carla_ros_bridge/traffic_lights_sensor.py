@@ -212,7 +212,7 @@ class TrafficLightsSensor(PseudoActor):
         :rtype array(namedTuple(Ingress_Lane))
         """
         return self.junctions[junction_id]["ingress_lanes"].values()
-    
+
     def get_junction_egress_lanes(self, junction_id):
         """
         Returns all egress lanes that belong to a junction with a given id
@@ -263,9 +263,9 @@ class TrafficLightsSensor(PseudoActor):
         :param value: Ingress lanes of a junction
         :type value: array(namedTuple(Ingress_Lane))
         """
-        
+
         self.junctions[junction_id]["ingress_lanes"] = value
-        
+
     def set_junction_egress_lanes(self, junction_id, value):
         """
         Stores all Egress lanes that belong to a junction with a given id
@@ -276,7 +276,7 @@ class TrafficLightsSensor(PseudoActor):
         """
 
         self.junctions[junction_id]["egress_lanes"] = value
-        
+
 
     def set_junction_traffic_lights(self, junction_id, value):
         """
@@ -496,7 +496,7 @@ class TrafficLightsSensor(PseudoActor):
                         waypoint_junction=junction_entry_waypoint,
                         traffic_light=traffic_light,
                         connected_egress_lane_ids=[])
-                
+
                     lane_id_counter += 1
 
                 # create and update egress lanes
@@ -516,7 +516,7 @@ class TrafficLightsSensor(PseudoActor):
 
                 egress_lane_id = egress_lanes[junction_exit_waypoint.id].lane_id
                 ingress_lanes[junction_entry_waypoint.id].connected_egress_lane_ids.append(egress_lane_id)
-                        
+      
             # fill junction data structure
             self.junctions[junction_id] = {}
             self.set_junction(junction_id, junction_object)
@@ -591,15 +591,15 @@ class TrafficLightsSensor(PseudoActor):
                     break
                 current = next_waypoints[0]
 
-        return connecting_waypoints
-    
+        return connecting_waypoint
+
     def get_all_junctions_from_world(self):
         """
         Returns a dictionary of id-junction pairs of all junctions in the Carla world
         :return dictionary of ids and the corresponding junctions
         :rtype dictionary(int, carla.Junction)
         """
-        
+
         map = self.node.carla_world.get_map()
         all_waypoints = map.generate_waypoints(self.waypoints_search_distance)
         junctions = {}
@@ -611,7 +611,7 @@ class TrafficLightsSensor(PseudoActor):
 
                 if junction_id not in junctions:
                     junctions[junction_id] = junction_object
-                    
+  
         return junctions
 
     def create_junction_lane(self, lane_id, lane_type, is_ingress, waypoint, junction_position):
@@ -627,7 +627,7 @@ class TrafficLightsSensor(PseudoActor):
         :return ETSI Mapem lane (Ingress or Egress)
         :rtype GenericLane
         """
-        
+
         # create ingress line for
         generic_lane = GenericLane()
         generic_lane.lane_id.value = lane_id
@@ -646,11 +646,11 @@ class TrafficLightsSensor(PseudoActor):
         # lane consists of a nodelist of two nodes
         generic_lane.node_list = NodeListXY()
         generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
-            
+
         pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(
             waypoint.transform.location
         )
-        
+
         pos_rel_junction = pos_abs - junction_position
         TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction)
 
@@ -695,7 +695,7 @@ class TrafficLightsSensor(PseudoActor):
         # set the lat/lon coordinates of junction as mean of corresponding traffic light positions
         for waypoint_tuple in junction_waypoint_tuples:
             entry_waypoint, exit_waypoint = waypoint_tuple
-            
+
             position = (
                 position
                 + TrafficLightsSensor.convert_carla_location_to_ros_vector3(
@@ -799,7 +799,7 @@ class TrafficLightsSensor(PseudoActor):
 
         if not self.check_is_initialized():
             return
-        
+
         spatem = SPATEM()
         spatem.spat.name_is_present = True
         spatem.spat.name.value = "Carla traffic light status"
@@ -834,10 +834,10 @@ class TrafficLightsSensor(PseudoActor):
     def update(self, frame, timestamp):
         """
         Get the state of all known traffic lights
-        """        
+        """  
         if not self.check_is_initialized():
             return
-        
+
         traffic_light_actors = self.get_traffic_light_actors()
         traffic_light_status = CarlaTrafficLightStatusList()
 
