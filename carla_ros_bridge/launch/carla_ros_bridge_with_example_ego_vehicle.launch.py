@@ -34,8 +34,6 @@ def generate_launch_description():
         ('mapem_timer_period', '1.0'),
         ('spatem_timer_period', '0.1'),
         ('integrate_junctions_without_traffic_lights', 'False'),
-        ('traffic_light_junction_search_ignored_ids', '[-1]'),
-        ('traffic_light_junction_max_search_count', '13'),
         ('waypoints_search_distance', '1.0'),
         ('lane_waypoints_count', '10'),
         ('log_level', 'info'),

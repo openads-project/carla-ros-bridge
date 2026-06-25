@@ -470,8 +470,6 @@ def main(args=None):
     parameters['mapem_timer_period'] = carla_bridge.get_param('mapem_timer_period', 1.0)
     parameters['spatem_timer_period'] = carla_bridge.get_param('spatem_timer_period', 0.1)
     parameters['integrate_junctions_without_traffic_lights'] = carla_bridge.get_param('integrate_junctions_without_traffic_lights', False)
-    parameters['traffic_light_junction_search_ignored_ids'] = carla_bridge.get_param('traffic_light_junction_search_ignored_ids', [-1])
-    parameters['traffic_light_junction_max_search_count'] = carla_bridge.get_param('traffic_light_junction_max_search_count', 13)
     parameters['waypoints_search_distance'] = carla_bridge.get_param('waypoints_search_distance', 1.0)
     parameters['lane_waypoints_count'] = carla_bridge.get_param('lane_waypoints_count', 10)
 

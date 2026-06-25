@@ -31,8 +31,6 @@ def generate_launch_description():
         'mapem_timer_period',
         'spatem_timer_period',
         'integrate_junctions_without_traffic_lights',
-        'traffic_light_junction_search_ignored_ids',
-        'traffic_light_junction_max_search_count',
         'waypoints_search_distance',
         'lane_waypoints_count',
     ]
@@ -162,16 +160,6 @@ def generate_launch_description():
             name='integrate_junctions_without_traffic_lights',
             default_value='False',
             description='Flag if additionaly junctions without traffic lights should be integrated into the map. Saves computation time if not needed.'
-        ),
-        DeclareLaunchArgument(
-            name='traffic_light_junction_search_ignored_ids',
-            default_value='[-1]',  # list can not be empty
-            description='In convoluted junctions, the search for traffic light junctions can output additional junctions which are not desired. Junctions with the given OpenDRIVE ids are discarded in the junction search. If empty, all junctions are searched.'
-        ),
-        DeclareLaunchArgument(
-            name='traffic_light_junction_max_search_count',
-            default_value='13',
-            description='The number of waypoints to search for traffic light junctions, starting from inside each trigger box of a traffic light.'
         ),
         DeclareLaunchArgument(
             name='waypoints_search_distance',

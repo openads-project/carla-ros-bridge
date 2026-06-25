@@ -445,7 +445,6 @@ class ActorFactory(object):
                 parent=parent,
                 node=self.node,
                 actor_list=self.actors,
-                tf_buffer=self.tf_buffer,
             )
 
         elif type_id == OpenDriveSensor.get_blueprint_name():
