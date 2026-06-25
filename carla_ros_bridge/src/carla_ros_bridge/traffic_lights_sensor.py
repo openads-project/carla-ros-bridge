@@ -406,7 +406,7 @@ class TrafficLightsSensor(PseudoActor):
         """
 
         state_dictionary = {
-            CarlaTrafficLightStatus.RED: MovementPhaseState.STOP_THEN_PROCEED,
+            CarlaTrafficLightStatus.RED: MovementPhaseState.STOP_AND_REMAIN,
             CarlaTrafficLightStatus.YELLOW: MovementPhaseState.PRE_MOVEMENT,
             CarlaTrafficLightStatus.GREEN: MovementPhaseState.PERMISSIVE_MOVEMENT_ALLOWED,
             CarlaTrafficLightStatus.OFF: MovementPhaseState.DARK,
@@ -591,7 +591,7 @@ class TrafficLightsSensor(PseudoActor):
                     break
                 current = next_waypoints[0]
 
-        return connecting_waypoint
+        return connecting_waypoints
 
     def get_all_junctions_from_world(self):
         """
@@ -647,18 +647,11 @@ class TrafficLightsSensor(PseudoActor):
         generic_lane.node_list = NodeListXY()
         generic_lane.node_list.choice = NodeListXY.CHOICE_NODES
 
-        pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(
-            waypoint.transform.location
-        )
-
-        pos_rel_junction = pos_abs - junction_position
-        TrafficLightsSensor.add_lane_node(generic_lane, pos_rel_junction)
-
+        lane_waypoints = [waypoint]
         last_wp = waypoint
-        last_pos = pos_abs
 
         # create an egress/ingress lane with a given length
-        for i in range(self.lane_waypoints_count):
+        for _ in range(self.lane_waypoints_count):
             if is_ingress:
                 next_wps = last_wp.previous(self.waypoints_search_distance)
             else:
@@ -668,16 +661,20 @@ class TrafficLightsSensor(PseudoActor):
                 break
 
             next_wp = next_wps[0]
-            next_wp_position = (
-                TrafficLightsSensor.convert_carla_location_to_ros_vector3(
-                    next_wp.transform.location
-                )
-            )
-
-            pos_rel = next_wp_position - last_pos
-            TrafficLightsSensor.add_lane_node(generic_lane, pos_rel)
-            last_pos = next_wp_position
+            lane_waypoints.append(next_wp)
             last_wp = next_wp
+
+        if is_ingress:
+            lane_waypoints.reverse()
+
+        last_pos = None
+        for lane_waypoint in lane_waypoints:
+            pos_abs = TrafficLightsSensor.convert_carla_location_to_ros_vector3(
+                lane_waypoint.transform.location
+            )
+            pos_rel = pos_abs - junction_position if last_pos is None else pos_abs - last_pos
+            TrafficLightsSensor.add_lane_node(generic_lane, pos_rel)
+            last_pos = pos_abs
 
         return generic_lane
 
