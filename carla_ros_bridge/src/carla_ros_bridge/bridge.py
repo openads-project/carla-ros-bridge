@@ -469,7 +469,7 @@ def main(args=None):
     parameters['publish_etsi_messages'] = carla_bridge.get_param('publish_etsi_messages', False)
     parameters['mapem_timer_period'] = carla_bridge.get_param('mapem_timer_period', 1.0)
     parameters['spatem_timer_period'] = carla_bridge.get_param('spatem_timer_period', 0.1)
-    parameters['integrate_junctions_without_traffic_lights'] = carla_bridge.get_param('integrate_junctions_without_traffic_lights', False)
+    parameters['integrate_all_junctions'] = carla_bridge.get_param('integrate_all_junctions', False)
     parameters['waypoints_search_distance'] = carla_bridge.get_param('waypoints_search_distance', 1.0)
     parameters['lane_waypoints_count'] = carla_bridge.get_param('lane_waypoints_count', 10)
 

@@ -106,7 +106,7 @@ class TrafficLightsSensor(PseudoActor):
         self.publish_etsi_messages = node.parameters["publish_etsi_messages"]
         self.waypoints_search_distance = node.parameters["waypoints_search_distance"]
         self.lane_waypoints_count = node.parameters["lane_waypoints_count"]
-        self.integrate_junctions_without_traffic_lights = node.parameters["integrate_junctions_without_traffic_lights"]
+        self.integrate_all_junctions = node.parameters["integrate_all_junctions"]
 
         self.traffic_lights_info_publisher = node.new_publisher(
             CarlaTrafficLightInfoList,
@@ -451,7 +451,7 @@ class TrafficLightsSensor(PseudoActor):
 
         all_junctions = self.get_all_junctions_from_world()
 
-        if self.integrate_junctions_without_traffic_lights:
+        if self.integrate_all_junctions:
             junction_ids = all_junctions.keys()
         else:
             junction_ids = junction_light_groups.keys()

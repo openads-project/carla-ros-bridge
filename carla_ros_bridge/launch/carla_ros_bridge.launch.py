@@ -30,7 +30,7 @@ def generate_launch_description():
         'publish_etsi_messages',
         'mapem_timer_period',
         'spatem_timer_period',
-        'integrate_junctions_without_traffic_lights',
+        'integrate_all_junctions',
         'waypoints_search_distance',
         'lane_waypoints_count',
     ]
@@ -157,9 +157,9 @@ def generate_launch_description():
             description='Time between publishing the Etsi Spatem message'
         ),
         DeclareLaunchArgument(
-            name='integrate_junctions_without_traffic_lights',
+            name='integrate_all_junctions',
             default_value='False',
-            description='Flag if additionaly junctions without traffic lights should be integrated into the map. Saves computation time if not needed.'
+            description='When publishing ETSI MAPEM, include every CARLA junction. If disabled, only junctions with traffic lights are included.'
         ),
         DeclareLaunchArgument(
             name='waypoints_search_distance',
