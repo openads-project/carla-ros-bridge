@@ -83,7 +83,8 @@ class ObjectSensor(PseudoActor):
     def _get_vehicle_from_environment_objects(self, environment_object, object_classification):
         obj = Object(header=self.get_msg_header("carla_map"))
         obj.id = ctypes.c_uint32(environment_object.id).value
-        obj.pose = trans.carla_transform_to_ros_pose(environment_object.transform)
+        obj.pose = trans.carla_transform_to_ros_pose(
+            self._get_environment_object_transform(environment_object))
 
         if self.node.parameters['ignore_altitude']:
             obj.pose.position.z = 0.0
@@ -105,6 +106,13 @@ class ObjectSensor(PseudoActor):
         obj.object_classified = True
 
         return obj
+
+    def _get_environment_object_transform(self, environment_object):
+        box = environment_object.bounding_box
+        return carla.Transform(box.location, box.rotation)
+
+    def _get_environment_object_world_vertices(self, environment_object):
+        return environment_object.bounding_box.get_world_vertices(carla.Transform())
 
     def _get_static_vehicles(self, ros_objects):
         # iterate over all possible static vehicles

@@ -372,11 +372,12 @@ class IdealObjectSensor(ObjectSensor):
                     if hasattr(vehicle, "bounding_box"):
 
                         # Get target location in carla_map
-                        carla_location_target_in_carla_map = vehicle.transform.location
+                        vehicle_transform = self._get_environment_object_transform(vehicle)
+                        carla_location_target_in_carla_map = vehicle_transform.location
 
                         # Get corners from target BoundingBox
-                        bounding_box = vehicle.bounding_box
-                        carla_corners_target_in_carla_map = bounding_box.get_world_vertices(vehicle.transform)
+                        carla_corners_target_in_carla_map = \
+                            self._get_environment_object_world_vertices(vehicle)
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
