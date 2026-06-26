@@ -7,9 +7,8 @@
   <br>
   <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420"/>
   <img src="https://img.shields.io/badge/CARLA-0.10.0-blueviolet"/>
-  <img src="https://img.shields.io/badge/ROS 2-jazzy-blueviolet"/>
+  <img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/>
   <img src="https://img.shields.io/badge/Python-3.12-blueviolet"/>
-  <a href="https://www.ros.org"><img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/></a>
   <a href="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker.yml"><img src="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker.yml/badge.svg"/></a>
   <a href="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker-ros.yml"><img src="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker-ros.yml/badge.svg"/></a>
 </p>
