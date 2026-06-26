@@ -20,7 +20,7 @@ tar -xzf "artifacts.tar.gz" -C .
 mv PythonAPI "$CARLA_API_PATH"
 
 # Install the CARLA wheel that matches the current Python minor version.
-pyver=$("$PYTHON_BIN" -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+pyver=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
 shopt -s nullglob
 wheels=("$CARLA_API_PATH"/carla/dist/*"$pyver"*.whl)
 shopt -u nullglob
@@ -28,7 +28,7 @@ if [[ ${#wheels[@]} -eq 0 ]]; then
     echo "No CARLA wheel found for Python $pyver in $CARLA_API_PATH/carla/dist" >&2
     exit 1
 fi
-"$PYTHON_BIN" -m pip install --no-cache-dir "${wheels[0]}"
+python3 -m pip install --no-cache-dir "${wheels[0]}"
 
 mkdir -p "$(dirname "$CARLA_SETUP_SCRIPT")" "$CARLA_CACHE_DIR"
 chmod 1777 "$CARLA_CACHE_DIR"
