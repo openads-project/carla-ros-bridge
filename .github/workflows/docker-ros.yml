@@ -23,7 +23,7 @@ jobs:
           target: dev,run
           base-image: rwthika/ros2:jazzy
           rmw-implementation: rmw_zenoh_cpp
-          command: source /opt/carla/setup.bash && ros2 launch carla_ros_bridge carla_ros_bridge.launch.py
+          command: bash -ic 'ros2 launch carla_ros_bridge carla_ros_bridge.launch.py'
           enable-industrial-ci: false
           label-maintainer: Institute for Automotive Engineering (ika), RWTH Aachen University <opensource@ika.rwth-aachen.de>
           label-authors: Institute for Automotive Engineering (ika), RWTH Aachen University <opensource@ika.rwth-aachen.de>
