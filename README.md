@@ -9,11 +9,10 @@
   <img src="https://img.shields.io/badge/CARLA-0.10.0-blueviolet"/>
   <img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/>
   <img src="https://img.shields.io/badge/Python-3.12-blueviolet"/>
-  <a href="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker.yml"><img src="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker.yml/badge.svg"/></a>
   <a href="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker-ros.yml"><img src="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker-ros.yml/badge.svg"/></a>
 </p>
 
-**Bridge CARLA and ROS by publishing simulation data as ROS topics and translating ROS messages into CARLA commands.**
+**Bidirectional communication bridge between CARLA simulation and ROS ecosystems**
 
 > [!IMPORTANT]
 > This repository is a fork of the official CARLA [scenario_runner](https://github.com/carla-simulator/scenario_runner). All initial and following modifications to the original repository are documented in [CHANGELOG_OPENADS.md](./CHANGELOG_OPENADS.md).
