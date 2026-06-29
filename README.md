@@ -15,7 +15,7 @@
 **Bidirectional communication bridge between CARLA simulation and ROS ecosystems**
 
 > [!IMPORTANT]
-> This repository is a fork of the official CARLA [scenario_runner](https://github.com/carla-simulator/scenario_runner). All initial and following modifications to the original repository are documented in [CHANGELOG_OPENADS.md](./CHANGELOG_OPENADS.md).
+> This repository is a fork of the official CARLA [ros-bridge](https://github.com/carla-simulator/ros-bridge). All initial and following modifications to the original repository are documented in [CHANGELOG_OPENADS.md](./CHANGELOG_OPENADS.md).
 
 > [!IMPORTANT]
 > This repository is part of [***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Systems* project. *OpenADS* and its modules have been initiated and are currently being maintained by the [**Institute for Automotive Engineering (ika) at RWTH Aachen University**](https://www.ika.rwth-aachen.de/de/).
