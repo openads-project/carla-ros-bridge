@@ -154,6 +154,8 @@ The sensor publishes on the following topic:
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>/status` | [carla_msgs/CarlaTrafficLightStatusList](https://github.com/carla-simulator/ros-carla-msgs/blob/master/msg/CarlaTrafficLightStatusList.msg) | List of all traffic lights with their status. |
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>/info` | [carla_msgs/CarlaTrafficLightInfoList](https://github.com/carla-simulator/ros-carla-msgs/blob/master/msg/CarlaTrafficLightInfoList.msg) | Static information for all traffic lights (e.g. position). |
 
+This sensor can also publish the junction topology and traffic light states as ETSI ITS MAPEM and SPATEM messages; see [ETSI ITS Conversion](etsi_its_conversion.md).
+
 ###### Actor List Sensor
 
 | Topic | Type | Description |
