@@ -8,44 +8,37 @@ apt-get install -y --no-install-recommends \
     libxerces-c-dev \
     python3-pip 
 
-# Ensure libtiff5 compatibility for CARLA on Ubuntu 24.04
-if ! ldconfig -p | grep -q "libtiff.so.5"; then
-    command -v apt-get >/dev/null 2>&1 && apt-get update && apt-get install -y libtiff5 && ldconfig
-    if ! ldconfig -p | grep -q "libtiff.so.5"; then
-        if [ -f /usr/lib/x86_64-linux-gnu/libtiff.so.6 ] && [ ! -e /usr/lib/x86_64-linux-gnu/libtiff.so.5 ]; then
-            ln -sf /usr/lib/x86_64-linux-gnu/libtiff.so.6 /usr/lib/x86_64-linux-gnu/libtiff.so.5
-            ldconfig
-        else
-            echo "Unable to provide libtiff.so.5 compatibility" >&2
-            exit 1
-        fi
-    fi
-fi
-
-export DOCKER_ROS_FILES_PATH=/docker-ros/additional-files
+export CARLA_ARTIFACTS_URL="https://github.com/cgeller/carla/releases/download/test/PythonAPI.tar.gz"
+export CARLA_API_PATH="/opt/carla/PythonAPI"
+export CARLA_CACHE_DIR="/tmp/carlaCache"
+export CARLA_SETUP_SCRIPT="/opt/carla/setup.bash"
 
 # Download PythonAPI as artifact from CARLA CI pipeline
 mkdir -p /opt/carla
-curl --location --output artifacts.zip "https://gitlab.ika.rwth-aachen.de/api/v4/projects/1645/jobs/artifacts/ue5-ika/download?job=build-client-docker-image&job_token=$GIT_HTTPS_PASSWORD"
-unzip artifacts.zip
-mv artifacts/PythonAPI /opt/carla
-rm -rf artifacts
+curl --location --output artifacts.tar.gz "https://github.com/openads-project/carla-simulator/releases/download/v0.10.0-1.0.0/PythonAPI.tar.gz"
+tar -xzf "artifacts.tar.gz" -C .
+mv PythonAPI "$CARLA_API_PATH"
 
-# Install the CARLA wheel that matches the current Python minor version
+# Install the CARLA wheel that matches the current Python minor version.
 pyver=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
-wheel=$(echo /opt/carla/PythonAPI/carla/dist/*${pyver}*.whl)
-pip install --no-cache-dir "$wheel" --break-system-packages
+shopt -s nullglob
+wheels=("$CARLA_API_PATH"/carla/dist/*"$pyver"*.whl)
+shopt -u nullglob
+if [[ ${#wheels[@]} -eq 0 ]]; then
+    echo "No CARLA wheel found for Python $pyver in $CARLA_API_PATH/carla/dist" >&2
+    exit 1
+fi
+python3 -m pip install --no-cache-dir "${wheels[0]}"
 
-# Create a script to append necessary paths to PYTHONPATH
-echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla/agents" >> /opt/carla/setup.bash
-echo "export PYTHONPATH=\$PYTHONPATH:/opt/carla/PythonAPI/carla" >> /opt/carla/setup.bash
+mkdir -p "$(dirname "$CARLA_SETUP_SCRIPT")" "$CARLA_CACHE_DIR"
+chmod 1777 "$CARLA_CACHE_DIR"
 
-# Allow proj to automatically download remote grids to interpret the projection string in OpenDRIVE maps
-echo "export PROJ_NETWORK=ON" >> /opt/carla/setup.bash
-
-# Default file cache for CARLA client-side map files
-echo "export CARLA_CACHE_DIR=/tmp/carlaCache" >> /opt/carla/setup.bash
-echo "mkdir -p /tmp/carlaCache" >> /opt/carla/setup.bash
+# Create a script to append necessary paths to PYTHONPATH.
+{
+    echo "export PYTHONPATH=\$PYTHONPATH:$CARLA_API_PATH/carla/agents"
+    echo "export PYTHONPATH=\$PYTHONPATH:$CARLA_API_PATH/carla"
+    echo "export CARLA_CACHE_DIR=$CARLA_CACHE_DIR"
+} >> "$CARLA_SETUP_SCRIPT"
 
 # .bashrc sources the setup script
 echo "source /opt/carla/setup.bash" >> /root/.bashrc

@@ -1,41 +1,30 @@
-# Communication Actor: *carla-ros-bridge*
+# carla-ros-bridge
 
-> [!IMPORTANT]
-> This repository is a fork of the [carla-ros-bridge](https://github.com/ika-rwth-aachen/carla-ros-bridge)! All initial and following modifications to the parent repository are documented in [IKA_CHANGELOG.md](./IKA_CHANGELOG.md).
-
----
----
-
-## IKA GitHub README
-
-<p align="left">
-  <img src="https://img.shields.io/github/v/release/ika-rwth-aachen/carla-ros-bridge"/>
-  <img src="https://img.shields.io/github/license/ika-rwth-aachen/carla-ros-bridge"/>
-  <a href="https://github.com/ika-rwth-aachen/carla-ros-bridge/actions/workflows/docker.yml">
-  <img src="https://github.com/ika-rwth-aachen/carla-ros-bridge/actions/workflows/docker.yml/badge.svg"/></a>
+<p align="center">
+  <a href="https://github.com/openads-project"><img src="https://img.shields.io/badge/OpenADS-f5ff01"/></a>
+  <a href="https://github.com/openads-project/carla-ros-bridge/releases/latest"><img src="https://img.shields.io/github/v/release/openads-project/carla-ros-bridge"/></a>
+  <a href="https://github.com/openads-project/carla-ros-bridge/blob/main/LICENSE"><img src="https://img.shields.io/github/license/openads-project/carla-ros-bridge"/></a>
+  <br>
   <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420"/>
-  <img src="https://img.shields.io/badge/ROS 2-jazzy-blueviolet"/>
+  <img src="https://img.shields.io/badge/CARLA-0.10.0-blueviolet"/>
+  <img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/>
   <img src="https://img.shields.io/badge/Python-3.12-blueviolet"/>
-  <img src="https://img.shields.io/github/stars/ika-rwth-aachen/carla-ros-bridge?style=social"/>
+  <a href="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker-ros.yml"><img src="https://github.com/openads-project/carla-ros-bridge/actions/workflows/docker-ros.yml/badge.svg"/></a>
 </p>
 
+**Bidirectional communication bridge between CARLA simulation and ROS ecosystems**
+
 > [!IMPORTANT]
-> This repository is a minimal fork of the official [ros-bridge](https://github.com/carla-simulator/ros-bridge)! All initial and following modifications to the original repository are documented in [CARLOS_CHANGELOG.md](./CARLOS_CHANGELOG.md).
+> This repository is a fork of the official CARLA [ros-bridge](https://github.com/carla-simulator/ros-bridge). All initial and following modifications to the original repository are documented in [CHANGELOG_OPENADS.md](./CHANGELOG_OPENADS.md).
+
+> [!IMPORTANT]
+> This repository is part of [***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Systems* project. *OpenADS* and its modules have been initiated and are currently being maintained by the [**Institute for Automotive Engineering (ika) at RWTH Aachen University**](https://www.ika.rwth-aachen.de/de/).
 
 > [!TIP]
-> We recommend to use the *carla-ros-bridge* as **communication actor** in our open, modular and scalable simulation framework <a href="https://github.com/ika-rwth-aachen/carlos">**CARLOS**. <img src="https://img.shields.io/github/stars/ika-rwth-aachen/carlos?style=social"/></a> 
->
-> Here, it is the component that facilitates the powerful combination of CARLA and ROS. The component retrieves data from the simulation to publish it over ROS topics while simultaneously listening on different topics for requested actions, which are translated to commands to be executed in CARLA. It does this by using both the ROS communication standard DDS, as well as RPC via the CARLA Python API, in tandem, effectively bridging the two.
-
-> [!TIP]
-> Please also have look to the ROS specific [README](./docker/README.md) giving detailed insights about available ROS nodes, topics and services but also useful information about the containerization. Here, [docker-ros](https://github.com/ika-rwth-aachen/docker-ros) enables a continual building of container images with recent versions of ROS, Python, and Ubuntu.
-
-> [!NOTE]
-> We set up a Continous Integration (CI) pipeline as [GitHub workflow](./github/workflows/docker.yml) to continously build Docker images for the `carla-ros-bridge`, publicly available on [Docker Hub](https://hub.docker.com/r/rwthika/carla-ros-bridge).
+> We recommend to use the *carla-ros-bridge* as **communication actor** in our open, modular and scalable simulation framework <a href="https://github.com/openads-project/openadsim">**OpenADSim**.
 
 ---
 ---
-
 ## Original README
 
 [![Actions Status](https://github.com/carla-simulator/ros-bridge/workflows/CI/badge.svg)](https://github.com/carla-simulator/ros-bridge)
