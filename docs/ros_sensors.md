@@ -191,7 +191,7 @@ An unattached sensor has no parent actor, so the server would broadcast it again
 
 A spawn request may carry the attribute `ground_relative_z`. The bridge then reads the `z` of the requested transform as a height above the terrain instead of an absolute altitude, determines the ground altitude below the requested position and spawns the actor at `ground + z`.
 
-The ground altitude is determined by casting a ray downwards onto the map. If it does not hit anything, the altitude of the nearest driving lane is used instead.
+The ground altitude is taken from the OpenDRIVE map, as the altitude of the closest driving lane. It is defined everywhere and independent of the rendered geometry, but it approximates the surface an object rests on: the further a position is away from a lane, the coarser the approximation gets. Where that matters, the ground altitude can be stated explicitly instead, see the [carla_spawn_objects README](../carla_spawn_objects/README.md).
 
 The correction is applied to the CARLA actor only. The requested transform is left untouched, so the transform published for the actor keeps the ground-relative altitude. This keeps the frame consistent with `ignore_altitude` (see [Run ROS](run_ros.md)), which flattens the transforms of vehicles onto the `carla_map` ground plane.
 

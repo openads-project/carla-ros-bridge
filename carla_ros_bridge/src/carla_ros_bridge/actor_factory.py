@@ -30,7 +30,7 @@ from carla_ros_bridge.gnss import Gnss
 from carla_ros_bridge.imu import ImuSensor
 from carla_ros_bridge.lane_invasion_sensor import LaneInvasionSensor
 from carla_ros_bridge.lidar import Lidar, SemanticLidar
-from carla_ros_bridge.map_utils import get_ground_altitude, get_road_altitude, lift_if_below_road
+from carla_ros_bridge.map_utils import get_road_altitude, lift_if_below_road
 from carla_ros_bridge.marker_sensor import MarkerSensor
 from carla_ros_bridge.object_sensor import ObjectSensor
 from carla_ros_bridge.ideal_object_sensor import IdealObjectSensor
@@ -264,7 +264,7 @@ class ActorFactory(object):
                     ground_reference.get("ground_reference_x", transform.location.x),
                     ground_reference.get("ground_reference_y", transform.location.y),
                     transform.location.z)
-                ground_altitude = get_ground_altitude(
+                ground_altitude = get_road_altitude(
                     self.world, probe, loginfo=self.node.loginfo)
             transform.location.z += ground_altitude
             self.node.loginfo(

@@ -143,6 +143,7 @@ class CarlaSpawnObjects(CompatibleNode):
         raise RuntimeError("Timed out waiting for transform")
 
     GROUND_RELATIVE_KEYS = ('alt_above_ground', 'z_above_ground', 'alt_ground', 'z_ground')
+    GROUND_RESOLUTION_KEYS = ('ground_altitude', 'ground_reference_x', 'ground_reference_y')
 
     @staticmethod
     def spawn_point_is_ground_relative(spawn_point):
@@ -549,7 +550,7 @@ class CarlaSpawnObjects(CompatibleNode):
                 object['transform'] = self.extend_spawn_point(parent['transform'], object['local_transform'])
                 if parent.get('ground_relative_z'):
                     object['ground_relative_z'] = True
-                    for key in ('ground_altitude', 'ground_reference_x', 'ground_reference_y'):
+                    for key in self.GROUND_RESOLUTION_KEYS:
                         if key in parent:
                             object[key] = parent[key]
         else:
@@ -726,7 +727,7 @@ class CarlaSpawnObjects(CompatibleNode):
                 if group.get('ground_relative_z'):
                     spawn_object_request.attributes.append(
                         KeyValue(key="ground_relative_z", value="True"))
-                    for key in ('ground_altitude', 'ground_reference_x', 'ground_reference_y'):
+                    for key in self.GROUND_RESOLUTION_KEYS:
                         if key in group:
                             spawn_object_request.attributes.append(
                                 KeyValue(key=key, value=str(group[key])))

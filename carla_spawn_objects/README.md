@@ -139,9 +139,10 @@ Instead of an absolute altitude, the altitude can be given relative to the terra
 
 The bridge then determines the ground altitude below the object and spawns it at `ground + <value>`. This is useful for e.g. roadside units, whose mounting height is known while the exact terrain altitude at their position is not. Notes:
 
+- the ground altitude is taken from the OpenDRIVE map, as the altitude of the closest driving lane. It is defined everywhere and independent of the rendered geometry, but it approximates the surface an object rests on: the further a position is away from a lane, the coarser it gets
 - the correction is applied within CARLA only; in ROS the object keeps its ground-relative altitude, which is also what its transform reports
 - the property is inherited by all `children`, so a group only has to declare it at its root
-- the terrain is queried once, at the position of the object that declared the ground-relative altitude, and the result is shared by all `children`. A rigid group therefore stays rigid instead of being deformed by a slightly different ground below each of its members
+- the ground altitude is determined once, at the position of the object that declared the ground-relative altitude, and the result is shared by all `children`. A rigid group therefore stays rigid instead of being deformed by a slightly different ground below each of its members
 - it only takes effect for objects that are not attached to another actor, since an attached object is always placed relative to its parent
 - `alt`/`z` and `alt_above_ground`/`z_above_ground` are mutually exclusive; if both are given, the ground-relative one is used
 - a plain `alt`/`z` stays an absolute map altitude and is never corrected against the terrain, so an object placed that way keeps its altitude even where the ground is higher or lower
@@ -150,7 +151,7 @@ The bridge then determines the ground altitude below the object and spawns it at
 
 #### Known Ground Altitude
 
-If the ground altitude at a position is already known, it can be stated through `z_ground` resp. `alt_ground`, which replaces the terrain query:
+If the ground altitude at a position is already known, it can be stated through `z_ground` resp. `alt_ground`, which replaces the lookup in the OpenDRIVE map:
 ```
 "spawn_point": {"lat": 50.779692, "lon": 6.050775, "alt_ground": 255.296, "alt_above_ground": 0.0}
 ```

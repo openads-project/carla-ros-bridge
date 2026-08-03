@@ -29,27 +29,6 @@ def get_road_altitude(carla_world, location, loginfo=None):
     return location.z
 
 
-def get_ground_altitude(carla_world, location, probe_height=100.0, loginfo=None):
-    """
-    Get the ground altitude at a given CARLA location.
-
-    Casts a ray straight down from probe_height above the location, so it works
-    anywhere on the map. get_road_altitude() is only used as a fallback: it
-    snaps to the nearest driving lane, which can be far off for a position on a
-    sidewalk or a green area. For edge cases, like tunnels, manual tuning is needed.
-    """
-    probe = carla.Location(location.x, location.y, location.z + probe_height)
-    hit = carla_world.ground_projection(probe, 2.0 * probe_height)
-
-    if hit is not None:
-        return hit.location.z
-
-    if loginfo:
-        loginfo("No ground hit below x={}, y={}, falling back to road altitude".format(
-            location.x, location.y))
-    return get_road_altitude(carla_world, location, loginfo)
-
-
 def lift_if_below_road(carla_world, transform, z_offset=2.0, loginfo=None):
     """
     Lift a transform above the road when its current altitude is below the map.
