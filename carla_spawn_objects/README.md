@@ -143,14 +143,19 @@ The bridge then determines the ground altitude below the object and spawns it at
 - the property is inherited by all `children`, so a group only has to declare it at its root
 - it only takes effect for objects that are not attached to another actor, since an attached object is always placed relative to its parent
 - `alt`/`z` and `alt_above_ground`/`z_above_ground` are mutually exclusive; if both are given, the ground-relative one is used
+- a plain `alt`/`z` stays an absolute map altitude and is never corrected against the terrain, so an object placed that way keeps its altitude even where the ground is higher or lower
+- groups are not required; a single sensor defined at top-level can use a ground-relative spawn point just as well
+- the bridge parameter [`ignore_altitude`](../docs/run_ros.md) flattens the transform of an *actor* to `z = 0`, but never the transform of a *sensor*, which keeps its mounting height relative to its parent. An unattached sensor has no such parent, so only a ground-relative spawn point places it consistently with that flattened ground plane; with an absolute altitude it ends up as far above the flattened actors as the terrain is high
 
 ### Transforms
 
 The node broadcasts a static transform for every group it resolves, from the parent group (or `carla_map`) to the group itself, which makes the group hierarchy visible in TF.
 
-The transform of a sensor is normally broadcast by the CARLA server through its native ROS 2 interface, relative to the actor the sensor is attached to. A sensor that is not attached to an actor has no such parent, so the server would broadcast it against `carla_map` at its absolute pose within the world. That does not reflect the group hierarchy or, for a ground-relative spawn point, the intended altitude.
+The transform of a sensor is normally broadcast by the CARLA server through its native ROS 2 interface, relative to the actor the sensor is attached to. A sensor that is not attached to an actor has no such parent, so the server would broadcast it against `carla_map` at its absolute pose within the world, which does not reflect the group hierarchy.
 
-For those sensors this node takes the frame over: it spawns them with the CARLA attribute `no_transform` and broadcasts the static transform from the enclosing group to the sensor itself. Only the transform changes its source, the sensor's data topics are unaffected. Pseudo sensors are excluded, as they are no CARLA actors and are handled by the bridge.
+This node therefore takes the frame over for every sensor that is spawned without a parent actor and is no pseudo sensor. It spawns them with the CARLA attribute `no_transform` and broadcasts the static transform from the enclosing group (or `carla_map`) to the sensor itself. Only the transform changes its source, the sensor's data topics are unaffected. Pseudo sensors are excluded, as they are no CARLA actors and are handled by the bridge.
+
+This applies to those sensors unconditionally. It does not depend on `ignore_altitude`, on the use of groups, or on the kind of spawn point: a single sensor defined at top-level is taken over just as one nested in a group.
 
 The decision can be overridden per sensor by setting `no_transform` explicitly, which then determines both the CARLA attribute and who broadcasts the transform:
 ```
