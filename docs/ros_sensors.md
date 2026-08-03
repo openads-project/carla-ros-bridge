@@ -170,3 +170,29 @@ This pseudo-sensor allows to control the position and velocity of the actor it i
 |-------|------|-------------|
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>/set_transform` | [geometry_msgs/Pose](https://docs.ros.org/en/api/geometry_msgs/html/msg/Pose.html) | Transform to apply to the sensor's parent. |
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>/set_target_velocity` | [geometry_msgs/Twist](https://docs.ros.org/en/api/geometry_msgs/html/msg/Twist.html) | Velocity (angular and linear) to apply to the sensor's parent. |
+
+---
+
+## Sensor Transforms
+
+A sensor's frame is named after the sensor's role name and corresponds to the prefix of its topics. Which node broadcasts the transform depends on how the sensor was spawned:
+
+| Sensor | Broadcaster | Topic | Parent frame |
+|--------|-------------|-------|--------------|
+| attached to an actor | CARLA server (native ROS 2 interface) | `/tf_static` | the parent actor's frame |
+| not attached, spawned by `carla_spawn_objects` | `carla_spawn_objects` | `/tf_static` | the enclosing group, or `carla_map` |
+| pseudo sensor | bridge | `/tf` | the parent actor's frame, or `carla_map` |
+
+An unattached sensor has no parent actor, so the server would broadcast it against `carla_map` at its absolute pose within the world. With `carla_spawn_objects` it is possible to spawn such sensors with the CARLA attribute `no_transform`, which makes the server skip the transform while it keeps publishing the sensor's data, and broadcasts the transform itself relative to the enclosing group. See the [carla_spawn_objects README](../carla_spawn_objects/README.md).
+
+`no_transform` requires a CARLA server that declares the attribute. Against an older server the bridge logs a warning, ignores the attribute, and the sensor keeps its server-side transform.
+
+## Ground-Relative Spawn Altitude
+
+A spawn request may carry the attribute `ground_relative_z`. The bridge then reads the `z` of the requested transform as a height above the terrain instead of an absolute altitude, determines the ground altitude below the requested position and spawns the actor at `ground + z`.
+
+The ground altitude is determined by casting a ray downwards onto the map. If it does not hit anything, the altitude of the nearest driving lane is used instead.
+
+The correction is applied to the CARLA actor only. The requested transform is left untouched, so the transform published for the actor keeps the ground-relative altitude. This keeps the frame consistent with `ignore_altitude` (see [Run ROS](run_ros.md)), which flattens the transforms of vehicles onto the `carla_map` ground plane.
+
+The attribute is consumed by the bridge and is not forwarded to CARLA. It only takes effect for actors that are not attached to another actor.

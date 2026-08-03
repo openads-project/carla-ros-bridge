@@ -142,6 +142,15 @@ class CarlaSpawnObjects(CompatibleNode):
 
         raise RuntimeError("Timed out waiting for transform")
 
+    @staticmethod
+    def spawn_point_is_ground_relative(spawn_point):
+        """
+        Check whether a spawn point states its altitude relative to the ground
+        :param spawn_point: spawn point definition
+        :return: True if 'alt_above_ground' or 'z_above_ground' is used
+        """
+        return 'alt_above_ground' in spawn_point or 'z_above_ground' in spawn_point
+
     def resolve_spawn_point(self, spawn_point):
         """
         Build a CARLA-map-frame Pose from a spawn point definition.
@@ -149,6 +158,10 @@ class CarlaSpawnObjects(CompatibleNode):
         Supports two formats:
         - spawn points already in CARLA coordinates (x/y/[z/roll/pitch/yaw])
         - spawn points given in WGS84 (lat/lon/[alt/roll/pitch/yaw])
+
+        The altitude may alternatively be given as 'z_above_ground' resp.
+        'alt_above_ground', measured from the terrain instead of from the map
+        origin.
         """
         roll = spawn_point.get("roll", 0.0)
         pitch = spawn_point.get("pitch", 0.0)
@@ -159,7 +172,7 @@ class CarlaSpawnObjects(CompatibleNode):
             return self.wgs84_to_carla_spawn_point(
                 spawn_point['lat'],
                 spawn_point['lon'],
-                spawn_point.get('alt', 0.0),
+                spawn_point.get('alt_above_ground', spawn_point.get('alt', 0.0)),
                 roll,
                 pitch,
                 yaw)
@@ -169,7 +182,7 @@ class CarlaSpawnObjects(CompatibleNode):
             return self.create_spawn_point(
                 spawn_point["x"],
                 spawn_point["y"],
-                spawn_point.get("z", 0.0),
+                spawn_point.get("z_above_ground", spawn_point.get("z", 0.0)),
                 roll,
                 pitch,
                 yaw)
@@ -488,6 +501,11 @@ class CarlaSpawnObjects(CompatibleNode):
         elif 'spawn_point' not in object:
             object['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
+        # if the spawn point is set relative to the ground the altitude is measured from the terrain,
+        # not from the map origin.
+        if 'spawn_point' in object and self.spawn_point_is_ground_relative(object['spawn_point']):
+            object['ground_relative_z'] = True
+
         # set name, attached_vehicle_id, and transform by considering parent object
         if parent is not None:
             parent_type = parent['type'].split('.')[0]
@@ -512,6 +530,8 @@ class CarlaSpawnObjects(CompatibleNode):
                 object["id"] = parent['id'] + "/" + object["id"]
                 object['attached_vehicle_id'] = parent['attached_vehicle_id']
                 object['transform'] = self.extend_spawn_point(parent['transform'], object['local_transform'])
+                if parent.get('ground_relative_z'):
+                    object['ground_relative_z'] = True
         else:
             object["name"] = object["id"]
             object["transform"] = object['local_transform']
@@ -522,6 +542,34 @@ class CarlaSpawnObjects(CompatibleNode):
             raise NameError
         self.object_names.append(object["name"])
 
+    def broadcast_static_transform(self, frame_id, child_frame_id, transform, label):
+        """
+        Broadcast a static transform for an object whose frame this node owns
+        :param frame_id: parent frame
+        :param child_frame_id: child frame
+        :param transform: pose of the child, expressed in the parent frame
+        :param label: object id, for logging only
+        """
+        if not frame_id or not child_frame_id:
+            self.logwarn(
+                "Skipping invalid static transform for '{}': frame_id='{}', child_frame_id='{}'".format(
+                    label, frame_id, child_frame_id))
+            return
+
+        static_transform = geometry_msgs.msg.TransformStamped()
+        if ROS_VERSION == 1:
+            static_transform.header.stamp = rospy.Time.now()
+        elif ROS_VERSION == 2:
+            static_transform.header.stamp = self.get_clock().now().to_msg()
+
+        static_transform.header.frame_id = frame_id
+        static_transform.child_frame_id = child_frame_id
+        static_transform.transform.translation.x = transform.position.x
+        static_transform.transform.translation.y = transform.position.y
+        static_transform.transform.translation.z = transform.position.z
+        static_transform.transform.rotation = transform.orientation
+
+        self.static_tf_broadcaster.sendTransform(static_transform)
 
     def process_sensor(self, sensor, parent):
         """
@@ -543,6 +591,13 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_object_request.attach_to = sensor['attached_vehicle_id']
             spawn_object_request.transform = sensor['transform']
             spawn_object_request.random_pose = False  # never set a random pose for a sensor
+
+            # A sensor spawned unattached carries a fully composed, absolute pose, so the native ROS2 interface 
+            # would broadcast it against carla_map at its true world altitude. 
+            # Instead take the frame over: tell the server to skip the TF (data topics are unaffected) 
+            # and publish the parent-relative one here instead, which keeps the frame tree consistent.
+            owns_transform = (sensor['attached_vehicle_id'] == 0
+                              and "pseudo" not in sensor["type"])
 
             attached_objects = []
             for attribute, value in sensor.items():
@@ -568,10 +623,24 @@ class CarlaSpawnObjects(CompatibleNode):
                 spawn_object_request.attributes.append(
                     KeyValue(key=str(attribute), value=str(value)))
 
+            configured_no_transform = sensor.get("no_transform")
+            if configured_no_transform is not None:
+                owns_transform = str(configured_no_transform).lower() == "true"
+            elif owns_transform:
+                spawn_object_request.attributes.append(
+                    KeyValue(key="no_transform", value="True"))
+
             sensor['response_id'] = self.spawn_object(spawn_object_request)
 
             if sensor['response_id'] == -1:
                 raise RuntimeError(response.error_string)
+
+            if owns_transform:
+                self.broadcast_static_transform(
+                    self.world_frame if parent is None else parent.get('name', ''),
+                    sensor["id"],
+                    sensor['local_transform'],
+                    sensor["id"])
 
             # spawn the attached objects
             for attached_object in attached_objects:
@@ -626,6 +695,9 @@ class CarlaSpawnObjects(CompatibleNode):
                 spawn_object_request.attach_to = group['attached_vehicle_id']
                 spawn_object_request.transform = group['transform']
                 spawn_object_request.random_pose = False # never set a random pose for an object
+                if group.get('ground_relative_z'):
+                    spawn_object_request.attributes.append(
+                        KeyValue(key="ground_relative_z", value="True"))
 
                 group_spawned = False
                 while not group_spawned and roscomp.ok():
@@ -649,33 +721,12 @@ class CarlaSpawnObjects(CompatibleNode):
                 "Group {} will not be spawned: {}".format(group["id"], e))
             return
 
-        # broadcast static static transform from parent to group
-        static_transform = geometry_msgs.msg.TransformStamped()
-        if ROS_VERSION == 1:
-            static_transform.header.stamp = rospy.Time.now()
-        elif ROS_VERSION == 2:
-            static_transform.header.stamp = self.get_clock().now().to_msg()
-
-        if parent is None:
-            static_transform.header.frame_id = self.world_frame
-        else:
-            static_transform.header.frame_id = parent.get('name', '')
-
-        static_transform.child_frame_id = group.get("name", "")
-        if not static_transform.header.frame_id or not static_transform.child_frame_id:
-            self.logwarn(
-                "Skipping invalid static transform for group '{}': frame_id='{}', child_frame_id='{}'".format(
-                    group.get("id", "<unknown>"),
-                    static_transform.header.frame_id,
-                    static_transform.child_frame_id))
-            return
-
-        static_transform.transform.translation.x = group['local_transform'].position.x
-        static_transform.transform.translation.y = group['local_transform'].position.y
-        static_transform.transform.translation.z = group['local_transform'].position.z
-        static_transform.transform.rotation = group['local_transform'].orientation
-
-        self.static_tf_broadcaster.sendTransform(static_transform)
+        # broadcast static transform from parent to group
+        self.broadcast_static_transform(
+            self.world_frame if parent is None else parent.get('name', ''),
+            group.get("name", ""),
+            group['local_transform'],
+            group.get("id", "<unknown>"))
 
     def process_blueprint(self, object, parent):
         """

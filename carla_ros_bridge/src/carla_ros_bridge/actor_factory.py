@@ -30,7 +30,7 @@ from carla_ros_bridge.gnss import Gnss
 from carla_ros_bridge.imu import ImuSensor
 from carla_ros_bridge.lane_invasion_sensor import LaneInvasionSensor
 from carla_ros_bridge.lidar import Lidar, SemanticLidar
-from carla_ros_bridge.map_utils import get_road_altitude, lift_if_below_road
+from carla_ros_bridge.map_utils import get_ground_altitude, get_road_altitude, lift_if_below_road
 from carla_ros_bridge.marker_sensor import MarkerSensor
 from carla_ros_bridge.object_sensor import ObjectSensor
 from carla_ros_bridge.ideal_object_sensor import IdealObjectSensor
@@ -224,14 +224,37 @@ class ActorFactory(object):
                 (req.type.startswith("vehicle.") or req.type.startswith("sensor.")):
             blueprint.set_attribute("ros_name", req.id)
 
+        ground_relative_z = False
         for attribute in req.attributes:
+            if attribute.key == "ground_relative_z":
+                ground_relative_z = attribute.value.lower() == "true"
+                continue
+            if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
+                self.node.logwarn(
+                    "Ignoring 'no_transform' for '{}': this CARLA server does not support it. "
+                    "Switch to a supportinhg server image, otherwise the frame of this actor is published "
+                    "twice: by the server at its absolute pose and by carla_spawn_objects.".format(
+                        req.id))
+                continue
             blueprint.set_attribute(attribute.key, attribute.value)
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
         else:
             # get a random pose
-            transform = secure_random.choice(
+            transform = scure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
+
+        # The requested z is a height above ground, not an absolute altitude:
+        # place the actor on the terrain. Only req.transform's CARLA copy is
+        # lifted; req.transform itself stays ground-relative so that the TF
+        # published for this object remains consistent.
+        if ground_relative_z and req.attach_to == 0:
+            ground_altitude = get_ground_altitude(
+                self.world, transform.location, loginfo=self.node.loginfo)
+            transform.location.z += ground_altitude
+            self.node.loginfo(
+                "Resolved ground-relative spawn altitude: actor={} ground={} z={}".format(
+                    req.type, ground_altitude, transform.location.z))
 
         # Check altitude if not attached to another actor
         # Only apply altitude correction for vehicles and walkers, not for static props or sensors
