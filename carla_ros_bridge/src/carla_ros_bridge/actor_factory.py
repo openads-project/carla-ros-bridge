@@ -232,7 +232,7 @@ class ActorFactory(object):
             if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
                 self.node.logwarn(
                     "Ignoring 'no_transform' for '{}': this CARLA server does not support it. "
-                    "Switch to a supportinhg server image, otherwise the frame of this actor is published "
+                    "Switch to a supporting server image, otherwise the frame of this actor is published "
                     "twice: by the server at its absolute pose and by carla_spawn_objects.".format(
                         req.id))
                 continue
