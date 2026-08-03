@@ -225,9 +225,17 @@ class ActorFactory(object):
             blueprint.set_attribute("ros_name", req.id)
 
         ground_relative_z = False
+        ground_altitude = None
+        ground_reference = {}
         for attribute in req.attributes:
             if attribute.key == "ground_relative_z":
                 ground_relative_z = attribute.value.lower() == "true"
+                continue
+            if attribute.key == "ground_altitude":
+                ground_altitude = float(attribute.value)
+                continue
+            if attribute.key in ("ground_reference_x", "ground_reference_y"):
+                ground_reference[attribute.key] = float(attribute.value)
                 continue
             if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
                 self.node.logwarn(
@@ -241,7 +249,7 @@ class ActorFactory(object):
             transform = trans.ros_pose_to_carla_transform(req.transform)
         else:
             # get a random pose
-            transform = scure_random.choice(
+            transform = secure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
 
         # The requested z is a height above ground, not an absolute altitude:
@@ -249,8 +257,15 @@ class ActorFactory(object):
         # lifted; req.transform itself stays ground-relative so that the TF
         # published for this object remains consistent.
         if ground_relative_z and req.attach_to == 0:
-            ground_altitude = get_ground_altitude(
-                self.world, transform.location, loginfo=self.node.loginfo)
+            if ground_altitude is None:
+                # the reference position is the one that declared the ground-relative
+                # altitude, so that all members of a rigid group share one terrain query
+                probe = carla.Location(
+                    ground_reference.get("ground_reference_x", transform.location.x),
+                    ground_reference.get("ground_reference_y", transform.location.y),
+                    transform.location.z)
+                ground_altitude = get_ground_altitude(
+                    self.world, probe, loginfo=self.node.loginfo)
             transform.location.z += ground_altitude
             self.node.loginfo(
                 "Resolved ground-relative spawn altitude: actor={} ground={} z={}".format(

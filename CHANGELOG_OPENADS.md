@@ -30,7 +30,7 @@
 - Add automatic spawn altitude correction for maps with elevation.
 - Extend [`carla_spawn_objects`](./carla_spawn_objects/README.md) with `group` and `blueprint` placeholders to spawn a specific vehicle and its sensor equipment in a reproducible setup.
 - Add WGS84/global spawn point support for object definitions; spawn points can use `lat`/`lon` in addition to CARLA `x`/`y` coordinates.
-- Add [ground-relative spawn altitudes](./docs/ros_sensors.md#ground-relative-spawn-altitude) for object definitions; spawn points can use `alt_above_ground`/`z_above_ground` to place an object at a height above the terrain instead of at an absolute altitude. The property is inherited by all `children` and keeps the object's transform ground-relative, which stays consistent with `ignore_altitude`.
+- Add [ground-relative spawn altitudes](./docs/ros_sensors.md#ground-relative-spawn-altitude) for object definitions; spawn points can use `alt_above_ground`/`z_above_ground` to place an object at a height above the terrain instead of at an absolute altitude. The property is inherited by all `children` and keeps the object's transform ground-relative, which stays consistent with `ignore_altitude`. The terrain is queried once per group, and `alt_ground`/`z_ground` can state a known ground altitude to replace the query altogether.
 
 ## Sensor Related
 

@@ -142,14 +142,27 @@ class CarlaSpawnObjects(CompatibleNode):
 
         raise RuntimeError("Timed out waiting for transform")
 
+    GROUND_RELATIVE_KEYS = ('alt_above_ground', 'z_above_ground', 'alt_ground', 'z_ground')
+
     @staticmethod
     def spawn_point_is_ground_relative(spawn_point):
         """
         Check whether a spawn point states its altitude relative to the ground
         :param spawn_point: spawn point definition
-        :return: True if 'alt_above_ground' or 'z_above_ground' is used
+        :return: True if one of GROUND_RELATIVE_KEYS is used
         """
-        return 'alt_above_ground' in spawn_point or 'z_above_ground' in spawn_point
+        return any(key in spawn_point for key in CarlaSpawnObjects.GROUND_RELATIVE_KEYS)
+
+    @staticmethod
+    def spawn_point_ground_altitude(spawn_point):
+        """
+        Get the ground altitude a spawn point states explicitly
+        :param spawn_point: spawn point definition
+        :return: the value of 'alt_ground' resp. 'z_ground', or None
+        """
+        if 'alt_ground' in spawn_point:
+            return spawn_point['alt_ground']
+        return spawn_point.get('z_ground')
 
     def resolve_spawn_point(self, spawn_point):
         """
@@ -502,9 +515,13 @@ class CarlaSpawnObjects(CompatibleNode):
             object['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
         # if the spawn point is set relative to the ground the altitude is measured from the terrain,
-        # not from the map origin.
+        # not from the map origin. A stated ground altitude is taken as is, which spares the
+        # bridge the terrain query and keeps the placement independent of the map geometry.
         if 'spawn_point' in object and self.spawn_point_is_ground_relative(object['spawn_point']):
             object['ground_relative_z'] = True
+            known_ground = self.spawn_point_ground_altitude(object['spawn_point'])
+            if known_ground is not None:
+                object['ground_altitude'] = known_ground
 
         # set name, attached_vehicle_id, and transform by considering parent object
         if parent is not None:
@@ -532,10 +549,21 @@ class CarlaSpawnObjects(CompatibleNode):
                 object['transform'] = self.extend_spawn_point(parent['transform'], object['local_transform'])
                 if parent.get('ground_relative_z'):
                     object['ground_relative_z'] = True
+                    for key in ('ground_altitude', 'ground_reference_x', 'ground_reference_y'):
+                        if key in parent:
+                            object[key] = parent[key]
         else:
             object["name"] = object["id"]
             object["transform"] = object['local_transform']
             object['attached_vehicle_id'] = 0
+
+        # anchor the terrain query at the object that declared the ground-relative altitude.
+        # Querying it per object would resolve a slightly different ground for every member
+        # of a group and thus deform a structure that is rigid in the configuration.
+        if object.get('ground_relative_z') and 'ground_altitude' not in object \
+                and 'ground_reference_x' not in object:
+            object['ground_reference_x'] = object['transform'].position.x
+            object['ground_reference_y'] = object['transform'].position.y
 
         # check if object name already exists
         if object["name"] in self.object_names:
@@ -698,6 +726,10 @@ class CarlaSpawnObjects(CompatibleNode):
                 if group.get('ground_relative_z'):
                     spawn_object_request.attributes.append(
                         KeyValue(key="ground_relative_z", value="True"))
+                    for key in ('ground_altitude', 'ground_reference_x', 'ground_reference_y'):
+                        if key in group:
+                            spawn_object_request.attributes.append(
+                                KeyValue(key=key, value=str(group[key])))
 
                 group_spawned = False
                 while not group_spawned and roscomp.ok():

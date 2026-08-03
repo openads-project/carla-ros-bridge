@@ -141,11 +141,23 @@ The bridge then determines the ground altitude below the object and spawns it at
 
 - the correction is applied within CARLA only; in ROS the object keeps its ground-relative altitude, which is also what its transform reports
 - the property is inherited by all `children`, so a group only has to declare it at its root
+- the terrain is queried once, at the position of the object that declared the ground-relative altitude, and the result is shared by all `children`. A rigid group therefore stays rigid instead of being deformed by a slightly different ground below each of its members
 - it only takes effect for objects that are not attached to another actor, since an attached object is always placed relative to its parent
 - `alt`/`z` and `alt_above_ground`/`z_above_ground` are mutually exclusive; if both are given, the ground-relative one is used
 - a plain `alt`/`z` stays an absolute map altitude and is never corrected against the terrain, so an object placed that way keeps its altitude even where the ground is higher or lower
 - groups are not required; a single sensor defined at top-level can use a ground-relative spawn point just as well
 - the bridge parameter [`ignore_altitude`](../docs/run_ros.md) flattens the transform of an *actor* to `z = 0`, but never the transform of a *sensor*, which keeps its mounting height relative to its parent. An unattached sensor has no such parent, so only a ground-relative spawn point places it consistently with that flattened ground plane; with an absolute altitude it ends up as far above the flattened actors as the terrain is high
+
+#### Known Ground Altitude
+
+If the ground altitude at a position is already known, it can be stated through `z_ground` resp. `alt_ground`, which replaces the terrain query:
+```
+"spawn_point": {"lat": 50.779692, "lon": 6.050775, "alt_ground": 255.296, "alt_above_ground": 0.0}
+```
+
+The object is then spawned at `<stated ground> + <above ground>`, without consulting the map. Like the ground-relative altitude itself, the value is inherited by all `children`, so one declaration at the root of a group is enough. Notes:
+- stating it alone, without an above-ground altitude, places the object on the ground at that altitude
+- it is not the same as a plain `alt`/`z`: the object still counts as ground-relative and therefore keeps a ground-relative transform, while a plain `alt`/`z` yields an absolute one
 
 ### Transforms
 
