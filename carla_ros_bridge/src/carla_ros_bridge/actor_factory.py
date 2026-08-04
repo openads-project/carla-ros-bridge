@@ -238,11 +238,15 @@ class ActorFactory(object):
                 ground_reference[attribute.key[-1]] = float(attribute.value)
                 continue
             if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
-                self.node.logwarn(
-                    "Ignoring 'no_transform' for '{}': this CARLA server does not support it. "
-                    "Switch to a supporting server image, otherwise the frame of this actor is published "
-                    "twice: by the server at its absolute pose and by carla_spawn_objects.".format(
-                        req.id))
+                # dropping it is only worth a warning when it was asking the server to
+                # skip the transform; a server that does not know the attribute publishes
+                # the transform anyway, which is what no_transform=false asks for
+                if attribute.value.lower() == "true":
+                    self.node.logwarn(
+                        "Ignoring 'no_transform' for '{}': this CARLA server does not support it. "
+                        "Use a supporting server image, or set no_transform=false to keep the "
+                        "server-side transform and avoid duplicate TF publishers.".format(
+                            req.id))
                 continue
             blueprint.set_attribute(attribute.key, attribute.value)
         if req.random_pose is False:

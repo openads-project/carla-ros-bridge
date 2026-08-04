@@ -185,7 +185,7 @@ A sensor's frame is named after the sensor's role name and corresponds to the pr
 
 An unattached sensor has no parent actor, so the server would broadcast it against `carla_map` at its absolute pose within the world. With `carla_spawn_objects` it is possible to spawn such sensors with the CARLA attribute `no_transform`, which makes the server skip the transform while it keeps publishing the sensor's data, and broadcasts the transform itself relative to the enclosing group. See the [carla_spawn_objects README](../carla_spawn_objects/README.md).
 
-`no_transform` requires a CARLA server that declares the attribute. Against an older server the bridge logs a warning, ignores the attribute, and the sensor keeps its server-side transform.
+ `no_transform` requires a CARLA server that declares the attribute. On older servers it is ignored; to avoid duplicate TF publishers, set `no_transform: false` for affected sensors (they will then keep the server-side transform against `carla_map`).
 
 ## Ground-Relative Spawn Altitude
 

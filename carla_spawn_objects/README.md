@@ -182,7 +182,7 @@ The decision can be overridden per sensor by setting `no_transform` explicitly, 
 - `false` on an unattached sensor keeps the server-side transform, so the sensor is placed against `carla_map` at its absolute pose
 - `true` on an attached sensor moves its transform to this node, which broadcasts it relative to the enclosing group
 
-This requires a CARLA server that supports the `no_transform` attribute. Against an older server the bridge logs a warning, ignores the attribute, and the sensor keeps its server-side transform.
+ This requires a CARLA server that supports the `no_transform` attribute. On older servers it is ignored; to avoid duplicate TF publishers, set `no_transform: false` for affected sensors (they will then keep the server-side transform against `carla_map`).
 
 ## Testcases
 

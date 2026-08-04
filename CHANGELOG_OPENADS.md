@@ -23,14 +23,14 @@
 
 - Add [`ignore_altitude`](./docs/run_ros.md) to flatten altitude in TF, odometry, GNSS, and object-list outputs where supported.
 - Add [`ignore_tilt`](./docs/run_ros.md) to suppress pitch and roll while preserving yaw in pseudo TF, odometry, IMU, and object-list pose outputs.
-- Let [`carla_spawn_objects`](./carla_spawn_objects/README.md) own the [transform](./docs/ros_sensors.md#sensor-transforms) of sensors spawned without a parent actor: they are spawned with the CARLA `no_transform` attribute and their static transform is published relative to the enclosing group instead of against `carla_map` at their absolute pose. Can be overridden per sensor through `no_transform`.
+- Let [`carla_spawn_objects`](./carla_spawn_objects/README.md) own the [transform](./docs/ros_sensors.md#sensor-transforms) of sensors spawned without a parent actor: they are spawned with the CARLA `no_transform` attribute and their static transform is published relative to the enclosing group, or against `carla_map` for a sensor defined at top-level, instead of at their absolute pose. Can be overridden per sensor through `no_transform`.
 
 ## Spawning Related
 
 - Add automatic spawn altitude correction for maps with elevation.
 - Extend [`carla_spawn_objects`](./carla_spawn_objects/README.md) with `group` and `blueprint` placeholders to spawn a specific vehicle and its sensor equipment in a reproducible setup.
 - Add WGS84/global spawn point support for object definitions; spawn points can use `lat`/`lon` in addition to CARLA `x`/`y` coordinates.
-- Add [ground-relative spawn altitudes](./docs/ros_sensors.md#ground-relative-spawn-altitude) for object definitions; spawn points can use `alt_above_ground`/`z_above_ground` to place an object at a height above the terrain instead of at an absolute altitude. The property is inherited by all `children` and keeps the object's transform ground-relative, which stays consistent with `ignore_altitude`. The terrain is queried once per group, and `alt_ground`/`z_ground` can state a known ground altitude to replace the query altogether.
+- Add [ground-relative spawn altitudes](./docs/ros_sensors.md#ground-relative-spawn-altitude) for object definitions; spawn points can use `alt_above_ground`/`z_above_ground` to place an object at a height above the terrain instead of at an absolute altitude. The property is inherited by all `children` and keeps the object's transform ground-relative, which stays consistent with `ignore_altitude`. The ground altitude is taken from the OpenDRIVE map, determined once per group, and `alt_ground`/`z_ground` can state a known ground altitude to replace the lookup altogether.
 
 ## Sensor Related
 
