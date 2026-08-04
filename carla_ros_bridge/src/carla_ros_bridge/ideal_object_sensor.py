@@ -14,6 +14,7 @@ ROS_VERSION = roscomp.get_ros_version()
 import math
 import carla
 import carla_common.transforms as trans
+from carla_ros_bridge.map_utils import get_road_altitude
 from carla_ros_bridge.vehicle import Vehicle
 from carla_ros_bridge.walker import Walker
 from carla_ros_bridge.object_sensor import ObjectSensor
@@ -78,6 +79,15 @@ class IdealObjectSensor(ObjectSensor):
         # Extract (relative) spawn pose
         self.relative_spawn_pose = relative_spawn_pose
 
+        # A ground-relative spawn point makes the transform of this sensor report a height
+        # above the terrain, while the targets are reported by CARLA at their absolute
+        # altitude and need to be brought into the same frame of reference before they are compared.
+        self._ground_relative = str(self._attribute_value(
+            attributes, "ground_relative_z", "false")).lower() == "true"
+        stated_ground_altitude = self._attribute_value(attributes, "ground_altitude")
+        self._ground_offset = float(stated_ground_altitude) \
+            if stated_ground_altitude is not None else None
+
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {
             "range":                        {"default": 100.0,  "lower_boundary": 0},
@@ -139,6 +149,46 @@ class IdealObjectSensor(ObjectSensor):
         super(IdealObjectSensor, self).destroy()
         self.actor_list = None
         self.node.destroy_publisher(self.object_publisher)
+
+    @staticmethod
+    def _attribute_value(attributes, key, default=None):
+        """
+        Get the value of a spawn attribute
+        :param attributes: attributes of the sensor
+        :type attributes: diagnostic_msgs/KeyValue[]
+        :param key: name of the attribute
+        :return: the value of the attribute, or default if it is not set
+        """
+        return next((attribute.value for attribute in attributes if attribute.key == key),
+                    default)
+
+    def get_ground_offset(self, carla_location_sensor_in_carla_map):
+        """
+        Get the altitude that separates the frame of this sensor from the CARLA world
+
+        Zero unless the sensor was spawned with a ground-relative altitude, in which case
+        it is the ground altitude below the sensor.
+
+        :param carla_location_sensor_in_carla_map: sensor location, as its transform reports it
+        :type carla_location_sensor_in_carla_map: carla.Location
+        :return: altitude to subtract from a target to bring it into the sensor's frame
+        """
+        if not self._ground_relative:
+            return 0.0
+
+        if self._ground_offset is None:
+            self._ground_offset = get_road_altitude(
+                self.world, carla_location_sensor_in_carla_map, self.node.loginfo)
+
+        return self._ground_offset
+
+    @staticmethod
+    def _lower(carla_location, ground_offset):
+        """
+        Lower a location by the ground offset.
+        """
+        return carla.Location(carla_location.x, carla_location.y,
+                              carla_location.z - ground_offset)
 
     @staticmethod
     def get_blueprint_name():
@@ -341,6 +391,12 @@ class IdealObjectSensor(ObjectSensor):
         )
         carla_location_sensor_in_carla_map = trans.ros_point_to_carla_location(ros_point_sensor_in_carla_map)
 
+        # The sensor is placed by its transform, the targets are reported by CARLA at their
+        # absolute altitude. Lowering the targets instead of raising the sensor keeps them
+        # consistent with ros_tf_carla_map_to_sensor below, which is ground-relative as well,
+        # so that the field-of-view checks stay correct.
+        ground_offset = self.get_ground_offset(carla_location_sensor_in_carla_map)
+
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
 
@@ -356,6 +412,13 @@ class IdealObjectSensor(ObjectSensor):
                     carla_tf_carla_map_to_target = actor.carla_actor.get_transform()
                     bounding_box = actor.carla_actor.bounding_box
                     carla_corners_target_in_carla_map = bounding_box.get_world_vertices(carla_tf_carla_map_to_target)
+
+                    if ground_offset:
+                        carla_location_target_in_carla_map = self._lower(
+                            carla_location_target_in_carla_map, ground_offset)
+                        carla_corners_target_in_carla_map = [
+                            self._lower(corner, ground_offset)
+                            for corner in carla_corners_target_in_carla_map]
 
                     # Check visibility of the target
                     if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
@@ -378,6 +441,13 @@ class IdealObjectSensor(ObjectSensor):
                         # Get corners from target BoundingBox
                         carla_corners_target_in_carla_map = \
                             self._get_environment_object_world_vertices(vehicle)
+
+                        if ground_offset:
+                            carla_location_target_in_carla_map = self._lower(
+                                carla_location_target_in_carla_map, ground_offset)
+                            carla_corners_target_in_carla_map = [
+                                self._lower(corner, ground_offset)
+                                for corner in carla_corners_target_in_carla_map]
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
