@@ -235,7 +235,7 @@ class ActorFactory(object):
                 ground_altitude = float(attribute.value)
                 continue
             if attribute.key in ("ground_reference_x", "ground_reference_y"):
-                ground_reference[attribute.key] = float(attribute.value)
+                ground_reference[attribute.key[-1]] = float(attribute.value)
                 continue
             if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
                 self.node.logwarn(
@@ -259,11 +259,15 @@ class ActorFactory(object):
         if ground_relative_z and req.attach_to == 0:
             if ground_altitude is None:
                 # the reference position is the one that declared the ground-relative
-                # altitude, so that all members of a rigid group share one terrain query
-                probe = carla.Location(
-                    ground_reference.get("ground_reference_x", transform.location.x),
-                    ground_reference.get("ground_reference_y", transform.location.y),
-                    transform.location.z)
+                # altitude, so that all members of a rigid group share one query
+                probe = carla.Location(transform.location.x,
+                                       transform.location.y,
+                                       transform.location.z)
+                if ground_reference:
+                    # the reference is stated in the ROS frame, whose y axis points
+                    # opposite to the left-handed CARLA one
+                    probe.x = ground_reference["x"]
+                    probe.y = -ground_reference["y"]
                 ground_altitude = get_road_altitude(
                     self.world, probe, loginfo=self.node.loginfo)
             transform.location.z += ground_altitude
