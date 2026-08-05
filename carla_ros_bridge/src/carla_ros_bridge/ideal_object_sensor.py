@@ -87,6 +87,10 @@ class IdealObjectSensor(ObjectSensor):
         stated_ground_altitude = self._attribute_value(attributes, "ground_altitude")
         self._ground_offset = float(stated_ground_altitude) \
             if stated_ground_altitude is not None else None
+        # the position the ground is queried at is shared by every member of a group so that
+        # this sensor resolves the same ground as the actors it is mounted next to
+        self._ground_reference = self._attribute_position(
+            attributes, "ground_reference_x", "ground_reference_y")
 
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {
@@ -162,6 +166,25 @@ class IdealObjectSensor(ObjectSensor):
         return next((attribute.value for attribute in attributes if attribute.key == key),
                     default)
 
+    @classmethod
+    def _attribute_position(cls, attributes, key_x, key_y):
+        """
+        Get a position stated by two spawn attributes, as a CARLA location
+
+        :param attributes: attributes of the sensor
+        :type attributes: diagnostic_msgs/KeyValue[]
+        :param key_x: name of the attribute holding the x coordinate
+        :param key_y: name of the attribute holding the y coordinate
+        :return: the position, or None if either coordinate is not set
+        """
+        x = cls._attribute_value(attributes, key_x)
+        y = cls._attribute_value(attributes, key_y)
+        if x is None or y is None:
+            return None
+        # the attributes are stated in the ROS frame, whose y axis points opposite
+        # to the left-handed CARLA one
+        return carla.Location(float(x), -float(y), 0.0)
+
     def get_ground_offset(self, carla_location_sensor_in_carla_map):
         """
         Get the altitude that separates the frame of this sensor from the CARLA world
@@ -177,8 +200,11 @@ class IdealObjectSensor(ObjectSensor):
             return 0.0
 
         if self._ground_offset is None:
+            # the ground is queried at the position that declared the ground-relative
+            # altitude, which is what the actors of the same group were placed against
+            probe = self._ground_reference if self._ground_reference is not None else carla_location_sensor_in_carla_map
             self._ground_offset = get_road_altitude(
-                self.world, carla_location_sensor_in_carla_map, self.node.loginfo)
+                self.world, probe, self.node.loginfo)
 
         return self._ground_offset
 
