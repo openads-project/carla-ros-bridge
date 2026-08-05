@@ -18,6 +18,8 @@ from threading import Thread, Lock
 import carla
 import numpy as np
 
+from diagnostic_msgs.msg import KeyValue
+
 import carla_common.transforms as trans
 
 from carla_ros_bridge.actor import Actor
@@ -169,6 +171,7 @@ class ActorFactory(object):
         and pseudo objects are appended to a list to get created later.
         """
         with self.spawn_lock:
+            self._resolve_ground_altitude(req)
             if "pseudo" in req.type:
                 # only allow spawning pseudo objects if parent actor already exists in carla
                 if req.attach_to != 0:
@@ -210,6 +213,48 @@ class ActorFactory(object):
         """
         return get_road_altitude(self.world, l, self.node.loginfo)
 
+    def _resolve_ground_altitude(self, req):
+        """
+        resolve the ground altitude a ground-relative spawn request is measured from
+
+        A ground-relative request states its z as a height above the terrain. The
+        altitude of the terrain below it is resolved here, once, and written back into
+        the request as 'ground_altitude'. Every consumer of the request downstream
+        therefore reads one already-resolved altitude instead of querying the map itself,
+        which keeps the CARLA actor and the objects derived from it in one frame.
+
+        :param req: spawn request, whose attributes are extended in place
+        """
+        attributes = {attribute.key: attribute.value for attribute in req.attributes}
+
+        if attributes.get("ground_relative_z", "false").lower() != "true":
+            return
+        if "ground_altitude" in attributes:
+            # stated by the caller, which spares the map query
+            return
+        if req.attach_to != 0:
+            # an attached object is placed relative to its parent, never against the terrain
+            return
+
+        # the ground is queried at the position that declared the ground-relative altitude,
+        # so that every member of a rigid group shares one query instead of being deformed
+        # by a slightly different ground below each of its members
+        probe = trans.ros_point_to_carla_location(req.transform.position)
+        reference_x = attributes.get("ground_reference_x")
+        reference_y = attributes.get("ground_reference_y")
+        if reference_x is not None and reference_y is not None:
+            # the reference is stated in the ROS frame, whose y axis points opposite
+            # to the left-handed CARLA one
+            probe.x = float(reference_x)
+            probe.y = -float(reference_y)
+
+        ground_altitude = get_road_altitude(self.world, probe, loginfo=self.node.loginfo)
+        req.attributes.append(
+            KeyValue(key="ground_altitude", value=str(ground_altitude)))
+        self.node.loginfo(
+            "Resolved ground altitude for '{}': ground={} at x={}, y={}".format(
+                req.id, ground_altitude, probe.x, probe.y))
+
     def _spawn_carla_actor(self, req):
         """
         spawns an actor in carla
@@ -226,7 +271,6 @@ class ActorFactory(object):
 
         ground_relative_z = False
         ground_altitude = None
-        ground_reference = {}
         for attribute in req.attributes:
             if attribute.key == "ground_relative_z":
                 ground_relative_z = attribute.value.lower() == "true"
@@ -235,7 +279,7 @@ class ActorFactory(object):
                 ground_altitude = float(attribute.value)
                 continue
             if attribute.key in ("ground_reference_x", "ground_reference_y"):
-                ground_reference[attribute.key[-1]] = float(attribute.value)
+                # consumed by _resolve_ground_altitude
                 continue
             if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
                 # dropping it is only worth a warning when it was asking the server to
@@ -260,23 +304,10 @@ class ActorFactory(object):
         # place the actor on the terrain. Only req.transform's CARLA copy is
         # lifted; req.transform itself stays ground-relative so that the TF
         # published for this object remains consistent.
-        if ground_relative_z and req.attach_to == 0:
-            if ground_altitude is None:
-                # the reference position is the one that declared the ground-relative
-                # altitude, so that all members of a rigid group share one query
-                probe = carla.Location(transform.location.x,
-                                       transform.location.y,
-                                       transform.location.z)
-                if ground_reference:
-                    # the reference is stated in the ROS frame, whose y axis points
-                    # opposite to the left-handed CARLA one
-                    probe.x = ground_reference["x"]
-                    probe.y = -ground_reference["y"]
-                ground_altitude = get_road_altitude(
-                    self.world, probe, loginfo=self.node.loginfo)
+        if ground_relative_z and ground_altitude is not None and req.attach_to == 0:
             transform.location.z += ground_altitude
             self.node.loginfo(
-                "Resolved ground-relative spawn altitude: actor={} ground={} z={}".format(
+                "Ground-relative spawn altitude: actor={} ground={} z={}".format(
                     req.type, ground_altitude, transform.location.z))
 
         # Check altitude if not attached to another actor

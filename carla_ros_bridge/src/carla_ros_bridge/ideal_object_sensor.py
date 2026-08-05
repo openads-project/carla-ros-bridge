@@ -14,7 +14,6 @@ ROS_VERSION = roscomp.get_ros_version()
 import math
 import carla
 import carla_common.transforms as trans
-from carla_ros_bridge.map_utils import get_road_altitude
 from carla_ros_bridge.vehicle import Vehicle
 from carla_ros_bridge.walker import Walker
 from carla_ros_bridge.object_sensor import ObjectSensor
@@ -82,15 +81,13 @@ class IdealObjectSensor(ObjectSensor):
         # A ground-relative spawn point makes the transform of this sensor report a height
         # above the terrain, while the targets are reported by CARLA at their absolute
         # altitude and need to be brought into the same frame of reference before they are compared.
-        self._ground_relative = str(self._attribute_value(
-            attributes, "ground_relative_z", "false")).lower() == "true"
-        stated_ground_altitude = self._attribute_value(attributes, "ground_altitude")
-        self._ground_offset = float(stated_ground_altitude) \
-            if stated_ground_altitude is not None else None
-        # the position the ground is queried at is shared by every member of a group so that
-        # this sensor resolves the same ground as the actors it is mounted next to
-        self._ground_reference = self._attribute_position(
-            attributes, "ground_reference_x", "ground_reference_y")
+        # The bridge resolves the ground altitude once when the sensor is spawned, so that this
+        # sensor uses the same ground as the actors it is mounted next to.
+        self._ground_offset = 0.0
+        if str(self._attribute_value(
+                attributes, "ground_relative_z", "false")).lower() == "true":
+            self._ground_offset = float(
+                self._attribute_value(attributes, "ground_altitude", 0.0))
 
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {
@@ -165,48 +162,6 @@ class IdealObjectSensor(ObjectSensor):
         """
         return next((attribute.value for attribute in attributes if attribute.key == key),
                     default)
-
-    @classmethod
-    def _attribute_position(cls, attributes, key_x, key_y):
-        """
-        Get a position stated by two spawn attributes, as a CARLA location
-
-        :param attributes: attributes of the sensor
-        :type attributes: diagnostic_msgs/KeyValue[]
-        :param key_x: name of the attribute holding the x coordinate
-        :param key_y: name of the attribute holding the y coordinate
-        :return: the position, or None if either coordinate is not set
-        """
-        x = cls._attribute_value(attributes, key_x)
-        y = cls._attribute_value(attributes, key_y)
-        if x is None or y is None:
-            return None
-        # the attributes are stated in the ROS frame, whose y axis points opposite
-        # to the left-handed CARLA one
-        return carla.Location(float(x), -float(y), 0.0)
-
-    def get_ground_offset(self, carla_location_sensor_in_carla_map):
-        """
-        Get the altitude that separates the frame of this sensor from the CARLA world
-
-        Zero unless the sensor was spawned with a ground-relative altitude, in which case
-        it is the ground altitude below the sensor.
-
-        :param carla_location_sensor_in_carla_map: sensor location, as its transform reports it
-        :type carla_location_sensor_in_carla_map: carla.Location
-        :return: altitude to subtract from a target to bring it into the sensor's frame
-        """
-        if not self._ground_relative:
-            return 0.0
-
-        if self._ground_offset is None:
-            # the ground is queried at the position that declared the ground-relative
-            # altitude, which is what the actors of the same group were placed against
-            probe = self._ground_reference if self._ground_reference is not None else carla_location_sensor_in_carla_map
-            self._ground_offset = get_road_altitude(
-                self.world, probe, self.node.loginfo)
-
-        return self._ground_offset
 
     @staticmethod
     def _lower(carla_location, ground_offset):
@@ -421,7 +376,7 @@ class IdealObjectSensor(ObjectSensor):
         # absolute altitude. Lowering the targets instead of raising the sensor keeps them
         # consistent with ros_tf_carla_map_to_sensor below, which is ground-relative as well,
         # so that the field-of-view checks stay correct.
-        ground_offset = self.get_ground_offset(carla_location_sensor_in_carla_map)
+        ground_offset = self._ground_offset
 
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
