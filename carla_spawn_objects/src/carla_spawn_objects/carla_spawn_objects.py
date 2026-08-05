@@ -625,8 +625,10 @@ class CarlaSpawnObjects(CompatibleNode):
             # would broadcast it against carla_map at its true world altitude. 
             # Instead take the frame over: tell the server to skip the TF (data topics are unaffected) 
             # and publish the parent-relative one here instead, which keeps the frame tree consistent.
-            owns_transform = (sensor['attached_vehicle_id'] == 0
-                              and "pseudo" not in sensor["type"])
+            # A pseudo sensor is no CARLA actor and its transform is published by the
+            # bridge, so its frame is never taken over here.
+            is_pseudo = "pseudo" in sensor["type"]
+            owns_transform = sensor['attached_vehicle_id'] == 0 and not is_pseudo
 
             attached_objects = []
             for attribute, value in sensor.items():
@@ -653,7 +655,11 @@ class CarlaSpawnObjects(CompatibleNode):
                     KeyValue(key=str(attribute), value=str(value)))
 
             configured_no_transform = sensor.get("no_transform")
-            if configured_no_transform is not None:
+            if configured_no_transform is not None and is_pseudo:
+                self.logwarn(
+                    "Ignoring 'no_transform' on pseudo sensor {}: its transform is published "
+                    "by the bridge and cannot be taken over.".format(sensor["id"]))
+            elif configured_no_transform is not None:
                 owns_transform = str(configured_no_transform).lower() == "true"
             elif owns_transform:
                 spawn_object_request.attributes.append(
