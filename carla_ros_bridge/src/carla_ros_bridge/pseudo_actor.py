@@ -78,8 +78,13 @@ class PseudoActor(object):
 
         if not timestamp:
             timestamp = self.node.get_time()
-        # only shift if timestamp is set explictly
-        else: 
+            if self.node.clock_publisher is None:
+                # native_interface mode: '/clock' is sourced from CARLA's
+                # native ROS2 interface, which publishes raw elapsed
+                # simulation time without the start_unix_time_stamp offset.
+                timestamp = timestamp + self.node.parameters["start_unix_time_stamp"]
+        # explicit timestamps are always raw CARLA elapsed simulation time
+        else:
             timestamp = timestamp + self.node.parameters["start_unix_time_stamp"]
 
         header.stamp = roscomp.ros_timestamp(sec=timestamp, from_sec=True)
