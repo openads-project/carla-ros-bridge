@@ -506,8 +506,17 @@ class CarlaSpawnObjects(CompatibleNode):
 
             if spawn_param_used is False and "spawn_point" in vehicle:
                 # get spawn point from config file
+                spawn_point_definition = vehicle["spawn_point"]
+                if self.spawn_point_is_ground_relative(spawn_point_definition):
+                    # only sensors and groups pass the ground metadata on to the bridge.
+                    self.logerr(
+                        "{}: Ignoring the ground-relative spawn altitude, it is only "
+                        "supported for sensors and groups.".format(vehicle["id"]))
+                    spawn_point_definition = {
+                        key: value for key, value in spawn_point_definition.items()
+                        if key not in self.GROUND_RELATIVE_KEYS}
                 try:
-                    spawn_point = self.resolve_spawn_point(vehicle["spawn_point"])
+                    spawn_point = self.resolve_spawn_point(spawn_point_definition)
                     self.loginfo("Spawn point from configuration file")
                 except KeyError as e:
                     self.logerr("{}: Could not use the spawn point from config file, ".format(vehicle["id"]) +
@@ -595,7 +604,9 @@ class CarlaSpawnObjects(CompatibleNode):
                 if parent.get('ground_relative_z'):
                     object['ground_relative_z'] = True
                     for key in self.GROUND_RESOLUTION_KEYS:
-                        if key in parent:
+                        # a ground the child states itself is more specific than the
+                        # one it would inherit, so the group only fills in what is missing
+                        if key in parent and key not in object:
                             object[key] = parent[key]
         else:
             object["name"] = object["id"]
