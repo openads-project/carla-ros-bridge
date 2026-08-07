@@ -181,6 +181,27 @@ class CarlaSpawnObjects(CompatibleNode):
             raise ValueError("'{}' is not a finite number".format(value))
         return altitude
 
+    @staticmethod
+    def resolve_spawn_altitude(spawn_point):
+        """
+        Get the altitude a spawn point is placed at
+        :param spawn_point: spawn point definition
+        :return: the altitude, measured from the terrain if the spawn point is
+                 ground-relative and from the map origin otherwise
+        :raises ValueError: if an absolute and a ground-relative altitude are combined
+        """
+        above_ground = [key for key in ('alt_above_ground', 'z_above_ground')
+                        if key in spawn_point]
+        absolute = [key for key in ('alt', 'z') if key in spawn_point]
+        if above_ground and absolute:
+            raise ValueError(
+                "Invalid spawn point definition. An altitude above the ground ({}) cannot "
+                "be combined with an absolute altitude ({}).".format(
+                    "/".join(above_ground), "/".join(absolute)))
+        for key in above_ground + absolute:
+            return spawn_point[key]
+        return 0.0
+
     def resolve_spawn_point(self, spawn_point):
         """
         Build a CARLA-map-frame Pose from a spawn point definition.
@@ -191,18 +212,20 @@ class CarlaSpawnObjects(CompatibleNode):
 
         The altitude may alternatively be given as 'z_above_ground' resp.
         'alt_above_ground', measured from the terrain instead of from the map
-        origin.
+        origin. Both spellings name the same quantity and are accepted in either
+        format, but an absolute and a ground-relative altitude cannot be combined.
         """
         roll = spawn_point.get("roll", 0.0)
         pitch = spawn_point.get("pitch", 0.0)
         yaw = spawn_point.get("yaw", 0.0)
+        altitude = self.resolve_spawn_altitude(spawn_point)
 
         if 'lat' in spawn_point and 'lon' in spawn_point:
 
             return self.wgs84_to_carla_spawn_point(
                 spawn_point['lat'],
                 spawn_point['lon'],
-                spawn_point.get('alt_above_ground', spawn_point.get('alt', 0.0)),
+                altitude,
                 roll,
                 pitch,
                 yaw)
@@ -212,7 +235,7 @@ class CarlaSpawnObjects(CompatibleNode):
             return self.create_spawn_point(
                 spawn_point["x"],
                 spawn_point["y"],
-                spawn_point.get("z_above_ground", spawn_point.get("z", 0.0)),
+                altitude,
                 roll,
                 pitch,
                 yaw)

@@ -82,6 +82,7 @@ class ActorFactory(object):
 
         self._task_queue = queue.Queue()
         self._known_actor_ids = []  # used to immediately reply to spawn_actor/destroy_actor calls
+        self._ground_altitudes = {}  # terrain altitude per ground-relative anchor position
 
         self.lock = Lock()
         self.spawn_lock = Lock()
@@ -213,12 +214,6 @@ class ActorFactory(object):
                 self._task_queue.put((ActorFactory.TaskType.DESTROY_ACTOR, (obj, None)))
         return objects_to_destroy
 
-    def _get_altitude_on_map(self, l):
-        """
-        get the altitude of the map at a given position
-        """
-        return get_road_altitude(self.world, l, self.node.loginfo)
-
     @staticmethod
     def _parse_ground_attribute(value, key, actor_id):
         """
@@ -240,6 +235,22 @@ class ActorFactory(object):
                 key, actor_id, value))
         return parsed
 
+    def _discard_ground_attributes(self, req, reason):
+        """
+        drop the ground-relative attributes from a spawn request
+
+        Dropped rather than merely left unresolved: a consumer that reads them
+        without repeating the checks below - the ideal object sensor does - would
+        otherwise measure against a ground the actor was never lifted by.
+
+        :param req: spawn request, whose attributes are stripped in place
+        :param reason: why the request is not placed against the terrain
+        """
+        self.node.logwarn("Ignoring the ground-relative spawn altitude of '{}': {}.".format(
+            req.id, reason))
+        req.attributes[:] = [attribute for attribute in req.attributes
+                             if attribute.key not in self.GROUND_ATTRIBUTES]
+
     def _resolve_ground_altitude(self, req):
         """
         resolve the ground altitude a ground-relative spawn request is measured from
@@ -257,13 +268,13 @@ class ActorFactory(object):
         if attributes.get("ground_relative_z", "false").lower() != "true":
             return
         if req.attach_to != 0:
-            self.node.logwarn(
-                "Ignoring the ground-relative spawn altitude of '{}': it is attached to "
-                "actor {} and is therefore placed relative to it, not to the terrain.".format(
-                    req.id, req.attach_to))
-            req.attributes[:] = [attribute for attribute in req.attributes
-                                 if attribute.key not in self.GROUND_ATTRIBUTES]
-            return
+            return self._discard_ground_attributes(
+                req, "it is attached to actor {} and is therefore placed relative to "
+                     "it, not to the terrain".format(req.attach_to))
+        if req.random_pose:
+            # the pose is only drawn in _spawn_carla_actor, so the terrain below the
+            # request is not the terrain the actor ends up on
+            return self._discard_ground_attributes(req, "its pose is chosen at random")
         if "ground_altitude" in attributes:
             # stated by the caller, which spares the map query
             self._parse_ground_attribute(
@@ -284,12 +295,27 @@ class ActorFactory(object):
             probe.y = -self._parse_ground_attribute(
                 reference_y, "ground_reference_y", req.id)
 
-        ground_altitude = get_road_altitude(self.world, probe, loginfo=self.node.loginfo)
+        # every member of a group shares the anchor of the object that declared the
+        # altitude, so the query behind it is made once and answered from here after
+        anchor = (round(probe.x, 3), round(probe.y, 3))
+        if anchor not in self._ground_altitudes:
+            self._ground_altitudes[anchor] = get_road_altitude(
+                self.world, probe, loginfo=self.node.loginfo)
+            self.node.loginfo(
+                "Resolved ground altitude for '{}': ground={} at x={}, y={}".format(
+                    req.id, self._ground_altitudes[anchor], probe.x, probe.y))
+
+        ground_altitude = self._ground_altitudes[anchor]
+        if ground_altitude is None:
+            # no terrain below the anchor: lifting by the requested height would place
+            # the object at twice that height above the map origin
+            self.node.logwarn(
+                "Spawning '{}' at its stated altitude: no ground was found below "
+                "x={}, y={}.".format(req.id, probe.x, probe.y))
+            return
+
         req.attributes.append(
             KeyValue(key="ground_altitude", value=str(ground_altitude)))
-        self.node.loginfo(
-            "Resolved ground altitude for '{}': ground={} at x={}, y={}".format(
-                req.id, ground_altitude, probe.x, probe.y))
 
     def _spawn_carla_actor(self, req):
         """
@@ -305,18 +331,14 @@ class ActorFactory(object):
                 (req.type.startswith("vehicle.") or req.type.startswith("sensor.")):
             blueprint.set_attribute("ros_name", req.id)
 
-        ground_relative_z = False
+        # consumed by _resolve_ground_altitude, which leaves a 'ground_altitude' behind
+        # exactly for the requests that are to be placed against the terrain
         ground_altitude = None
         for attribute in req.attributes:
-            if attribute.key == "ground_relative_z":
-                ground_relative_z = attribute.value.lower() == "true"
-                continue
-            if attribute.key == "ground_altitude":
-                ground_altitude = self._parse_ground_attribute(
-                    attribute.value, "ground_altitude", req.id)
-                continue
-            if attribute.key in ("ground_reference_x", "ground_reference_y"):
-                # consumed by _resolve_ground_altitude
+            if attribute.key in self.GROUND_ATTRIBUTES:
+                if attribute.key == "ground_altitude":
+                    ground_altitude = self._parse_ground_attribute(
+                        attribute.value, "ground_altitude", req.id)
                 continue
             if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
                 # dropping it is only worth a warning when it was asking the server to
@@ -341,7 +363,7 @@ class ActorFactory(object):
         # place the actor on the terrain. Only req.transform's CARLA copy is
         # lifted; req.transform itself stays ground-relative so that the TF
         # published for this object remains consistent.
-        if ground_relative_z and ground_altitude is not None and req.attach_to == 0:
+        if ground_altitude is not None:
             transform.location.z += ground_altitude
             self.node.loginfo(
                 "Ground-relative spawn altitude: actor={} ground={} z={}".format(
