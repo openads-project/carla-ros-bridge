@@ -642,14 +642,20 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_object_request.transform = sensor['transform']
             spawn_object_request.random_pose = False  # never set a random pose for a sensor
 
-            # A sensor spawned unattached carries a fully composed, absolute pose, so the native ROS2 interface 
-            # would broadcast it against carla_map at its true world altitude. 
-            # Instead take the frame over: tell the server to skip the TF (data topics are unaffected) 
+            # A sensor spawned unattached carries an absolute pose, so the native ROS2 interface
+            # would broadcast it against carla_map at its true world altitude.
+            # Instead take the frame over: tell the server to skip the TF (data topics are unaffected)
             # and publish the parent-relative one here instead, which keeps the frame tree consistent.
-            # A pseudo sensor is no CARLA actor and its transform is published by the
-            # bridge, so its frame is never taken over here.
+            # A pseudo sensor is no CARLA actor and its transform is published by the bridge, so its frame is never 
+            # taken over here. Only sensors whose frame the absolute pose actually misrepresents are taken
+            # over: a member of a group, whose frame belongs under the group, and a ground-relative sensor, whose 
+            # published altitude is measured from the terrain. A plain sensor defined at top level is already described 
+            # correctly by its absolute pose against carla_map and is left to the server.
             is_pseudo = "pseudo" in sensor["type"]
-            owns_transform = sensor['attached_vehicle_id'] == 0 and not is_pseudo
+            owns_transform = (sensor['attached_vehicle_id'] == 0
+                              and not is_pseudo
+                              and (parent is not None
+                                   or sensor.get('ground_relative_z', False)))
 
             attached_objects = []
             for attribute, value in sensor.items():

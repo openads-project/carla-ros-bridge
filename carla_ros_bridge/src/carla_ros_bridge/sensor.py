@@ -113,6 +113,9 @@ class Sensor(Actor):
         except (KeyError, ValueError):
             self.sensor_tick_time = None
 
+        self._no_transform = carla_actor.attributes.get(
+            "no_transform", "false").strip().lower() in ("true", "1", "yes")
+
         if ROS_VERSION == 1:
             self._tf_broadcaster = tf2_ros.TransformBroadcaster()
         elif ROS_VERSION == 2:
@@ -151,6 +154,8 @@ class Sensor(Actor):
         return transform
 
     def publish_tf(self, pose, timestamp):
+        if self._no_transform:
+            return
         transform = self.get_ros_transform(pose, timestamp)
         if transform is None:
             self.node.logwarn(
