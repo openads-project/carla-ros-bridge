@@ -12,6 +12,7 @@
 - Add [`start_unix_time_stamp`](./docs/run_ros.md) to offset ROS simulation timestamps or start them from the current Unix time.
 - Allow disabling bridge-side `/clock` publishing when the CARLA native interface provides time synchronization.
 - Support [`use_sim_time`](./docs/run_ros.md) consistently across bridge, spawning, and control nodes.
+- Fix per-object headers on `/carla/objects` using a stale/unsynced clock read instead of the tick's timestamp, which could produce negative stamps.
 
 ## Map Related
 

@@ -62,15 +62,18 @@ class TrafficParticipant(Actor):
         self.classification_age += 1
         super(TrafficParticipant, self).update(frame, timestamp)
 
-    def get_object_info(self):
+    def get_object_info(self, timestamp=None):
         """
         Function to send object messages of this traffic participant.
 
         A derived_object_msgs.msg.Object is prepared to be published via '/carla/objects'
 
+        :param timestamp: the tick's elapsed simulation time, so that this object's
+            header matches the ObjectArray's header instead of drifting from a live
+            clock read (see get_msg_header)
         :return:
         """
-        obj = Object(header=self.get_msg_header("carla_map"))
+        obj = Object(header=self.get_msg_header("carla_map", timestamp=timestamp))
         # ID
         obj.id = self.get_id()
         # Pose

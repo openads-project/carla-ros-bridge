@@ -403,7 +403,7 @@ class IdealObjectSensor(ObjectSensor):
 
                     # Check visibility of the target
                     if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
-                        ros_objects.objects.append(actor.get_object_info())
+                        ros_objects.objects.append(actor.get_object_info(timestamp))
 
         # Iterate over all static vehicles
         if(self.node.parameters['publish_static_vehicles']):
@@ -432,7 +432,7 @@ class IdealObjectSensor(ObjectSensor):
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
-                            vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
+                            vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value, timestamp)
                             ros_objects.objects.append(vehicle_obj)
 
         self.object_publisher.publish(ros_objects)
