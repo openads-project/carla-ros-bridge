@@ -60,6 +60,10 @@ class ActorFactory(object):
 
     TIME_BETWEEN_UPDATES = 0.1
 
+    # spawn attributes describing a ground-relative altitude
+    GROUND_ATTRIBUTES = ("ground_relative_z", "ground_altitude",
+                         "ground_reference_x", "ground_reference_y")
+
     class TaskType(Enum):
         SPAWN_ACTOR = 0
         SPAWN_PSEUDO_ACTOR = 1
@@ -252,13 +256,18 @@ class ActorFactory(object):
 
         if attributes.get("ground_relative_z", "false").lower() != "true":
             return
+        if req.attach_to != 0:
+            self.node.logwarn(
+                "Ignoring the ground-relative spawn altitude of '{}': it is attached to "
+                "actor {} and is therefore placed relative to it, not to the terrain.".format(
+                    req.id, req.attach_to))
+            req.attributes[:] = [attribute for attribute in req.attributes
+                                 if attribute.key not in self.GROUND_ATTRIBUTES]
+            return
         if "ground_altitude" in attributes:
             # stated by the caller, which spares the map query
             self._parse_ground_attribute(
                 attributes["ground_altitude"], "ground_altitude", req.id)
-            return
-        if req.attach_to != 0:
-            # an attached object is placed relative to its parent, never against the terrain
             return
 
         # the ground is queried at the position that declared the ground-relative altitude,
