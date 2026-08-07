@@ -177,6 +177,14 @@ class IdealObjectSensor(ObjectSensor):
         return carla.Location(carla_location.x, carla_location.y,
                               carla_location.z - ground_offset)
 
+    def _absolute(self, carla_location):
+        """
+        Undo the ground offset, returning the location at its absolute altitude.
+        """
+        if not self._ground_offset:
+            return carla_location
+        return self._lower(carla_location, -self._ground_offset)
+
     @staticmethod
     def get_blueprint_name():
         """
@@ -254,11 +262,12 @@ class IdealObjectSensor(ObjectSensor):
         # FILTER 4
         # Filter corners that are occluded by other objects and return if not enough corners are visible
         corner_list_filter_4 = list()
+        carla_location_sensor = self._absolute(carla_location_sensor_in_carla_map)
 
         for corner in corner_list_filter_3:
             hit = False
             # Send ray from corner to sensor and check for objects
-            hit_points = self.world.cast_ray(corner, carla_location_sensor_in_carla_map)
+            hit_points = self.world.cast_ray(self._absolute(corner), carla_location_sensor)
             if hit_points:
                 for hit_point in hit_points:
                     # Skip hit points with the label "Roads"
@@ -268,7 +277,7 @@ class IdealObjectSensor(ObjectSensor):
                     if hit_point.label is carla.CityObjectLabel.NONE:
                         continue
                     # Skip hit points near to the sensor location within a defined hit point blanking radius
-                    if hit_point.location.distance(carla_location_sensor_in_carla_map) <= self.hit_point_blanking_radius:
+                    if hit_point.location.distance(carla_location_sensor) <= self.hit_point_blanking_radius:
                         continue
                     # All other hits are relevant --> current corner is not visible, continue with next corner
                     hit = True
