@@ -165,6 +165,22 @@ class CarlaSpawnObjects(CompatibleNode):
             return spawn_point['alt_ground']
         return spawn_point.get('z_ground')
 
+    @staticmethod
+    def parse_ground_altitude(value):
+        """
+        Parse a stated ground altitude into a finite float
+        :param value: the value of 'alt_ground' resp. 'z_ground'
+        :return: the altitude as a float
+        :raises ValueError: if the value is not a finite number
+        """
+        try:
+            altitude = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("'{}' is not a number".format(value))
+        if not math.isfinite(altitude):
+            raise ValueError("'{}' is not a finite number".format(value))
+        return altitude
+
     def resolve_spawn_point(self, spawn_point):
         """
         Build a CARLA-map-frame Pose from a spawn point definition.
@@ -522,7 +538,12 @@ class CarlaSpawnObjects(CompatibleNode):
             object['ground_relative_z'] = True
             known_ground = self.spawn_point_ground_altitude(object['spawn_point'])
             if known_ground is not None:
-                object['ground_altitude'] = known_ground
+                try:
+                    object['ground_altitude'] = self.parse_ground_altitude(known_ground)
+                except ValueError as e:
+                    self.logerr(
+                        "Ignoring the stated ground altitude of {}, the ground will be "
+                        "looked up on the map instead: {}".format(object["id"], e))
 
         # set name, attached_vehicle_id, and transform by considering parent object
         if parent is not None:

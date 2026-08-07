@@ -63,6 +63,13 @@ class IdealObjectSensor(ObjectSensor):
                                                       world=world)
         self.node = node
 
+        # A ground-relative spawn point makes the transform of this sensor report a height
+        # above the terrain, while the targets are reported by CARLA at their absolute
+        # altitude and need to be brought into the same frame of reference before they are compared.
+        # The bridge resolves the ground altitude once when the sensor is spawned, so that this
+        # sensor uses the same ground as the actors it is mounted next to.
+        self._ground_offset = 0.0
+
         # Skip init if ROS_VERSION is 1
         if ROS_VERSION == 1:
             self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
@@ -78,16 +85,15 @@ class IdealObjectSensor(ObjectSensor):
         # Extract (relative) spawn pose
         self.relative_spawn_pose = relative_spawn_pose
 
-        # A ground-relative spawn point makes the transform of this sensor report a height
-        # above the terrain, while the targets are reported by CARLA at their absolute
-        # altitude and need to be brought into the same frame of reference before they are compared.
-        # The bridge resolves the ground altitude once when the sensor is spawned, so that this
-        # sensor uses the same ground as the actors it is mounted next to.
-        self._ground_offset = 0.0
         if str(self._attribute_value(
                 attributes, "ground_relative_z", "false")).lower() == "true":
-            self._ground_offset = float(
-                self._attribute_value(attributes, "ground_altitude", 0.0))
+            ground_altitude = self._attribute_value(attributes, "ground_altitude", 0.0)
+            try:
+                self._ground_offset = float(ground_altitude)
+            except (TypeError, ValueError):
+                self.node.logwarn(
+                    "ground_altitude attribute for IdealObjectSensor is invalid! "
+                    "Using default value of {}.".format(self._ground_offset))
 
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {

@@ -7,6 +7,7 @@
 #
 
 import itertools
+import math
 try:
     import queue
 except ImportError:
@@ -214,6 +215,27 @@ class ActorFactory(object):
         """
         return get_road_altitude(self.world, l, self.node.loginfo)
 
+    @staticmethod
+    def _parse_ground_attribute(value, key, actor_id):
+        """
+        parse a ground-related spawn attribute into a finite float
+
+        :param value: the value of the attribute
+        :param key: the name of the attribute, used in the error message
+        :param actor_id: the id of the actor being spawned, used in the error message
+        :return: the value as a float
+        :raises ValueError: if the value is not a finite number
+        """
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Invalid '{}' for '{}': '{}' is not a number".format(
+                key, actor_id, value))
+        if not math.isfinite(parsed):
+            raise ValueError("Invalid '{}' for '{}': '{}' is not a finite number".format(
+                key, actor_id, value))
+        return parsed
+
     def _resolve_ground_altitude(self, req):
         """
         resolve the ground altitude a ground-relative spawn request is measured from
@@ -232,6 +254,8 @@ class ActorFactory(object):
             return
         if "ground_altitude" in attributes:
             # stated by the caller, which spares the map query
+            self._parse_ground_attribute(
+                attributes["ground_altitude"], "ground_altitude", req.id)
             return
         if req.attach_to != 0:
             # an attached object is placed relative to its parent, never against the terrain
@@ -246,8 +270,10 @@ class ActorFactory(object):
         if reference_x is not None and reference_y is not None:
             # the reference is stated in the ROS frame, whose y axis points opposite
             # to the left-handed CARLA one
-            probe.x = float(reference_x)
-            probe.y = -float(reference_y)
+            probe.x = self._parse_ground_attribute(
+                reference_x, "ground_reference_x", req.id)
+            probe.y = -self._parse_ground_attribute(
+                reference_y, "ground_reference_y", req.id)
 
         ground_altitude = get_road_altitude(self.world, probe, loginfo=self.node.loginfo)
         req.attributes.append(
@@ -277,7 +303,8 @@ class ActorFactory(object):
                 ground_relative_z = attribute.value.lower() == "true"
                 continue
             if attribute.key == "ground_altitude":
-                ground_altitude = float(attribute.value)
+                ground_altitude = self._parse_ground_attribute(
+                    attribute.value, "ground_altitude", req.id)
                 continue
             if attribute.key in ("ground_reference_x", "ground_reference_y"):
                 # consumed by _resolve_ground_altitude
