@@ -185,6 +185,24 @@ class IdealObjectSensor(ObjectSensor):
             return carla_location
         return self._lower(carla_location, -self._ground_offset)
 
+    def _ground_relative(self, carla_location, carla_corners):
+        """
+        Bring a target into the ground-relative frame this sensor is expressed in.
+
+        CARLA reports the targets at their absolute altitude, while a ground-relative
+        spawn point makes the transform of this sensor report a height above the
+        terrain. Lowering the targets rather than raising the sensor keeps them
+        consistent with the sensor transform the field-of-view check is made against.
+
+        :param carla_location: the location of the target
+        :param carla_corners: the corners of the target's bounding box
+        :return: the location and the corners, lowered by the ground offset
+        """
+        if not self._ground_offset:
+            return carla_location, carla_corners
+        return (self._lower(carla_location, self._ground_offset),
+                [self._lower(corner, self._ground_offset) for corner in carla_corners])
+
     @staticmethod
     def get_blueprint_name():
         """
@@ -387,12 +405,6 @@ class IdealObjectSensor(ObjectSensor):
         )
         carla_location_sensor_in_carla_map = trans.ros_point_to_carla_location(ros_point_sensor_in_carla_map)
 
-        # The sensor is placed by its transform, the targets are reported by CARLA at their
-        # absolute altitude. Lowering the targets instead of raising the sensor keeps them
-        # consistent with ros_tf_carla_map_to_sensor below, which is ground-relative as well,
-        # so that the field-of-view checks stay correct.
-        ground_offset = self._ground_offset
-
         # Iterate over all dynamic actors
         for actor_id in self.actor_list.keys():
 
@@ -409,12 +421,9 @@ class IdealObjectSensor(ObjectSensor):
                     bounding_box = actor.carla_actor.bounding_box
                     carla_corners_target_in_carla_map = bounding_box.get_world_vertices(carla_tf_carla_map_to_target)
 
-                    if ground_offset:
-                        carla_location_target_in_carla_map = self._lower(
-                            carla_location_target_in_carla_map, ground_offset)
-                        carla_corners_target_in_carla_map = [
-                            self._lower(corner, ground_offset)
-                            for corner in carla_corners_target_in_carla_map]
+                    carla_location_target_in_carla_map, carla_corners_target_in_carla_map = \
+                        self._ground_relative(carla_location_target_in_carla_map,
+                                              carla_corners_target_in_carla_map)
 
                     # Check visibility of the target
                     if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
@@ -438,12 +447,9 @@ class IdealObjectSensor(ObjectSensor):
                         carla_corners_target_in_carla_map = \
                             self._get_environment_object_world_vertices(vehicle)
 
-                        if ground_offset:
-                            carla_location_target_in_carla_map = self._lower(
-                                carla_location_target_in_carla_map, ground_offset)
-                            carla_corners_target_in_carla_map = [
-                                self._lower(corner, ground_offset)
-                                for corner in carla_corners_target_in_carla_map]
+                        carla_location_target_in_carla_map, carla_corners_target_in_carla_map = \
+                            self._ground_relative(carla_location_target_in_carla_map,
+                                                  carla_corners_target_in_carla_map)
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):

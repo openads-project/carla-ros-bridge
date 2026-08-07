@@ -180,12 +180,13 @@ A sensor's frame is named after the sensor's role name and corresponds to the pr
 | Sensor | Broadcaster | Topic | Parent frame |
 |--------|-------------|-------|--------------|
 | attached to an actor | CARLA server (native ROS 2 interface) | `/tf_static` | the parent actor's frame |
-| not attached, spawned by `carla_spawn_objects` | `carla_spawn_objects` | `/tf_static` | the enclosing group, or `carla_map` |
+| in a group or ground-relative, spawned by `carla_spawn_objects` | `carla_spawn_objects` | `/tf_static` | the enclosing group, or `carla_map` |
+| any other unattached sensor | CARLA server (native ROS 2 interface) | `/tf_static` | `carla_map` |
 | pseudo sensor | bridge | `/tf` | the parent actor's frame, or `carla_map` |
 
-An unattached sensor has no parent actor, so the server would broadcast it against `carla_map` at its absolute pose within the world. With `carla_spawn_objects` it is possible to spawn such sensors with the CARLA attribute `no_transform`, which makes the server skip the transform while it keeps publishing the sensor's data, and broadcasts the transform itself relative to the enclosing group. See the [carla_spawn_objects README](../carla_spawn_objects/README.md).
+An unattached sensor has no parent actor, so the server broadcasts it against `carla_map` at its absolute pose within the world. Where that pose misrepresents the sensor, e.g. inside a group, or at a ground-relative altitude, `carla_spawn_objects` spawns it with the CARLA attribute `no_transform`, which makes the server skip the transform while it keeps publishing the sensor's data, and broadcasts the transform itself relative to the enclosing group. See the [carla_spawn_objects README](../carla_spawn_objects/README.md).
 
- `no_transform` requires a CARLA server that declares the attribute. On older servers it is ignored; to avoid duplicate TF publishers, set `no_transform: false` for affected sensors (they will then keep the server-side transform against `carla_map`).
+ `no_transform` requires a CARLA server that declares the attribute. A server that does not publishes the transform anyway, and the bridge logs a warning naming the sensor; the result is two publishers for the same frame under different parents. To avoid that, set `no_transform: false` for the affected sensors, they will then keep the server-side transform against `carla_map`. When the bridge itself creates the sensor object, because [`native_interface`](run_ros.md) is disabled, it honours `no_transform` and leaves the frame to whoever asked for it.
 
 ## Ground-Relative Spawn Altitude
 
@@ -195,4 +196,4 @@ The ground altitude is taken from the OpenDRIVE map, as the altitude of the clos
 
 The correction is applied to the CARLA actor only. The requested transform is left untouched, so the transform published for the actor keeps the ground-relative altitude. This keeps the frame consistent with `ignore_altitude` (see [Run ROS](run_ros.md)), which flattens the transforms of vehicles onto the `carla_map` ground plane.
 
-The attribute is consumed by the bridge and is not forwarded to CARLA. It only takes effect for actors that are not attached to another actor.
+The altitude may also be stated directly, through the attribute `ground_altitude`, which replaces the map lookup. It is resolved once per requested position, so every member of a group shares one lookup and the group is not deformed by a slightly different ground below each of its members. The position to resolve it at can be pinned through `ground_reference_x` and `ground_reference_y`, stated in the ROS frame; this is how `carla_spawn_objects` anchors a group at the object that declared the altitude.

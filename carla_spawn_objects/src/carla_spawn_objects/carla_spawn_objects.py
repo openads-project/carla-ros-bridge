@@ -56,6 +56,11 @@ class CarlaSpawnObjects(CompatibleNode):
     Derive from this class and implement method sensors()
     """
 
+    # spawn point keys stating an altitude that is measured from the terrain
+    GROUND_RELATIVE_KEYS = ('alt_above_ground', 'z_above_ground', 'alt_ground', 'z_ground')
+    # attributes telling the bridge which terrain altitude to measure from
+    GROUND_RESOLUTION_KEYS = ('ground_altitude', 'ground_reference_x', 'ground_reference_y')
+
     def __init__(self):
         super(CarlaSpawnObjects, self).__init__('carla_spawn_objects')
 
@@ -141,9 +146,6 @@ class CarlaSpawnObjects(CompatibleNode):
             rclpy.spin_once(self, timeout_sec=0.1)
 
         raise RuntimeError("Timed out waiting for transform")
-
-    GROUND_RELATIVE_KEYS = ('alt_above_ground', 'z_above_ground', 'alt_ground', 'z_ground')
-    GROUND_RESOLUTION_KEYS = ('ground_altitude', 'ground_reference_x', 'ground_reference_y')
 
     @staticmethod
     def spawn_point_is_ground_relative(spawn_point):
@@ -694,7 +696,7 @@ class CarlaSpawnObjects(CompatibleNode):
             attached_objects = []
             for attribute, value in sensor.items():
                 # skip general attributes
-                if attribute in ["id", "type", "name", "spawn_point", "local_transform", "transform", "attached_vehicle_id", "response_id"]:
+                if attribute in ["id", "type", "name", "spawn_point", "local_transform", "transform", "attached_vehicle_id", "response_id", "no_transform"]:
                     continue
                 if attribute == "children":
                     self.logerr(
@@ -721,15 +723,12 @@ class CarlaSpawnObjects(CompatibleNode):
                     "Ignoring 'no_transform' on pseudo sensor {}: its transform is published "
                     "by the bridge and cannot be taken over.".format(sensor["id"]))
             elif configured_no_transform is not None:
-                owns_transform = str(configured_no_transform).lower() == "true"
-            elif owns_transform:
+                owns_transform = str(configured_no_transform).strip().lower() in ("true", "1", "yes")
+            if owns_transform:
                 spawn_object_request.attributes.append(
                     KeyValue(key="no_transform", value="True"))
 
             sensor['response_id'] = self.spawn_object(spawn_object_request)
-
-            if sensor['response_id'] == -1:
-                raise RuntimeError(response.error_string)
 
             if owns_transform:
                 self.broadcast_static_transform(
