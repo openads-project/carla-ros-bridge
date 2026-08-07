@@ -113,37 +113,38 @@ class ActorFactory(object):
 
         # Create/destroy actors not managed by the bridge. 
         self.lock.acquire()
-        for actor_id in spawned_actors:
-            carla_actor = self.world.get_actor(actor_id)
-            if carla_actor is None:
-                continue
-            if self.node.parameters["native_interface"] and isinstance(carla_actor, carla.Sensor):
-                if hasattr(carla_actor, "enable_for_ros"):
-                    carla_actor.enable_for_ros()
-                continue
-            if self.node.parameters["register_all_sensors"] or not isinstance(carla_actor, carla.Sensor):
-                self._create_object_from_actor(carla_actor)
+        try:
+            for actor_id in spawned_actors:
+                carla_actor = self.world.get_actor(actor_id)
+                if carla_actor is None:
+                    continue
+                if self.node.parameters["native_interface"] and isinstance(carla_actor, carla.Sensor):
+                    if hasattr(carla_actor, "enable_for_ros"):
+                        carla_actor.enable_for_ros()
+                    continue
+                if self.node.parameters["register_all_sensors"] or not isinstance(carla_actor, carla.Sensor):
+                    self._create_object_from_actor(carla_actor)
 
-        for actor_id in destroyed_actors:
-            self._destroy_object(actor_id, delete_actor=False)
+            for actor_id in destroyed_actors:
+                self._destroy_object(actor_id, delete_actor=False)
 
-        # Create/destroy objects managed by the bridge.
-        with self.spawn_lock:
-            while not self._task_queue.empty():
-                task = self._task_queue.get()
-                task_type = task[0]
-                actor_id, req = task[1]
+            # Create/destroy objects managed by the bridge.
+            with self.spawn_lock:
+                while not self._task_queue.empty():
+                    task = self._task_queue.get()
+                    task_type = task[0]
+                    actor_id, req = task[1]
 
-                if task_type == ActorFactory.TaskType.SPAWN_ACTOR and not self.node.shutdown.is_set():
-                    carla_actor = self.world.get_actor(actor_id)
-                    if carla_actor is not None:
-                        self._create_object_from_actor(carla_actor, req)
-                elif task_type == ActorFactory.TaskType.SPAWN_PSEUDO_ACTOR and not self.node.shutdown.is_set():
-                    self._create_object(actor_id, req.type, req.id, req.attach_to, req.transform, req.attributes)
-                elif task_type == ActorFactory.TaskType.DESTROY_ACTOR:
-                    self._destroy_object(actor_id, delete_actor=True)
-
-        self.lock.release()
+                    if task_type == ActorFactory.TaskType.SPAWN_ACTOR and not self.node.shutdown.is_set():
+                        carla_actor = self.world.get_actor(actor_id)
+                        if carla_actor is not None:
+                            self._create_object_from_actor(carla_actor, req)
+                    elif task_type == ActorFactory.TaskType.SPAWN_PSEUDO_ACTOR and not self.node.shutdown.is_set():
+                        self._create_object(actor_id, req.type, req.id, req.attach_to, req.transform, req.attributes)
+                    elif task_type == ActorFactory.TaskType.DESTROY_ACTOR:
+                        self._destroy_object(actor_id, delete_actor=True)
+        finally:
+            self.lock.release()
 
     def update_actor_states(self, frame_id, timestamp):
         """
