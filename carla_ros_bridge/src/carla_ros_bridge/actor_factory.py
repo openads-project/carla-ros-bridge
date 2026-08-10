@@ -83,6 +83,7 @@ class ActorFactory(object):
         self._task_queue = queue.Queue()
         self._known_actor_ids = []  # used to immediately reply to spawn_actor/destroy_actor calls
         self._ground_altitudes = {}  # terrain altitude per ground-relative anchor position
+        self._warned_absolute_frames = False
 
         self.lock = Lock()
         self.spawn_lock = Lock()
@@ -235,6 +236,19 @@ class ActorFactory(object):
                 key, actor_id, value))
         return parsed
 
+    def _warn_on_absolute_frames(self):
+        """
+        warn once when ground-relative altitudes meet absolute frames
+        """
+        if self._warned_absolute_frames or self.node.parameters.get("ignore_altitude"):
+            return
+        self._warned_absolute_frames = True
+        self.node.logwarn(
+            "A ground-relative spawn altitude is used while 'ignore_altitude' is disabled. "
+            "The transform published for such an object is measured from the terrain, while "
+            "the frames around it keep their absolute altitude, so the two will not line up. "
+            "Enable 'ignore_altitude', or place the object at an absolute 'alt'/'z' instead. ")
+
     def _discard_ground_attributes(self, req, reason):
         """
         drop the ground-relative attributes from a spawn request
@@ -267,6 +281,7 @@ class ActorFactory(object):
 
         if attributes.get("ground_relative_z", "false").lower() != "true":
             return
+        self._warn_on_absolute_frames()
         if req.attach_to != 0:
             return self._discard_ground_attributes(
                 req, "it is attached to actor {} and is therefore placed relative to "
