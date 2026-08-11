@@ -7,7 +7,9 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 """
-Welcome to CARLA ROS manual control.
+OpenADSim Control
+
+Automated driving is active while manual override is disabled.
 
 If Xbox controller is connected, use the following trigger for control.
 
@@ -16,8 +18,8 @@ If Xbox controller is connected, use the following trigger for control.
     left joystick (left right)  : steer left/right
     left button (LB)            : toggle reverse
     right button (RB)           : hand-brake
-    A button                    : toggle autopilot
-    Y button                    : toggle manual control
+    A button                    : toggle CARLA autopilot
+    Y button                    : toggle manual override
     
     view button                 : toggle HUD
     Share button                : toggle help
@@ -31,10 +33,10 @@ If no Xbox controller is connected, use ARROWS or WASD keys for control.
     AD           : steer
     Q            : toggle reverse
     Space        : hand-brake
-    P            : toggle autopilot
+    P            : toggle CARLA autopilot
     M            : toggle manual transmission
     ,/.          : gear up/down
-    B            : toggle manual control
+    B            : toggle manual override
 
     F1           : toggle HUD
     H/?          : toggle help
@@ -92,6 +94,17 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import NavSatFix
 from std_msgs.msg import Bool
+
+
+def load_openads_logo(size=48):
+    """Load the packaged OpenADS mark at the requested display size."""
+    path = os.path.join(os.path.dirname(__file__), 'assets', 'openads-mark.png')
+    try:
+        logo = pygame.image.load(path).convert_alpha()
+        return pygame.transform.smoothscale(logo, (size, size))
+    except (pygame.error, OSError):
+        return None
+
 
 # ==============================================================================
 # -- World ---------------------------------------------------------------------
@@ -167,7 +180,6 @@ class ManualControl(CompatibleNode):
         """
         Set the manual control override
         """
-        self.hud.notification('Set vehicle control manual override to: {}'.format(enable))
         self.vehicle_control_manual_override_publisher.publish((Bool(data=enable)))
 
     def set_autopilot(self, enable):
@@ -189,17 +201,16 @@ class ManualControl(CompatibleNode):
 
         input = ((control.throttle > 0) or (control.brake > 0) or (control.steer != 0) or (control.hand_brake))
 
-        # Activate vehicle_control_manual_override if input detected
-        if input and not self.vehicle_control_manual_override:
-            self.vehicle_control_manual_override = True
-            self.hud.notification('Vehicle control manual override activated')
-            self.set_vehicle_control_manual_override(True)
-
         # Disable autopilot if controller input is detected
         if input and self.autopilot_enabled:
             self.autopilot_enabled = False
             self.set_autopilot(False)
-            self.hud.notification('Autopilot Off')
+            self.hud.notification('CARLA autopilot off')
+
+        # Activate vehicle_control_manual_override if input detected.
+        if input and not self.vehicle_control_manual_override:
+            self.vehicle_control_manual_override = True
+            self.set_vehicle_control_manual_override(True)
 
         # Send vehicle control command
         if not self.autopilot_enabled and self.vehicle_control_manual_override:
@@ -321,8 +332,8 @@ class KeyboardControl(object):
                 elif event.key == K_p:
                     self.node.autopilot_enabled = not self.node.autopilot_enabled
                     self.node.set_autopilot(self.node.autopilot_enabled)
-                    self.hud.notification('Autopilot %s' %
-                                          ('On' if self.node.autopilot_enabled else 'Off'))
+                    self.hud.notification('CARLA autopilot %s' %
+                                          ('on' if self.node.autopilot_enabled else 'off'))
         
         self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
         self._control.reverse = self._control.gear < 0
@@ -410,8 +421,8 @@ class XboxControl(object):
                 elif event.button == self._controller_layout["enable_autopilot"][self._wireless]:
                     self.node.autopilot_enabled = not self.node.autopilot_enabled
                     self.node.set_autopilot(self.node.autopilot_enabled)
-                    self.hud.notification('Autopilot %s' %
-                                         ('On' if self.node.autopilot_enabled else 'Off'))
+                    self.hud.notification('CARLA autopilot %s' %
+                                         ('on' if self.node.autopilot_enabled else 'off'))
                 elif event.button == self._controller_layout["reverse"][self._wireless] and self.change_movement_direction(v_res):
                     self._control.gear = 1 if self._control.reverse else -1
         
@@ -489,17 +500,20 @@ class HUD(object):
         self.role_name = role_name
         self.dim = (width, height)
         self.node = node
-        font = pygame.font.Font(pygame.font.get_default_font(), 20)
-        fonts = [x for x in pygame.font.get_fonts() if 'mono' in x]
-        default_font = 'ubuntumono'
-        mono = default_font if default_font in fonts else fonts[0]
-        mono = pygame.font.match_font(mono)
-        self._font_mono = pygame.font.Font(mono, 14)
-        self._notifications = FadingText(font, (width, 40), (0, height - 40))
-        self.help = HelpText(pygame.font.Font(mono, 14), width, height)
+        notification_font = pygame.font.Font(pygame.font.get_default_font(), 20)
+        self._font_title = self._make_font('inter,dejavusans,ubuntusans,arial', 18, True)
+        self._font_status = self._make_font('inter,dejavusans,ubuntusans,arial', 20, True)
+        self._font_speed = self._make_font('inter,dejavusans,ubuntusans,arial', 46, True)
+        self._font_speed_compact = self._make_font('inter,dejavusans,ubuntusans,arial', 40, True)
+        self._font_body = self._make_font('inter,dejavusans,ubuntusans,arial', 13)
+        self._font_label = self._make_font('inter,dejavusans,ubuntusans,arial', 11, True)
+        self._font_mono = self._make_font('ubuntumono,dejavusansmono,monospace', 13)
+        self._notifications = FadingText(notification_font, (width, 40), (0, height - 40))
+        self.help = HelpText(width, height)
+        self._logo = load_openads_logo()
         self._show_info = True
-        self._info_text = []
         self.vehicle_status = CarlaEgoVehicleStatus()
+        self._display_steer = 0.0
 
         self.vehicle_status_subscriber = node.new_subscription(
             CarlaEgoVehicleStatus, "/carla/{}/vehicle_status".format(self.role_name),
@@ -517,6 +531,7 @@ class HUD(object):
         self.latitude = 0
         self.longitude = 0
         self.manual_control = False
+        self.manual_control_received = False
 
         self.gnss_subscriber = node.new_subscription(
             NavSatFix,
@@ -548,34 +563,34 @@ class HUD(object):
         tick method
         """
         self._notifications.tick(clock)
+        target_steer = self.vehicle_status.control.steer
+        blend = min(1.0, 18.0 * 1e-3 * clock.get_time())
+        self._display_steer += (target_steer - self._display_steer) * blend
 
     def carla_status_updated(self, data):
         """
         Callback on carla status
         """
         self.carla_status = data
-        self.update_info_text()
 
     def manual_control_override_updated(self, data):
         """
         Callback on vehicle status updates
         """
         self.manual_control = data.data
-        self.update_info_text()
+        self.manual_control_received = True
 
     def vehicle_status_updated(self, vehicle_status):
         """
         Callback on vehicle status updates
         """
         self.vehicle_status = vehicle_status
-        self.update_info_text()
 
     def vehicle_info_updated(self, vehicle_info):
         """
         Callback on vehicle info updates
         """
         self.vehicle_info = vehicle_info
-        self.update_info_text()
 
     def gnss_updated(self, data):
         """
@@ -583,7 +598,6 @@ class HUD(object):
         """
         self.latitude = data.latitude
         self.longitude = data.longitude
-        self.update_info_text()
 
     def odometry_updated(self, data):
         self.x = data.pose.pose.position.x
@@ -595,58 +609,6 @@ class HUD(object):
             data.pose.pose.orientation.y,
             data.pose.pose.orientation.z])
         self.yaw = math.degrees(yaw)
-        self.update_info_text()
-
-    def update_info_text(self):
-        """
-        update the displayed info text
-        """
-        if not self._show_info:
-            return
-
-        x, y, z = self.x, self.y, self.z
-        yaw = self.yaw
-
-        heading = 'N' if abs(yaw) < 89.5 else ''
-        heading += 'S' if abs(yaw) > 90.5 else ''
-        heading += 'E' if 179.5 > yaw > 0.5 else ''
-        heading += 'W' if -0.5 > yaw > -179.5 else ''
-        fps = 0
-
-        time = str(datetime.timedelta(seconds=self.node.get_time()))[:10]
-
-        if self.carla_status.fixed_delta_seconds:
-            fps = 1 / self.carla_status.fixed_delta_seconds
-        self._info_text = [
-            'Frame: % 22s' % self.carla_status.frame,
-            'Simulation time: % 12s' % time,
-            'FPS: % 24.1f' % fps, '',
-            'Vehicle: % 20s' % ' '.join(self.vehicle_info.type.split('.')[1:]),
-            'Speed:   % 15.0f km/h' % (3.6 * self.vehicle_status.velocity),
-            u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (yaw, heading),
-            'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (x, y)),
-            'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (self.latitude, self.longitude)),
-            'Height:  % 18.0f m' % z, ''
-        ]
-        self._info_text += [
-            ('Throttle:', self.vehicle_status.control.throttle, 0.0, 1.0),
-            ('Steer:', self.vehicle_status.control.steer, -1.0, 1.0),
-            ('Brake:', self.vehicle_status.control.brake, 0.0, 1.0),
-            ('Reverse:', self.vehicle_status.control.reverse),
-            ('Hand brake:', self.vehicle_status.control.hand_brake),
-            ('Manual:', self.vehicle_status.control.manual_gear_shift),
-            'Gear:        %s' % {
-                -1: 'R',
-                0: 'N'
-            }.get(self.vehicle_status.control.gear, self.vehicle_status.control.gear), ''
-        ]
-        self._info_text += [('Manual ctrl:', self.manual_control)]
-        if self.carla_status.synchronous_mode:
-            self._info_text += [('Sync mode running:', self.carla_status.synchronous_mode_running)]
-        if self.node.joystick_available:
-            self._info_text += ['', '', 'Press <H> on Keyboard or', '<Share Button> on Xbox' ,'Controller for help']
-        else:
-            self._info_text += ['', '', 'Press <H> for help']
 
     def toggle_info(self):
         """
@@ -671,44 +633,272 @@ class HUD(object):
         render the display
         """
         if self._show_info:
-            info_surface = pygame.Surface((250, self.dim[1]))
-            info_surface.set_alpha(100)
-            display.blit(info_surface, (0, 0))
-            v_offset = 4
-            bar_h_offset = 100
-            bar_width = 106
-            for item in self._info_text:
-                if v_offset + 18 > self.dim[1]:
-                    break
-                if isinstance(item, list):
-                    if len(item) > 1:
-                        points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)
-                                  ]
-                        pygame.draw.lines(display, (255, 136, 0), False, points, 2)
-                    item = None
-                    v_offset += 18
-                elif isinstance(item, tuple):
-                    if isinstance(item[1], bool):
-                        rect = pygame.Rect((bar_h_offset + 50, v_offset + 8), (6, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
-                    else:
-                        rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
-                        f = (item[1] - item[2]) / (item[3] - item[2])
-                        if item[2] < 0.0:
-                            rect = pygame.Rect((bar_h_offset + int(f * (bar_width - 6)), v_offset + 8),
-                                               (6, 6))
-                        else:
-                            rect = pygame.Rect((bar_h_offset, v_offset + 8),
-                                               (int(f * bar_width), 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect)
-                    item = item[0]
-                if item:  # At this point has to be a str.
-                    surface = self._font_mono.render(item, True, (255, 255, 255))
-                    display.blit(surface, (8, v_offset))
-                v_offset += 18
+            self._render_panel(display)
         self._notifications.render(display)
         self.help.render(display)
+
+    @staticmethod
+    def _make_font(names, size, bold=False):
+        font_path = pygame.font.match_font(names)
+        font = pygame.font.Font(font_path, size) if font_path else pygame.font.Font(None, size)
+        font.set_bold(bold)
+        return font
+
+    @staticmethod
+    def _card(surface, rect, color=(14, 24, 32, 230), border=(55, 74, 84, 230)):
+        pygame.draw.rect(surface, color, rect, border_radius=11)
+        pygame.draw.rect(surface, border, rect, width=1, border_radius=11)
+
+    @staticmethod
+    def _clamp(value, lower=0.0, upper=1.0):
+        return max(lower, min(upper, value))
+
+    def _render_logo(self, surface, rect):
+        if self._logo:
+            logo_rect = self._logo.get_rect(center=rect.center)
+            surface.blit(self._logo, logo_rect)
+            return
+
+        # A compact fallback keeps the header branded even when an installed
+        # package is missing its optional image asset.
+        line_width = max(3, rect.width // 9)
+        pygame.draw.arc(surface, (105, 221, 203), rect, 0.45, 3.85, line_width)
+        pygame.draw.arc(surface, (35, 154, 173), rect, 3.9, 6.4, line_width)
+        pygame.draw.line(surface, (57, 194, 196), rect.midbottom,
+                         (rect.centerx + 8, rect.top + 10), line_width)
+
+    def _text(self, surface, text, font, color, pos):
+        rendered = font.render(str(text), True, color)
+        surface.blit(rendered, pos)
+        return rendered.get_rect(topleft=pos)
+
+    def _right_text(self, surface, text, font, color, right, y):
+        rendered = font.render(str(text), True, color)
+        surface.blit(rendered, (right - rendered.get_width(), y))
+
+    @staticmethod
+    def _fit_text(text, font, max_width):
+        text = str(text)
+        if font.size(text)[0] <= max_width:
+            return text
+        while len(text) > 4 and font.size(text + '...')[0] > max_width:
+            text = text[:-1]
+        return text + '...'
+
+    def _render_panel(self, display):
+        panel_margin = 12 if self.dim[1] >= 560 else 8
+        panel_width = min(320, max(280, int(self.dim[0] * 0.4)))
+        available_height = self.dim[1] - 2 * panel_margin
+        compact = available_height < 560
+        padding = 10
+        gap = 5 if compact else 6
+        content_width = panel_width - 2 * padding
+        heights = {
+            'header': 50,
+            'mode': 58 if compact else 62,
+            'speed': 72 if compact else 82,
+            'input': 92 if compact else 104,
+            'position': 92 if compact else 104,
+            'simulation': 68 if compact else 82,
+        }
+        content_height = sum(heights.values()) + gap * (len(heights) - 1)
+        footer_height = 17
+        panel_height = min(
+            available_height,
+            2 * padding + content_height + gap + footer_height)
+        panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        pygame.draw.rect(panel, (7, 14, 20, 210), panel.get_rect(), border_radius=16)
+        pygame.draw.rect(panel, (61, 80, 89, 220), panel.get_rect(), width=1, border_radius=16)
+
+        y = padding
+        self._render_header(panel, pygame.Rect(padding, y, content_width, heights['header']))
+        y += heights['header'] + gap
+        self._render_mode(panel, pygame.Rect(padding, y, content_width, heights['mode']))
+        y += heights['mode'] + gap
+        self._render_speed(panel, pygame.Rect(padding, y, content_width, heights['speed']), compact)
+        y += heights['speed'] + gap
+        self._render_vehicle_input(panel, pygame.Rect(padding, y, content_width, heights['input']), compact)
+        y += heights['input'] + gap
+        self._render_position(panel, pygame.Rect(padding, y, content_width, heights['position']), compact)
+        y += heights['position'] + gap
+        self._render_simulation(panel, pygame.Rect(padding, y, content_width, heights['simulation']), compact)
+
+        footer_y = y + heights['simulation'] + gap
+        help_hint = 'H / SHARE  Help' if self.node.joystick_available else 'H  Help'
+        self._text(panel, help_hint, self._font_label, (139, 157, 168),
+                   (padding + 2, footer_y))
+        self._right_text(panel, 'F1  Hide HUD', self._font_label,
+                         (139, 157, 168), panel_width - padding - 2, footer_y)
+        display.blit(panel, (panel_margin, panel_margin))
+
+    def _render_header(self, surface, rect):
+        logo_rect = pygame.Rect(rect.x, rect.y + 1, 48, 48)
+        self._render_logo(surface, logo_rect)
+        self._text(surface, 'OpenADSim', self._font_title, (238, 246, 249),
+                   (rect.x + 56, rect.y + 5))
+        self._text(surface, 'CONTROL', self._font_label, (79, 203, 196),
+                   (rect.x + 57, rect.y + 29))
+
+    def _render_mode(self, surface, rect):
+        if not self.manual_control_received:
+            color = (80, 94, 104)
+            background = (31, 42, 49, 230)
+            state = 'WAITING FOR STATUS'
+        elif self.manual_control:
+            color = (255, 179, 71)
+            background = (61, 43, 20, 230)
+            state = 'INACTIVE'
+        else:
+            color = (68, 222, 164)
+            background = (18, 59, 51, 230)
+            state = 'ACTIVE'
+
+        border = tuple(max(40, int(component * 0.55)) for component in color) + (225,)
+        self._card(surface, rect, background, border)
+        pygame.draw.circle(surface, color, (rect.x + 17, rect.y + 17), 5)
+        self._text(surface, 'AUTOMATED DRIVING', self._font_label, color,
+                   (rect.x + 29, rect.y + 9))
+        self._text(surface, state, self._font_status, (244, 250, 251),
+                   (rect.x + 14, rect.y + 29))
+        self._right_text(surface, 'B / Y', self._font_label, (164, 181, 188),
+                         rect.right - 12, rect.y + 10)
+
+    def _render_speed(self, surface, rect, compact):
+        self._card(surface, rect)
+        speed = max(0, int(round(3.6 * self.vehicle_status.velocity)))
+        speed_font = self._font_speed_compact if compact else self._font_speed
+        speed_texture = speed_font.render(str(speed), True, (245, 250, 251))
+        speed_y = rect.y + (20 if compact else 23)
+        surface.blit(speed_texture, (rect.x + 13, speed_y))
+        self._text(surface, 'SPEED', self._font_label, (124, 147, 159),
+                   (rect.x + 14, rect.y + 8))
+        self._text(surface, 'km/h', self._font_label, (124, 147, 159),
+                   (rect.x + 18 + speed_texture.get_width(), speed_y + speed_texture.get_height() - 17))
+
+        control = self.vehicle_status.control
+        gear = {-1: 'R', 0: 'N'}.get(control.gear, str(control.gear))
+        heading = self._heading_text(self.yaw)
+        divider_x = rect.right - 96
+        pygame.draw.line(surface, (55, 74, 84),
+                         (divider_x, rect.y + 12), (divider_x, rect.bottom - 12))
+        self._text(surface, 'GEAR', self._font_label, (124, 147, 159),
+                   (divider_x + 13, rect.y + 9))
+        self._text(surface, gear, self._font_status, (245, 250, 251),
+                   (divider_x + 13, rect.y + 26))
+        self._right_text(surface, heading, self._font_mono, (177, 198, 207),
+                         rect.right - 12, rect.bottom - 23)
+
+    @staticmethod
+    def _heading_text(yaw):
+        heading = 'N' if abs(yaw) < 89.5 else ''
+        heading += 'S' if abs(yaw) > 90.5 else ''
+        heading += 'E' if 179.5 > yaw > 0.5 else ''
+        heading += 'W' if -0.5 > yaw > -179.5 else ''
+        return u'{:03.0f}\N{DEGREE SIGN} {}'.format(yaw % 360, heading)
+
+    def _render_vehicle_input(self, surface, rect, compact):
+        self._card(surface, rect)
+        self._text(surface, 'VEHICLE INPUT', self._font_label, (124, 147, 159),
+                   (rect.x + 12, rect.y + 8))
+        control = self.vehicle_status.control
+        first_y = rect.y + 28
+        row_gap = 17 if compact else 18
+        self._render_input_bar(surface, rect, first_y, 'Throttle', control.throttle,
+                               (79, 203, 196))
+        self._render_input_bar(surface, rect, first_y + row_gap, 'Brake', control.brake,
+                               (255, 179, 71))
+        self._render_steering(surface, rect, first_y + 2 * row_gap, self._display_steer)
+
+        chip_y = rect.bottom - 21
+        chip_gap = 5
+        chip_width = (rect.width - 24 - 2 * chip_gap) // 3
+        self._render_chip(surface, pygame.Rect(rect.x + 12, chip_y, chip_width, 14),
+                          'REVERSE', control.reverse)
+        self._render_chip(surface, pygame.Rect(rect.x + 12 + chip_width + chip_gap,
+                                               chip_y, chip_width, 14),
+                          'HAND BRAKE', control.hand_brake)
+        self._render_chip(surface, pygame.Rect(rect.x + 12 + 2 * (chip_width + chip_gap),
+                                               chip_y, chip_width, 14),
+                          'MANUAL GEAR', control.manual_gear_shift)
+
+    def _render_input_bar(self, surface, card_rect, y, label, value, color):
+        self._text(surface, label, self._font_label, (169, 187, 196),
+                   (card_rect.x + 12, y - 3))
+        bar = pygame.Rect(card_rect.x + 82, y, card_rect.width - 96, 7)
+        pygame.draw.rect(surface, (54, 72, 81), bar, border_radius=4)
+        fill_width = int(bar.width * self._clamp(value))
+        if fill_width:
+            pygame.draw.rect(surface, color, (bar.x, bar.y, fill_width, bar.height), border_radius=4)
+
+    def _render_steering(self, surface, card_rect, y, value):
+        self._text(surface, 'Steering', self._font_label, (169, 187, 196),
+                   (card_rect.x + 12, y - 3))
+        bar = pygame.Rect(card_rect.x + 82, y, card_rect.width - 96, 7)
+        pygame.draw.rect(surface, (54, 72, 81), bar, border_radius=4)
+        end = bar.x + int(self._clamp((value + 1.0) / 2.0) * bar.width)
+        if end != bar.centerx:
+            fill = pygame.Rect(min(end, bar.centerx), bar.y,
+                               max(2, abs(end - bar.centerx)), bar.height)
+            pygame.draw.rect(surface, (79, 203, 196), fill, border_radius=4)
+        pygame.draw.line(surface, (168, 188, 196),
+                         (bar.centerx, bar.y - 2), (bar.centerx, bar.bottom + 2), 2)
+
+    def _render_chip(self, surface, rect, label, active):
+        background = (65, 91, 95) if active else (44, 58, 65)
+        foreground = (137, 232, 211) if active else (151, 168, 176)
+        pygame.draw.rect(surface, background, rect, border_radius=7)
+        texture = self._font_label.render(label, True, foreground)
+        surface.blit(texture, (rect.centerx - texture.get_width() // 2,
+                               rect.centery - texture.get_height() // 2))
+
+    def _render_position(self, surface, rect, compact):
+        self._card(surface, rect)
+        self._text(surface, 'VEHICLE & POSITION', self._font_label, (124, 147, 159),
+                   (rect.x + 12, rect.y + 8))
+        vehicle = ' '.join(self.vehicle_info.type.split('.')[1:]) or 'unknown vehicle'
+        if vehicle.split()[-1] == 'karl':
+            vehicle += '.'
+        vehicle = self._fit_text(vehicle, self._font_body, rect.width - 105)
+        row_y = rect.y + 27
+        row_gap = 16 if compact else 18
+        self._render_value_row(surface, rect, row_y, 'Vehicle', vehicle)
+        self._render_value_row(surface, rect, row_y + row_gap, 'Location',
+                               '({:.1f}, {:.1f})'.format(self.x, self.y))
+        self._render_value_row(surface, rect, row_y + 2 * row_gap, 'GNSS',
+                               '{:.5f}, {:.5f}'.format(self.latitude, self.longitude))
+        self._render_value_row(surface, rect, row_y + 3 * row_gap, 'Height',
+                               '{:.0f} m'.format(self.z))
+
+    def _render_value_row(self, surface, rect, y, label, value):
+        self._text(surface, label, self._font_label, (132, 153, 164), (rect.x + 12, y))
+        self._right_text(surface, value, self._font_mono, (219, 230, 234),
+                         rect.right - 12, y - 1)
+
+    def _render_simulation(self, surface, rect, compact):
+        self._card(surface, rect)
+        self._text(surface, 'SIMULATION', self._font_label, (124, 147, 159),
+                   (rect.x + 12, rect.y + 8))
+        fps = 0.0
+        if self.carla_status.fixed_delta_seconds:
+            fps = 1.0 / self.carla_status.fixed_delta_seconds
+        simulation_time = str(datetime.timedelta(seconds=self.node.get_time()))[:10]
+        sync_state = 'OFF'
+        if self.carla_status.synchronous_mode:
+            sync_state = 'RUNNING' if self.carla_status.synchronous_mode_running else 'PAUSED'
+
+        first_y = rect.y + 29
+        second_y = rect.y + (47 if compact else 51)
+        self._text(surface, 'TIME', self._font_label, (132, 153, 164), (rect.x + 12, first_y))
+        self._text(surface, simulation_time, self._font_mono, (219, 230, 234),
+                   (rect.x + 50, first_y - 1))
+        self._right_text(surface, '{:.1f} FPS'.format(fps), self._font_mono,
+                         (219, 230, 234), rect.right - 12, first_y - 1)
+        self._text(surface, 'FRAME', self._font_label, (132, 153, 164), (rect.x + 12, second_y))
+        self._text(surface, str(self.carla_status.frame), self._font_mono, (219, 230, 234),
+                   (rect.x + 56, second_y - 1))
+        self._right_text(surface, 'SYNC ' + sync_state, self._font_label,
+                         (79, 203, 196) if sync_state == 'RUNNING' else (132, 153, 164),
+                         rect.right - 12, second_y)
 
 
 # ==============================================================================
@@ -726,14 +916,14 @@ class FadingText(object):
         self.dim = dim
         self.pos = pos
         self.seconds_left = 0
-        self.surface = pygame.Surface(self.dim)
+        self.surface = pygame.Surface(self.dim, pygame.SRCALPHA)
 
     def set_text(self, text, color=(255, 255, 255), seconds=2.0):
         """
         set the text
         """
         text_texture = self.font.render(text, True, color)
-        self.surface = pygame.Surface(self.dim)
+        self.surface = pygame.Surface(self.dim, pygame.SRCALPHA)
         self.seconds_left = seconds
         self.surface.fill((0, 0, 0, 0))
         self.surface.blit(text_texture, (10, 11))
@@ -763,20 +953,92 @@ class HelpText(object):
     Show the help text
     """
 
-    def __init__(self, font, width, height):
-        lines = __doc__.split('\n')
-        self.font = font
-        self.dim = (680, height)
-        self.pos = (0.5 * width - 0.5 * self.dim[0], 0.5 * height - 0.5 * self.dim[1])
-        self.seconds_left = 0
-        self.surface = pygame.Surface(self.dim)
-        self.surface.fill((0, 0, 0, 0))
-        for n, line in enumerate(lines):
-            text_texture = self.font.render(line, True, (255, 255, 255))
-            line_height = round((self.dim[1] - 12) / len(lines))
-            self.surface.blit(text_texture, (line_height, n * line_height))
-            self._render = False
-        self.surface.set_alpha(220)
+    def __init__(self, width, height):
+        self.screen_dim = (width, height)
+        self.dim = (min(720, width - 32), min(500, height - 32))
+        self.pos = ((width - self.dim[0]) // 2, (height - self.dim[1]) // 2)
+        self._font_title = HUD._make_font('inter,dejavusans,ubuntusans,arial', 22, True)
+        self._font_heading = HUD._make_font('inter,dejavusans,ubuntusans,arial', 11, True)
+        self._font_key = HUD._make_font('ubuntumono,dejavusansmono,monospace', 11, True)
+        self._font_body = HUD._make_font('inter,dejavusans,ubuntusans,arial', 12)
+        self._logo = load_openads_logo()
+        self.surface = pygame.Surface(self.dim, pygame.SRCALPHA)
+        self._build_surface()
+        self._render = False
+
+    def _build_surface(self):
+        pygame.draw.rect(self.surface, (7, 14, 20, 235), self.surface.get_rect(), border_radius=18)
+        pygame.draw.rect(self.surface, (61, 80, 89, 225), self.surface.get_rect(),
+                         width=1, border_radius=18)
+
+        if self._logo:
+            self.surface.blit(self._logo, (19, 14))
+        else:
+            pygame.draw.circle(self.surface, (79, 203, 196), (43, 38), 17, width=4)
+        self.surface.blit(self._font_title.render('OpenADSim Control', True, (240, 247, 249)),
+                          (76, 16))
+        self.surface.blit(self._font_body.render('Keyboard and controller reference', True,
+                                                 (133, 155, 166)), (77, 43))
+        self._pill(self.surface, 'H / ?', self.dim[0] - 76, 25, 52)
+        pygame.draw.line(self.surface, (48, 65, 74),
+                         (20, 70), (self.dim[0] - 20, 70))
+
+        column_gap = 28
+        column_width = (self.dim[0] - 48 - column_gap) // 2
+        left_x = 24
+        right_x = left_x + column_width + column_gap
+        pygame.draw.line(self.surface, (44, 60, 68),
+                         (self.dim[0] // 2, 86), (self.dim[0] // 2, self.dim[1] - 48))
+
+        keyboard = [
+            ('DRIVING', [
+                ('W / UP', 'Accelerate'), ('S / DOWN', 'Brake'),
+                ('A D / ARROWS', 'Steer left / right'), ('Q', 'Toggle reverse'),
+                ('SPACE', 'Hand brake')]),
+            ('AUTOMATION', [
+                ('B', 'Toggle manual override'), ('P', 'Toggle CARLA autopilot')]),
+            ('TRANSMISSION', [
+                ('M', 'Automatic / manual'), (', / .', 'Gear down / up')]),
+            ('INTERFACE', [
+                ('F1', 'Toggle HUD'), ('H / ?', 'Toggle help'), ('ESC', 'Quit')]),
+        ]
+        controller = [
+            ('DRIVING', [
+                ('RT', 'Accelerate'), ('LT', 'Brake'), ('LEFT STICK', 'Steer'),
+                ('LB', 'Toggle reverse'), ('RB', 'Hand brake')]),
+            ('AUTOMATION', [
+                ('Y', 'Toggle manual override'), ('A', 'Toggle CARLA autopilot')]),
+            ('INTERFACE', [
+                ('VIEW', 'Toggle HUD'), ('SHARE', 'Toggle help'), ('XBOX', 'Quit')]),
+        ]
+
+        self.surface.blit(self._font_heading.render('KEYBOARD', True, (79, 203, 196)),
+                          (left_x, 84))
+        self.surface.blit(self._font_heading.render('XBOX CONTROLLER', True, (79, 203, 196)),
+                          (right_x, 84))
+        self._render_sections(keyboard, left_x, 108, column_width)
+        self._render_sections(controller, right_x, 108, column_width)
+
+    def _render_sections(self, sections, x, y, width):
+        for heading, rows in sections:
+            heading_texture = self._font_heading.render(heading, True, (121, 143, 154))
+            self.surface.blit(heading_texture, (x, y))
+            y += 18
+            for key, description in rows:
+                self._pill(self.surface, key, x, y, 92)
+                description = HUD._fit_text(description, self._font_body, width - 106)
+                text = self._font_body.render(description, True, (222, 232, 236))
+                self.surface.blit(text, (x + 104, y + 2))
+                y += 22
+            y += 8
+
+    def _pill(self, surface, text, x, y, width):
+        rect = pygame.Rect(x, y, width, 17)
+        pygame.draw.rect(surface, (43, 57, 64), rect, border_radius=5)
+        pygame.draw.rect(surface, (66, 84, 92), rect, width=1, border_radius=5)
+        texture = self._font_key.render(text, True, (173, 217, 216))
+        surface.blit(texture, (rect.centerx - texture.get_width() // 2,
+                               rect.centery - texture.get_height() // 2))
 
     def toggle(self):
         """
@@ -789,6 +1051,9 @@ class HelpText(object):
         render the help
         """
         if self._render:
+            backdrop = pygame.Surface(self.screen_dim, pygame.SRCALPHA)
+            backdrop.fill((0, 0, 0, 145))
+            display.blit(backdrop, (0, 0))
             display.blit(self.surface, self.pos)
 
 
@@ -813,7 +1078,10 @@ def main(args=None):
 
     pygame.init()
     pygame.font.init()
-    pygame.display.set_caption("CARLA ROS manual control")
+    pygame.display.set_caption("OpenADSim Control")
+    icon = load_openads_logo(64)
+    if icon:
+        pygame.display.set_icon(icon)
     pygame.joystick.init()
 
     try:

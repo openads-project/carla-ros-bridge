@@ -10,6 +10,7 @@ if ROS_VERSION == 1:
     from catkin_pkg.python_setup import generate_distutils_setup
 
     d = generate_distutils_setup(packages=['carla_manual_control'], package_dir={'': 'src'})
+    d['package_data'] = {'carla_manual_control': ['assets/*.png']}
 
     setup(**d)
 
@@ -21,6 +22,8 @@ elif ROS_VERSION == 2:
         name=package_name,
         version='0.0.0',
         packages=[package_name],
+        package_data={package_name: ['assets/*.png']},
+        include_package_data=True,
         data_files=[
             ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
             ('share/' + package_name, ['package.xml']),
