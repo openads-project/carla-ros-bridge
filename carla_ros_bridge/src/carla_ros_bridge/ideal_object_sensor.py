@@ -63,6 +63,13 @@ class IdealObjectSensor(ObjectSensor):
                                                       world=world)
         self.node = node
 
+        # A ground-relative spawn point makes the transform of this sensor report a height
+        # above the terrain, while the targets are reported by CARLA at their absolute
+        # altitude and need to be brought into the same frame of reference before they are compared.
+        # The bridge resolves the ground altitude once when the sensor is spawned, so that this
+        # sensor uses the same ground as the actors it is mounted next to.
+        self._ground_offset = 0.0
+
         # Skip init if ROS_VERSION is 1
         if ROS_VERSION == 1:
             self.node.logwarn("IdealObjectSensor is not supported for ROS_VERSION 1")
@@ -77,6 +84,16 @@ class IdealObjectSensor(ObjectSensor):
 
         # Extract (relative) spawn pose
         self.relative_spawn_pose = relative_spawn_pose
+
+        if str(self._attribute_value(
+                attributes, "ground_relative_z", "false")).lower() == "true":
+            ground_altitude = self._attribute_value(attributes, "ground_altitude", 0.0)
+            try:
+                self._ground_offset = float(ground_altitude)
+            except (TypeError, ValueError):
+                self.node.logwarn(
+                    "ground_altitude attribute for IdealObjectSensor is invalid! "
+                    "Using default value of {}.".format(self._ground_offset))
 
         # Set default values, boundaries and unit for sensor parameters so that they are available when needed
         attributes_dict = {
@@ -139,6 +156,52 @@ class IdealObjectSensor(ObjectSensor):
         super(IdealObjectSensor, self).destroy()
         self.actor_list = None
         self.node.destroy_publisher(self.object_publisher)
+
+    @staticmethod
+    def _attribute_value(attributes, key, default=None):
+        """
+        Get the value of a spawn attribute
+        :param attributes: attributes of the sensor
+        :type attributes: diagnostic_msgs/KeyValue[]
+        :param key: name of the attribute
+        :return: the value of the attribute, or default if it is not set
+        """
+        return next((attribute.value for attribute in attributes if attribute.key == key),
+                    default)
+
+    @staticmethod
+    def _lower(carla_location, ground_offset):
+        """
+        Lower a location by the ground offset.
+        """
+        return carla.Location(carla_location.x, carla_location.y,
+                              carla_location.z - ground_offset)
+
+    def _absolute(self, carla_location):
+        """
+        Undo the ground offset, returning the location at its absolute altitude.
+        """
+        if not self._ground_offset:
+            return carla_location
+        return self._lower(carla_location, -self._ground_offset)
+
+    def _ground_relative(self, carla_location, carla_corners):
+        """
+        Bring a target into the ground-relative frame this sensor is expressed in.
+
+        CARLA reports the targets at their absolute altitude, while a ground-relative
+        spawn point makes the transform of this sensor report a height above the
+        terrain. Lowering the targets rather than raising the sensor keeps them
+        consistent with the sensor transform the field-of-view check is made against.
+
+        :param carla_location: the location of the target
+        :param carla_corners: the corners of the target's bounding box
+        :return: the location and the corners, lowered by the ground offset
+        """
+        if not self._ground_offset:
+            return carla_location, carla_corners
+        return (self._lower(carla_location, self._ground_offset),
+                [self._lower(corner, self._ground_offset) for corner in carla_corners])
 
     @staticmethod
     def get_blueprint_name():
@@ -217,11 +280,12 @@ class IdealObjectSensor(ObjectSensor):
         # FILTER 4
         # Filter corners that are occluded by other objects and return if not enough corners are visible
         corner_list_filter_4 = list()
+        carla_location_sensor = self._absolute(carla_location_sensor_in_carla_map)
 
         for corner in corner_list_filter_3:
             hit = False
             # Send ray from corner to sensor and check for objects
-            hit_points = self.world.cast_ray(corner, carla_location_sensor_in_carla_map)
+            hit_points = self.world.cast_ray(self._absolute(corner), carla_location_sensor)
             if hit_points:
                 for hit_point in hit_points:
                     # Skip hit points with the label "Roads"
@@ -231,7 +295,7 @@ class IdealObjectSensor(ObjectSensor):
                     if hit_point.label is carla.CityObjectLabel.NONE:
                         continue
                     # Skip hit points near to the sensor location within a defined hit point blanking radius
-                    if hit_point.location.distance(carla_location_sensor_in_carla_map) <= self.hit_point_blanking_radius:
+                    if hit_point.location.distance(carla_location_sensor) <= self.hit_point_blanking_radius:
                         continue
                     # All other hits are relevant --> current corner is not visible, continue with next corner
                     hit = True
@@ -357,6 +421,10 @@ class IdealObjectSensor(ObjectSensor):
                     bounding_box = actor.carla_actor.bounding_box
                     carla_corners_target_in_carla_map = bounding_box.get_world_vertices(carla_tf_carla_map_to_target)
 
+                    carla_location_target_in_carla_map, carla_corners_target_in_carla_map = \
+                        self._ground_relative(carla_location_target_in_carla_map,
+                                              carla_corners_target_in_carla_map)
+
                     # Check visibility of the target
                     if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
                         ros_objects.objects.append(actor.get_object_info())
@@ -378,6 +446,10 @@ class IdealObjectSensor(ObjectSensor):
                         # Get corners from target BoundingBox
                         carla_corners_target_in_carla_map = \
                             self._get_environment_object_world_vertices(vehicle)
+
+                        carla_location_target_in_carla_map, carla_corners_target_in_carla_map = \
+                            self._ground_relative(carla_location_target_in_carla_map,
+                                                  carla_corners_target_in_carla_map)
 
                         # Check visibility of the target
                         if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):

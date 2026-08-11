@@ -170,3 +170,30 @@ This pseudo-sensor allows to control the position and velocity of the actor it i
 |-------|------|-------------|
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>/set_transform` | [geometry_msgs/Pose](https://docs.ros.org/en/api/geometry_msgs/html/msg/Pose.html) | Transform to apply to the sensor's parent. |
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>/set_target_velocity` | [geometry_msgs/Twist](https://docs.ros.org/en/api/geometry_msgs/html/msg/Twist.html) | Velocity (angular and linear) to apply to the sensor's parent. |
+
+---
+
+## Sensor Transforms
+
+A sensor's frame is named after the sensor's role name and corresponds to the prefix of its topics. Which node broadcasts the transform depends on how the sensor was spawned:
+
+| Sensor | Broadcaster | Topic | Parent frame |
+|--------|-------------|-------|--------------|
+| attached to an actor | CARLA server (native ROS 2 interface) | `/tf_static` | the parent actor's frame |
+| in a group or ground-relative, spawned by `carla_spawn_objects` | `carla_spawn_objects` | `/tf_static` | the enclosing group, or `carla_map` |
+| any other unattached sensor | CARLA server (native ROS 2 interface) | `/tf_static` | `carla_map` |
+| pseudo sensor | bridge | `/tf` | the parent actor's frame, or `carla_map` |
+
+An unattached sensor has no parent actor, so the server broadcasts it against `carla_map` at its absolute pose within the world. Where that pose misrepresents the sensor, e.g. inside a group, or at a ground-relative altitude, `carla_spawn_objects` spawns it with the CARLA attribute `no_transform`, which makes the server skip the transform while it keeps publishing the sensor's data, and broadcasts the transform itself relative to the enclosing group. See the [carla_spawn_objects README](../carla_spawn_objects/README.md).
+
+ `no_transform` requires a CARLA server that declares the attribute. A server that does not publishes the transform anyway, and the bridge logs a warning naming the sensor; the result is two publishers for the same frame under different parents. To avoid that, set `no_transform: false` for the affected sensors, they will then keep the server-side transform against `carla_map`. When the bridge itself creates the sensor object, because [`native_interface`](run_ros.md) is disabled, it honours `no_transform` and leaves the frame to whoever asked for it.
+
+## Ground-Relative Spawn Altitude
+
+A spawn request may carry the attribute `ground_relative_z`. The bridge then reads the `z` of the requested transform as a height above the terrain instead of an absolute altitude, determines the ground altitude below the requested position and spawns the actor at `ground + z`.
+
+The ground altitude is taken from the OpenDRIVE map, as the altitude of the closest driving lane. It is defined everywhere and independent of the rendered geometry, but it approximates the surface an object rests on: the further a position is away from a lane, the coarser the approximation gets. Where that matters, the ground altitude can be stated explicitly instead, see the [carla_spawn_objects README](../carla_spawn_objects/README.md).
+
+The correction is applied to the CARLA actor only. The requested transform is left untouched, so the transform published for the actor keeps the ground-relative altitude. This keeps the frame consistent with `ignore_altitude` (see [Run ROS](run_ros.md)), which flattens the transforms of vehicles onto the `carla_map` ground plane.
+
+The altitude may also be stated directly, through the attribute `ground_altitude`, which replaces the map lookup. It is resolved once per requested position, so every member of a group shares one lookup and the group is not deformed by a slightly different ground below each of its members. The position to resolve it at can be pinned through `ground_reference_x` and `ground_reference_y`, stated in the ROS frame; this is how `carla_spawn_objects` anchors a group at the object that declared the altitude.

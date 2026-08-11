@@ -7,6 +7,7 @@
 #
 
 import itertools
+import math
 try:
     import queue
 except ImportError:
@@ -17,6 +18,8 @@ from threading import Thread, Lock
 
 import carla
 import numpy as np
+
+from diagnostic_msgs.msg import KeyValue
 
 import carla_common.transforms as trans
 
@@ -57,6 +60,10 @@ class ActorFactory(object):
 
     TIME_BETWEEN_UPDATES = 0.1
 
+    # spawn attributes describing a ground-relative altitude
+    GROUND_ATTRIBUTES = ("ground_relative_z", "ground_altitude",
+                         "ground_reference_x", "ground_reference_y")
+
     class TaskType(Enum):
         SPAWN_ACTOR = 0
         SPAWN_PSEUDO_ACTOR = 1
@@ -75,6 +82,8 @@ class ActorFactory(object):
 
         self._task_queue = queue.Queue()
         self._known_actor_ids = []  # used to immediately reply to spawn_actor/destroy_actor calls
+        self._ground_altitudes = {}  # terrain altitude per ground-relative anchor position
+        self._warned_absolute_frames = False
 
         self.lock = Lock()
         self.spawn_lock = Lock()
@@ -111,37 +120,38 @@ class ActorFactory(object):
 
         # Create/destroy actors not managed by the bridge. 
         self.lock.acquire()
-        for actor_id in spawned_actors:
-            carla_actor = self.world.get_actor(actor_id)
-            if carla_actor is None:
-                continue
-            if self.node.parameters["native_interface"] and isinstance(carla_actor, carla.Sensor):
-                if hasattr(carla_actor, "enable_for_ros"):
-                    carla_actor.enable_for_ros()
-                continue
-            if self.node.parameters["register_all_sensors"] or not isinstance(carla_actor, carla.Sensor):
-                self._create_object_from_actor(carla_actor)
+        try:
+            for actor_id in spawned_actors:
+                carla_actor = self.world.get_actor(actor_id)
+                if carla_actor is None:
+                    continue
+                if self.node.parameters["native_interface"] and isinstance(carla_actor, carla.Sensor):
+                    if hasattr(carla_actor, "enable_for_ros"):
+                        carla_actor.enable_for_ros()
+                    continue
+                if self.node.parameters["register_all_sensors"] or not isinstance(carla_actor, carla.Sensor):
+                    self._create_object_from_actor(carla_actor)
 
-        for actor_id in destroyed_actors:
-            self._destroy_object(actor_id, delete_actor=False)
+            for actor_id in destroyed_actors:
+                self._destroy_object(actor_id, delete_actor=False)
 
-        # Create/destroy objects managed by the bridge.
-        with self.spawn_lock:
-            while not self._task_queue.empty():
-                task = self._task_queue.get()
-                task_type = task[0]
-                actor_id, req = task[1]
+            # Create/destroy objects managed by the bridge.
+            with self.spawn_lock:
+                while not self._task_queue.empty():
+                    task = self._task_queue.get()
+                    task_type = task[0]
+                    actor_id, req = task[1]
 
-                if task_type == ActorFactory.TaskType.SPAWN_ACTOR and not self.node.shutdown.is_set():
-                    carla_actor = self.world.get_actor(actor_id)
-                    if carla_actor is not None:
-                        self._create_object_from_actor(carla_actor, req)
-                elif task_type == ActorFactory.TaskType.SPAWN_PSEUDO_ACTOR and not self.node.shutdown.is_set():
-                    self._create_object(actor_id, req.type, req.id, req.attach_to, req.transform, req.attributes)
-                elif task_type == ActorFactory.TaskType.DESTROY_ACTOR:
-                    self._destroy_object(actor_id, delete_actor=True)
-
-        self.lock.release()
+                    if task_type == ActorFactory.TaskType.SPAWN_ACTOR and not self.node.shutdown.is_set():
+                        carla_actor = self.world.get_actor(actor_id)
+                        if carla_actor is not None:
+                            self._create_object_from_actor(carla_actor, req)
+                    elif task_type == ActorFactory.TaskType.SPAWN_PSEUDO_ACTOR and not self.node.shutdown.is_set():
+                        self._create_object(actor_id, req.type, req.id, req.attach_to, req.transform, req.attributes)
+                    elif task_type == ActorFactory.TaskType.DESTROY_ACTOR:
+                        self._destroy_object(actor_id, delete_actor=True)
+        finally:
+            self.lock.release()
 
     def update_actor_states(self, frame_id, timestamp):
         """
@@ -169,6 +179,7 @@ class ActorFactory(object):
         and pseudo objects are appended to a list to get created later.
         """
         with self.spawn_lock:
+            self._resolve_ground_altitude(req)
             if "pseudo" in req.type:
                 # only allow spawning pseudo objects if parent actor already exists in carla
                 if req.attach_to != 0:
@@ -204,11 +215,122 @@ class ActorFactory(object):
                 self._task_queue.put((ActorFactory.TaskType.DESTROY_ACTOR, (obj, None)))
         return objects_to_destroy
 
-    def _get_altitude_on_map(self, l):
+    @staticmethod
+    def _parse_ground_attribute(value, key, actor_id):
         """
-        get the altitude of the map at a given position
+        parse a ground-related spawn attribute into a finite float
+
+        :param value: the value of the attribute
+        :param key: the name of the attribute, used in the error message
+        :param actor_id: the id of the actor being spawned, used in the error message
+        :return: the value as a float
+        :raises ValueError: if the value is not a finite number
         """
-        return get_road_altitude(self.world, l, self.node.loginfo)
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Invalid '{}' for '{}': '{}' is not a number".format(
+                key, actor_id, value))
+        if not math.isfinite(parsed):
+            raise ValueError("Invalid '{}' for '{}': '{}' is not a finite number".format(
+                key, actor_id, value))
+        return parsed
+
+    def _warn_on_absolute_frames(self):
+        """
+        warn once when ground-relative altitudes meet absolute frames
+        """
+        if self._warned_absolute_frames or self.node.parameters.get("ignore_altitude"):
+            return
+        self._warned_absolute_frames = True
+        self.node.logwarn(
+            "A ground-relative spawn altitude is used while 'ignore_altitude' is disabled. "
+            "The transform published for such an object is measured from the terrain, while "
+            "the frames around it keep their absolute altitude, so the two will not line up. "
+            "Enable 'ignore_altitude', or place the object at an absolute 'alt'/'z' instead. ")
+
+    def _discard_ground_attributes(self, req, reason):
+        """
+        drop the ground-relative attributes from a spawn request
+
+        Dropped rather than merely left unresolved: a consumer that reads them
+        without repeating the checks below - the ideal object sensor does - would
+        otherwise measure against a ground the actor was never lifted by.
+
+        :param req: spawn request, whose attributes are stripped in place
+        :param reason: why the request is not placed against the terrain
+        """
+        self.node.logwarn("Ignoring the ground-relative spawn altitude of '{}': {}.".format(
+            req.id, reason))
+        req.attributes[:] = [attribute for attribute in req.attributes
+                             if attribute.key not in self.GROUND_ATTRIBUTES]
+
+    def _resolve_ground_altitude(self, req):
+        """
+        resolve the ground altitude a ground-relative spawn request is measured from
+
+        A ground-relative request states its z as a height above the terrain. The
+        altitude of the terrain below it is resolved here, once, and written back into
+        the request as 'ground_altitude'. Every consumer of the request downstream
+        therefore reads one already-resolved altitude instead of querying the map itself,
+        which keeps the CARLA actor and the objects derived from it in one frame.
+
+        :param req: spawn request, whose attributes are extended in place
+        """
+        attributes = {attribute.key: attribute.value for attribute in req.attributes}
+
+        if attributes.get("ground_relative_z", "false").lower() != "true":
+            return
+        self._warn_on_absolute_frames()
+        if req.attach_to != 0:
+            return self._discard_ground_attributes(
+                req, "it is attached to actor {} and is therefore placed relative to "
+                     "it, not to the terrain".format(req.attach_to))
+        if req.random_pose:
+            # the pose is only drawn in _spawn_carla_actor, so the terrain below the
+            # request is not the terrain the actor ends up on
+            return self._discard_ground_attributes(req, "its pose is chosen at random")
+        if "ground_altitude" in attributes:
+            # stated by the caller, which spares the map query
+            self._parse_ground_attribute(
+                attributes["ground_altitude"], "ground_altitude", req.id)
+            return
+
+        # the ground is queried at the position that declared the ground-relative altitude,
+        # so that every member of a rigid group shares one query instead of being deformed
+        # by a slightly different ground below each of its members
+        probe = trans.ros_point_to_carla_location(req.transform.position)
+        reference_x = attributes.get("ground_reference_x")
+        reference_y = attributes.get("ground_reference_y")
+        if reference_x is not None and reference_y is not None:
+            # the reference is stated in the ROS frame, whose y axis points opposite
+            # to the left-handed CARLA one
+            probe.x = self._parse_ground_attribute(
+                reference_x, "ground_reference_x", req.id)
+            probe.y = -self._parse_ground_attribute(
+                reference_y, "ground_reference_y", req.id)
+
+        # every member of a group shares the anchor of the object that declared the
+        # altitude, so the query behind it is made once and answered from here after
+        anchor = (round(probe.x, 3), round(probe.y, 3))
+        if anchor not in self._ground_altitudes:
+            self._ground_altitudes[anchor] = get_road_altitude(
+                self.world, probe, loginfo=self.node.loginfo)
+            self.node.loginfo(
+                "Resolved ground altitude for '{}': ground={} at x={}, y={}".format(
+                    req.id, self._ground_altitudes[anchor], probe.x, probe.y))
+
+        ground_altitude = self._ground_altitudes[anchor]
+        if ground_altitude is None:
+            # no terrain below the anchor: lifting by the requested height would place
+            # the object at twice that height above the map origin
+            self.node.logwarn(
+                "Spawning '{}' at its stated altitude: no ground was found below "
+                "x={}, y={}.".format(req.id, probe.x, probe.y))
+            return
+
+        req.attributes.append(
+            KeyValue(key="ground_altitude", value=str(ground_altitude)))
 
     def _spawn_carla_actor(self, req):
         """
@@ -224,7 +346,26 @@ class ActorFactory(object):
                 (req.type.startswith("vehicle.") or req.type.startswith("sensor.")):
             blueprint.set_attribute("ros_name", req.id)
 
+        # consumed by _resolve_ground_altitude, which leaves a 'ground_altitude' behind
+        # exactly for the requests that are to be placed against the terrain
+        ground_altitude = None
         for attribute in req.attributes:
+            if attribute.key in self.GROUND_ATTRIBUTES:
+                if attribute.key == "ground_altitude":
+                    ground_altitude = self._parse_ground_attribute(
+                        attribute.value, "ground_altitude", req.id)
+                continue
+            if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
+                # dropping it is only worth a warning when it was asking the server to
+                # skip the transform; a server that does not know the attribute publishes
+                # the transform anyway, which is what no_transform=false asks for
+                if attribute.value.lower() == "true":
+                    self.node.logwarn(
+                        "Ignoring 'no_transform' for '{}': this CARLA server does not support it. "
+                        "Use a supporting server image, or set no_transform=false to keep the "
+                        "server-side transform and avoid duplicate TF publishers.".format(
+                            req.id))
+                continue
             blueprint.set_attribute(attribute.key, attribute.value)
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
@@ -232,6 +373,16 @@ class ActorFactory(object):
             # get a random pose
             transform = secure_random.choice(
                 self.spawn_points) if self.spawn_points else carla.Transform()
+
+        # The requested z is a height above ground, not an absolute altitude:
+        # place the actor on the terrain. Only req.transform's CARLA copy is
+        # lifted; req.transform itself stays ground-relative so that the TF
+        # published for this object remains consistent.
+        if ground_altitude is not None:
+            transform.location.z += ground_altitude
+            self.node.loginfo(
+                "Ground-relative spawn altitude: actor={} ground={} z={}".format(
+                    req.type, ground_altitude, transform.location.z))
 
         # Check altitude if not attached to another actor
         # Only apply altitude correction for vehicles and walkers, not for static props or sensors

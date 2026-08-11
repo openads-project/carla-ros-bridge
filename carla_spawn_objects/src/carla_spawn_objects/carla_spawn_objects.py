@@ -56,6 +56,11 @@ class CarlaSpawnObjects(CompatibleNode):
     Derive from this class and implement method sensors()
     """
 
+    # spawn point keys stating an altitude that is measured from the terrain
+    GROUND_RELATIVE_KEYS = ('alt_above_ground', 'z_above_ground', 'alt_ground', 'z_ground')
+    # attributes telling the bridge which terrain altitude to measure from
+    GROUND_RESOLUTION_KEYS = ('ground_altitude', 'ground_reference_x', 'ground_reference_y')
+
     def __init__(self):
         super(CarlaSpawnObjects, self).__init__('carla_spawn_objects')
 
@@ -142,6 +147,63 @@ class CarlaSpawnObjects(CompatibleNode):
 
         raise RuntimeError("Timed out waiting for transform")
 
+    @staticmethod
+    def spawn_point_is_ground_relative(spawn_point):
+        """
+        Check whether a spawn point states its altitude relative to the ground
+        :param spawn_point: spawn point definition
+        :return: True if one of GROUND_RELATIVE_KEYS is used
+        """
+        return any(key in spawn_point for key in CarlaSpawnObjects.GROUND_RELATIVE_KEYS)
+
+    @staticmethod
+    def spawn_point_ground_altitude(spawn_point):
+        """
+        Get the ground altitude a spawn point states explicitly
+        :param spawn_point: spawn point definition
+        :return: the value of 'alt_ground' resp. 'z_ground', or None
+        """
+        if 'alt_ground' in spawn_point:
+            return spawn_point['alt_ground']
+        return spawn_point.get('z_ground')
+
+    @staticmethod
+    def parse_ground_altitude(value):
+        """
+        Parse a stated ground altitude into a finite float
+        :param value: the value of 'alt_ground' resp. 'z_ground'
+        :return: the altitude as a float
+        :raises ValueError: if the value is not a finite number
+        """
+        try:
+            altitude = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("'{}' is not a number".format(value))
+        if not math.isfinite(altitude):
+            raise ValueError("'{}' is not a finite number".format(value))
+        return altitude
+
+    @staticmethod
+    def resolve_spawn_altitude(spawn_point):
+        """
+        Get the altitude a spawn point is placed at
+        :param spawn_point: spawn point definition
+        :return: the altitude, measured from the terrain if the spawn point is
+                 ground-relative and from the map origin otherwise
+        :raises ValueError: if an absolute and a ground-relative altitude are combined
+        """
+        above_ground = [key for key in ('alt_above_ground', 'z_above_ground')
+                        if key in spawn_point]
+        absolute = [key for key in ('alt', 'z') if key in spawn_point]
+        if above_ground and absolute:
+            raise ValueError(
+                "Invalid spawn point definition. An altitude above the ground ({}) cannot "
+                "be combined with an absolute altitude ({}).".format(
+                    "/".join(above_ground), "/".join(absolute)))
+        for key in above_ground + absolute:
+            return spawn_point[key]
+        return 0.0
+
     def resolve_spawn_point(self, spawn_point):
         """
         Build a CARLA-map-frame Pose from a spawn point definition.
@@ -149,17 +211,23 @@ class CarlaSpawnObjects(CompatibleNode):
         Supports two formats:
         - spawn points already in CARLA coordinates (x/y/[z/roll/pitch/yaw])
         - spawn points given in WGS84 (lat/lon/[alt/roll/pitch/yaw])
+
+        The altitude may alternatively be given as 'z_above_ground' resp.
+        'alt_above_ground', measured from the terrain instead of from the map
+        origin. Both spellings name the same quantity and are accepted in either
+        format, but an absolute and a ground-relative altitude cannot be combined.
         """
         roll = spawn_point.get("roll", 0.0)
         pitch = spawn_point.get("pitch", 0.0)
         yaw = spawn_point.get("yaw", 0.0)
+        altitude = self.resolve_spawn_altitude(spawn_point)
 
         if 'lat' in spawn_point and 'lon' in spawn_point:
 
             return self.wgs84_to_carla_spawn_point(
                 spawn_point['lat'],
                 spawn_point['lon'],
-                spawn_point.get('alt', 0.0),
+                altitude,
                 roll,
                 pitch,
                 yaw)
@@ -169,7 +237,7 @@ class CarlaSpawnObjects(CompatibleNode):
             return self.create_spawn_point(
                 spawn_point["x"],
                 spawn_point["y"],
-                spawn_point.get("z", 0.0),
+                altitude,
                 roll,
                 pitch,
                 yaw)
@@ -440,8 +508,17 @@ class CarlaSpawnObjects(CompatibleNode):
 
             if spawn_param_used is False and "spawn_point" in vehicle:
                 # get spawn point from config file
+                spawn_point_definition = vehicle["spawn_point"]
+                if self.spawn_point_is_ground_relative(spawn_point_definition):
+                    # only sensors and groups pass the ground metadata on to the bridge.
+                    self.logerr(
+                        "{}: Ignoring the ground-relative spawn altitude, it is only "
+                        "supported for sensors and groups.".format(vehicle["id"]))
+                    spawn_point_definition = {
+                        key: value for key, value in spawn_point_definition.items()
+                        if key not in self.GROUND_RELATIVE_KEYS}
                 try:
-                    spawn_point = self.resolve_spawn_point(vehicle["spawn_point"])
+                    spawn_point = self.resolve_spawn_point(spawn_point_definition)
                     self.loginfo("Spawn point from configuration file")
                 except KeyError as e:
                     self.logerr("{}: Could not use the spawn point from config file, ".format(vehicle["id"]) +
@@ -488,6 +565,20 @@ class CarlaSpawnObjects(CompatibleNode):
         elif 'spawn_point' not in object:
             object['local_transform'] = self.create_spawn_point(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
+        # if the spawn point is set relative to the ground the altitude is measured from the terrain,
+        # not from the map origin. A stated ground altitude is taken as is, which spares the
+        # bridge the terrain query and keeps the placement independent of the map geometry.
+        if 'spawn_point' in object and self.spawn_point_is_ground_relative(object['spawn_point']):
+            object['ground_relative_z'] = True
+            known_ground = self.spawn_point_ground_altitude(object['spawn_point'])
+            if known_ground is not None:
+                try:
+                    object['ground_altitude'] = self.parse_ground_altitude(known_ground)
+                except ValueError as e:
+                    self.logerr(
+                        "Ignoring the stated ground altitude of {}, the ground will be "
+                        "looked up on the map instead: {}".format(object["id"], e))
+
         # set name, attached_vehicle_id, and transform by considering parent object
         if parent is not None:
             parent_type = parent['type'].split('.')[0]
@@ -512,16 +603,59 @@ class CarlaSpawnObjects(CompatibleNode):
                 object["id"] = parent['id'] + "/" + object["id"]
                 object['attached_vehicle_id'] = parent['attached_vehicle_id']
                 object['transform'] = self.extend_spawn_point(parent['transform'], object['local_transform'])
+                if parent.get('ground_relative_z'):
+                    object['ground_relative_z'] = True
+                    for key in self.GROUND_RESOLUTION_KEYS:
+                        # a ground the child states itself is more specific than the
+                        # one it would inherit, so the group only fills in what is missing
+                        if key in parent and key not in object:
+                            object[key] = parent[key]
         else:
             object["name"] = object["id"]
             object["transform"] = object['local_transform']
             object['attached_vehicle_id'] = 0
+
+        # anchor the terrain query at the object that declared the ground-relative altitude.
+        # Querying it per object would resolve a slightly different ground for every member
+        # of a group and thus deform a structure that is rigid in the configuration.
+        if object.get('ground_relative_z') and 'ground_altitude' not in object \
+                and 'ground_reference_x' not in object:
+            object['ground_reference_x'] = object['transform'].position.x
+            object['ground_reference_y'] = object['transform'].position.y
 
         # check if object name already exists
         if object["name"] in self.object_names:
             raise NameError
         self.object_names.append(object["name"])
 
+    def broadcast_static_transform(self, frame_id, child_frame_id, transform, label):
+        """
+        Broadcast a static transform for an object whose frame this node owns
+        :param frame_id: parent frame
+        :param child_frame_id: child frame
+        :param transform: pose of the child, expressed in the parent frame
+        :param label: object id, for logging only
+        """
+        if not frame_id or not child_frame_id:
+            self.logwarn(
+                "Skipping invalid static transform for '{}': frame_id='{}', child_frame_id='{}'".format(
+                    label, frame_id, child_frame_id))
+            return
+
+        static_transform = geometry_msgs.msg.TransformStamped()
+        if ROS_VERSION == 1:
+            static_transform.header.stamp = rospy.Time.now()
+        elif ROS_VERSION == 2:
+            static_transform.header.stamp = self.get_clock().now().to_msg()
+
+        static_transform.header.frame_id = frame_id
+        static_transform.child_frame_id = child_frame_id
+        static_transform.transform.translation.x = transform.position.x
+        static_transform.transform.translation.y = transform.position.y
+        static_transform.transform.translation.z = transform.position.z
+        static_transform.transform.rotation = transform.orientation
+
+        self.static_tf_broadcaster.sendTransform(static_transform)
 
     def process_sensor(self, sensor, parent):
         """
@@ -544,10 +678,25 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_object_request.transform = sensor['transform']
             spawn_object_request.random_pose = False  # never set a random pose for a sensor
 
+            # A sensor spawned unattached carries an absolute pose, so the native ROS2 interface
+            # would broadcast it against carla_map at its true world altitude.
+            # Instead take the frame over: tell the server to skip the TF (data topics are unaffected)
+            # and publish the parent-relative one here instead, which keeps the frame tree consistent.
+            # A pseudo sensor is no CARLA actor and its transform is published by the bridge, so its frame is never 
+            # taken over here. Only sensors whose frame the absolute pose actually misrepresents are taken
+            # over: a member of a group, whose frame belongs under the group, and a ground-relative sensor, whose 
+            # published altitude is measured from the terrain. A plain sensor defined at top level is already described 
+            # correctly by its absolute pose against carla_map and is left to the server.
+            is_pseudo = "pseudo" in sensor["type"]
+            owns_transform = (sensor['attached_vehicle_id'] == 0
+                              and not is_pseudo
+                              and (parent is not None
+                                   or sensor.get('ground_relative_z', False)))
+
             attached_objects = []
             for attribute, value in sensor.items():
                 # skip general attributes
-                if attribute in ["id", "type", "name", "spawn_point", "local_transform", "transform", "attached_vehicle_id", "response_id"]:
+                if attribute in ["id", "type", "name", "spawn_point", "local_transform", "transform", "attached_vehicle_id", "response_id", "no_transform"]:
                     continue
                 if attribute == "children":
                     self.logerr(
@@ -568,10 +717,25 @@ class CarlaSpawnObjects(CompatibleNode):
                 spawn_object_request.attributes.append(
                     KeyValue(key=str(attribute), value=str(value)))
 
+            configured_no_transform = sensor.get("no_transform")
+            if configured_no_transform is not None and is_pseudo:
+                self.logwarn(
+                    "Ignoring 'no_transform' on pseudo sensor {}: its transform is published "
+                    "by the bridge and cannot be taken over.".format(sensor["id"]))
+            elif configured_no_transform is not None:
+                owns_transform = str(configured_no_transform).strip().lower() in ("true", "1", "yes")
+            if owns_transform:
+                spawn_object_request.attributes.append(
+                    KeyValue(key="no_transform", value="True"))
+
             sensor['response_id'] = self.spawn_object(spawn_object_request)
 
-            if sensor['response_id'] == -1:
-                raise RuntimeError(response.error_string)
+            if owns_transform:
+                self.broadcast_static_transform(
+                    self.world_frame if parent is None else parent.get('name', ''),
+                    sensor["id"],
+                    sensor['local_transform'],
+                    sensor["id"])
 
             # spawn the attached objects
             for attached_object in attached_objects:
@@ -626,6 +790,13 @@ class CarlaSpawnObjects(CompatibleNode):
                 spawn_object_request.attach_to = group['attached_vehicle_id']
                 spawn_object_request.transform = group['transform']
                 spawn_object_request.random_pose = False # never set a random pose for an object
+                if group.get('ground_relative_z'):
+                    spawn_object_request.attributes.append(
+                        KeyValue(key="ground_relative_z", value="True"))
+                    for key in self.GROUND_RESOLUTION_KEYS:
+                        if key in group:
+                            spawn_object_request.attributes.append(
+                                KeyValue(key=key, value=str(group[key])))
 
                 group_spawned = False
                 while not group_spawned and roscomp.ok():
@@ -649,33 +820,12 @@ class CarlaSpawnObjects(CompatibleNode):
                 "Group {} will not be spawned: {}".format(group["id"], e))
             return
 
-        # broadcast static static transform from parent to group
-        static_transform = geometry_msgs.msg.TransformStamped()
-        if ROS_VERSION == 1:
-            static_transform.header.stamp = rospy.Time.now()
-        elif ROS_VERSION == 2:
-            static_transform.header.stamp = self.get_clock().now().to_msg()
-
-        if parent is None:
-            static_transform.header.frame_id = self.world_frame
-        else:
-            static_transform.header.frame_id = parent.get('name', '')
-
-        static_transform.child_frame_id = group.get("name", "")
-        if not static_transform.header.frame_id or not static_transform.child_frame_id:
-            self.logwarn(
-                "Skipping invalid static transform for group '{}': frame_id='{}', child_frame_id='{}'".format(
-                    group.get("id", "<unknown>"),
-                    static_transform.header.frame_id,
-                    static_transform.child_frame_id))
-            return
-
-        static_transform.transform.translation.x = group['local_transform'].position.x
-        static_transform.transform.translation.y = group['local_transform'].position.y
-        static_transform.transform.translation.z = group['local_transform'].position.z
-        static_transform.transform.rotation = group['local_transform'].orientation
-
-        self.static_tf_broadcaster.sendTransform(static_transform)
+        # broadcast static transform from parent to group
+        self.broadcast_static_transform(
+            self.world_frame if parent is None else parent.get('name', ''),
+            group.get("name", ""),
+            group['local_transform'],
+            group.get("id", "<unknown>"))
 
     def process_blueprint(self, object, parent):
         """

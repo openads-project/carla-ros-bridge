@@ -621,7 +621,7 @@ class HUD(object):
             'Frame: % 22s' % self.carla_status.frame,
             'Simulation time: % 12s' % time,
             'FPS: % 24.1f' % fps, '',
-            'Vehicle: % 20s' % ' '.join(self.vehicle_info.type.title().split('.')[1:]),
+            'Vehicle: % 20s' % ' '.join(self.vehicle_info.type.split('.')[1:]),
             'Speed:   % 15.0f km/h' % (3.6 * self.vehicle_status.velocity),
             u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (yaw, heading),
             'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (x, y)),
