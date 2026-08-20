@@ -790,11 +790,13 @@ class HUD(object):
 
     @staticmethod
     def _heading_text(yaw):
-        heading = 'N' if abs(yaw) < 89.5 else ''
-        heading += 'S' if abs(yaw) > 90.5 else ''
-        heading += 'E' if 179.5 > yaw > 0.5 else ''
-        heading += 'W' if -0.5 > yaw > -179.5 else ''
-        return u'{:03.0f}\N{DEGREE SIGN} {}'.format(yaw % 360, heading)
+        # ROS yaw is counter-clockwise from +x (east). A compass heading is
+        # clockwise from north, hence the 90-degree offset and sign change.
+        heading = (90.0 - yaw) % 360.0
+        cardinal_directions = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')
+        cardinal = cardinal_directions[int((heading + 22.5) // 45.0) % 8]
+        rounded_heading = int(round(heading)) % 360
+        return u'{:03d}\N{DEGREE SIGN} {}'.format(rounded_heading, cardinal)
 
     def _render_vehicle_input(self, surface, rect, compact):
         self._card(surface, rect)
