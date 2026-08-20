@@ -192,6 +192,10 @@ void CarlaControlPanel::onInitialize()
   qos_latch_1.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
   mEgoVehicleControlManualOverridePublisher
     = _node->create_publisher<std_msgs::msg::Bool>("/carla/ego_vehicle/vehicle_control_manual_override", qos_latch_1);
+  mEgoVehicleControlManualOverrideSubscriber
+    = _node->create_subscription<std_msgs::msg::Bool>(
+      "/carla/ego_vehicle/vehicle_control_manual_override", qos_latch_1,
+      std::bind(&CarlaControlPanel::vehicleControlManualOverrideChanged, this, _1));
 
   mExecuteScenarioClient
     = _node->create_client<carla_ros_scenario_runner_types::srv::ExecuteScenario>("/scenario_runner/execute_scenario");
@@ -240,7 +244,8 @@ void CarlaControlPanel::executeScenario()
 void CarlaControlPanel::overrideVehicleControl(int state)
 {
   std_msgs::msg::Bool boolMsg;
-  if (state == Qt::Checked)
+  mVehicleControlManualOverride = state == Qt::Checked;
+  if (mVehicleControlManualOverride)
   {
     boolMsg.data = true;
     mDriveWidget->setEnabled(true);
@@ -251,6 +256,7 @@ void CarlaControlPanel::overrideVehicleControl(int state)
     mDriveWidget->setEnabled(false);
   }
   mEgoVehicleControlManualOverridePublisher->publish(boolMsg);
+  setScenarioRunnerStatus(mScenarioSelection->count() > 0);
 }
 
 void CarlaControlPanel::scenarioRunnerStatusChanged(
@@ -281,7 +287,14 @@ void CarlaControlPanel::scenarioRunnerStatusChanged(
 void CarlaControlPanel::setScenarioRunnerStatus(bool active)
 {
   mScenarioSelection->setEnabled(active);
-  mTriggerScenarioButton->setEnabled(active);
+  const bool executionEnabled
+    = active && !mVehicleControlManualOverride && std::fabs(mEgoVehicleVelocity) < 0.1;
+  mTriggerScenarioButton->setEnabled(executionEnabled);
+  mTriggerScenarioButton->setToolTip(
+    !active ? "No scenarios available."
+            : executionEnabled ? "Execute the selected scenario."
+                               : "Scenario execution requires automated driving to be active "
+                                 "(manual control off) and vehicle velocity below 0.1 m/s.");
   mIndicatorWidget->setEnabled(active);
 }
 
@@ -306,6 +319,9 @@ void CarlaControlPanel::carlaScenariosChanged(const carla_ros_scenario_runner_ty
 
 void CarlaControlPanel::egoVehicleStatusChanged(const carla_msgs::msg::CarlaEgoVehicleStatus::SharedPtr msg)
 {
+  mEgoVehicleVelocity = msg->velocity;
+  setScenarioRunnerStatus(mScenarioSelection->count() > 0);
+
   mOverrideVehicleControl->setEnabled(true);
   mSteerBar->setValue(msg->control.steer * 100);
   mThrottleBar->setValue(msg->control.throttle * 100);
@@ -314,6 +330,12 @@ void CarlaControlPanel::egoVehicleStatusChanged(const carla_msgs::msg::CarlaEgoV
   std::stringstream speedStream;
   speedStream << std::fixed << std::setprecision(2) << msg->velocity * 3.6;
   mSpeedLabel->setText(speedStream.str().c_str());
+}
+
+void CarlaControlPanel::vehicleControlManualOverrideChanged(const std_msgs::msg::Bool::SharedPtr msg)
+{
+  mVehicleControlManualOverride = msg->data;
+  setScenarioRunnerStatus(mScenarioSelection->count() > 0);
 }
 
 void CarlaControlPanel::egoVehicleOdometryChanged(const nav_msgs::msg::Odometry::SharedPtr msg)
