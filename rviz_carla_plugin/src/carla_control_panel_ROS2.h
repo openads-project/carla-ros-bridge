@@ -69,6 +69,7 @@ protected:
   void carlaStatusChanged(const carla_msgs::msg::CarlaStatus::SharedPtr msg);
   void egoVehicleStatusChanged(const carla_msgs::msg::CarlaEgoVehicleStatus::SharedPtr msg);
   void egoVehicleOdometryChanged(const nav_msgs::msg::Odometry::SharedPtr msg);
+  void vehicleControlManualOverrideChanged(const std_msgs::msg::Bool::SharedPtr msg);
   void carlaScenariosChanged(const carla_ros_scenario_runner_types::msg::CarlaScenarioList::SharedPtr msg);
   carla_msgs::msg::CarlaStatus::SharedPtr mCarlaStatus{nullptr};
 
@@ -93,6 +94,7 @@ protected:
   rclcpp::Subscription<carla_msgs::msg::CarlaStatus>::SharedPtr mCarlaStatusSubscriber;
   rclcpp::Subscription<carla_msgs::msg::CarlaEgoVehicleStatus>::SharedPtr mEgoVehicleStatusSubscriber;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr mEgoVehicleOdometrySubscriber;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr mEgoVehicleControlManualOverrideSubscriber;
   rclcpp::Client<carla_ros_scenario_runner_types::srv::ExecuteScenario>::SharedPtr mExecuteScenarioClient;
   rclcpp::Subscription<carla_ros_scenario_runner_types::msg::CarlaScenarioList>::SharedPtr mScenarioSubscriber;
   rclcpp::Subscription<carla_ros_scenario_runner_types::msg::CarlaScenarioRunnerStatus>::SharedPtr mScenarioRunnerStatusSubscriber;
@@ -103,6 +105,7 @@ protected:
 
   float mLinearVelocity{0.0};
   float mAngularVelocity{0.0};
+  float mEgoVehicleVelocity{0.1F};
   bool mVehicleControlManualOverride{false};
   rviz_common::FramePositionTrackingViewController *mViewController{nullptr};
   Ogre::Vector3 mCameraCurrentPosition;
