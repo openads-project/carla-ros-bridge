@@ -1,0 +1,69 @@
+openadservice:
+  name: carla-ros-bridge
+  image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.1.0
+  env:
+    # --- name ------
+    NAMESPACE: /
+    NAME: carla_ros_bridge
+    # --- other -----
+    LOG_LEVEL: info
+    USE_SIM_TIME: True
+    HOST: carla-server
+    PORT: 2000
+    TIMEOUT: 5000
+    PASSIVE: False
+    PUBLISH_CLOCK: True
+    SYNCHRONOUS_MODE: True
+    SYNCHRONOUS_MODE_WAIT_FOR_VEHICLE_CONTROL_COMMAND: False
+    FIXED_DELTA_SECONDS: 0.05
+    START_UNIX_TIME_STAMP: 0
+    TOWN: ""
+    RT_FACTOR: 1.0
+    REGISTER_ALL_SENSORS: True
+    NATIVE_INTERFACE: True
+    EGO_VEHICLE_ROLE_NAME: "[\"hero\",\"ego_vehicle\",\"hero0\",\"hero1\",\"hero2\",\"hero3\"]"
+    PUBLISH_STATIC_VEHICLES: True
+    PUBLISH_COMPRESSED_IMAGES: True
+    IGNORE_ALTITUDE: False
+    IGNORE_TILT: True
+    GEOREFERENCE_SUBSTITUTION: ""
+    GRID_CONVERGENCE: None
+    PUBLISH_ETSI_MESSAGES: False
+    MAPEM_TIMER_PERIOD: 1.0
+    SPATEM_TIMER_PERIOD: 0.1
+    INTEGRATE_ALL_JUNCTIONS: False
+    WAYPOINTS_SEARCH_DISTANCE: 1.0
+    LANE_WAYPOINTS_COUNT: 10
+  args:
+  - /bin/bash
+  - -ic
+  - |
+    ros2 launch carla_ros_bridge carla_ros_bridge.launch.py \
+      log_level:=${LOG_LEVEL} \
+      use_sim_time:=${USE_SIM_TIME} \
+      host:=${HOST} \
+      port:=${PORT} \
+      timeout:=${TIMEOUT} \
+      passive:=${PASSIVE} \
+      publish_clock:=${PUBLISH_CLOCK} \
+      synchronous_mode:=${SYNCHRONOUS_MODE} \
+      synchronous_mode_wait_for_vehicle_control_command:=${SYNCHRONOUS_MODE_WAIT_FOR_VEHICLE_CONTROL_COMMAND} \
+      fixed_delta_seconds:=${FIXED_DELTA_SECONDS} \
+      start_unix_time_stamp:=${START_UNIX_TIME_STAMP} \
+      ${TOWN:+town:=${TOWN}} \
+      rt_factor:=${RT_FACTOR} \
+      register_all_sensors:=${REGISTER_ALL_SENSORS} \
+      native_interface:=${NATIVE_INTERFACE} \
+      ego_vehicle_role_name:=${EGO_VEHICLE_ROLE_NAME} \
+      publish_static_vehicles:=${PUBLISH_STATIC_VEHICLES} \
+      publish_compressed_images:=${PUBLISH_COMPRESSED_IMAGES} \
+      ignore_altitude:=${IGNORE_ALTITUDE} \
+      ignore_tilt:=${IGNORE_TILT} \
+      ${GEOREFERENCE_SUBSTITUTION:+georeference_substitution:=${GEOREFERENCE_SUBSTITUTION}} \
+      grid_convergence:=${GRID_CONVERGENCE} \
+      publish_etsi_messages:=${PUBLISH_ETSI_MESSAGES} \
+      mapem_timer_period:=${MAPEM_TIMER_PERIOD} \
+      spatem_timer_period:=${SPATEM_TIMER_PERIOD} \
+      integrate_all_junctions:=${INTEGRATE_ALL_JUNCTIONS} \
+      waypoints_search_distance:=${WAYPOINTS_SEARCH_DISTANCE} \
+      lane_waypoints_count:=${LANE_WAYPOINTS_COUNT}

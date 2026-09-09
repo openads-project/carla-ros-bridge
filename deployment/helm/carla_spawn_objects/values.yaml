@@ -1,0 +1,29 @@
+openadservice:
+  name: carla-spawn-objects
+  image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.1.0
+  env:
+    # --- name ------
+    NAMESPACE: /
+    NAME: carla_spawn_objects
+    # --- other -----
+    LOG_LEVEL: info
+    USE_SIM_TIME: false
+    OBJECTS_DEFINITION_FILE: objects.json
+    OBJECTS_DIRECTORY: /docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config
+    BLUEPRINTS_DIRECTORY: /docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config/blueprints
+    ROLE_NAME: ego_vehicle
+    SPAWN_POINT_EGO_VEHICLE: None
+    SPAWN_SENSORS_ONLY: False
+    CONTROL_ID: control
+  args:
+  - /bin/bash
+  - -ic
+  - |
+    ros2 launch carla_spawn_objects carla_example_ego_vehicle.launch.py \
+      objects_definition_file:=${OBJECTS_DEFINITION_FILE} \
+      objects_directory:=${OBJECTS_DIRECTORY} \
+      blueprints_directory:=${BLUEPRINTS_DIRECTORY} \
+      role_name:=${ROLE_NAME} \
+      spawn_point_ego_vehicle:=${SPAWN_POINT_EGO_VEHICLE} \
+      spawn_sensors_only:=${SPAWN_SENSORS_ONLY} \
+      control_id:=${CONTROL_ID}
