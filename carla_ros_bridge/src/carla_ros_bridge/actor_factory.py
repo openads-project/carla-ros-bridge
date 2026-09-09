@@ -369,10 +369,15 @@ class ActorFactory(object):
             blueprint.set_attribute(attribute.key, attribute.value)
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
+        elif self.spawn_points:
+            transform = secure_random.choice(self.spawn_points)
         else:
-            # get a random pose
-            transform = secure_random.choice(
-                self.spawn_points) if self.spawn_points else carla.Transform()
+            transform = carla.Transform(
+                carla.Location(x=-1000.0, y=-1000.0, z=-1000.0),
+                carla.Rotation(yaw=0.0))
+            self.node.logwarn(
+                "Map has no spawn points; using fallback x=-1000, y=-1000, z=-1000, yaw=0 "
+                "before road altitude correction.")
 
         # The requested z is a height above ground, not an absolute altitude:
         # place the actor on the terrain. Only req.transform's CARLA copy is
