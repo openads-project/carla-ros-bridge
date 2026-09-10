@@ -11,7 +11,7 @@ openadservice:
     VEHICLE_CONTROL_COMMAND_TOPIC: ""
     # --- other -----
     LOG_LEVEL: info
-    USE_SIM_TIME: false
+    USE_SIM_TIME: true
     PARAMS: /docker-ros/ws/install/carla_ackermann_control/share/carla_ackermann_control/settings.yaml
     ROLE_NAME: ego_vehicle
     CONTROL_LOOP_RATE: 0.05

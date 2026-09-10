@@ -7,7 +7,7 @@ openadservice:
     NAME: carla_spawn_objects
     # --- other -----
     LOG_LEVEL: info
-    USE_SIM_TIME: false
+    USE_SIM_TIME: true
     OBJECTS_DEFINITION_FILE: objects.json
     OBJECTS_DIRECTORY: /docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config
     BLUEPRINTS_DIRECTORY: /docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config/blueprints

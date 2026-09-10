@@ -8,14 +8,14 @@ services:
       NAME: carla_spawn_objects
       # --- other -----
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      USE_SIM_TIME: ${USE_SIM_TIME:-false}
-      OBJECTS_DEFINITION_FILE: ${OBJECTS_DEFINITION_FILE:-objects.json}
-      OBJECTS_DIRECTORY: ${OBJECTS_DIRECTORY:-/docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config}
-      BLUEPRINTS_DIRECTORY: ${BLUEPRINTS_DIRECTORY:-/docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config/blueprints}
-      ROLE_NAME: ${ROLE_NAME:-ego_vehicle}
-      SPAWN_POINT_EGO_VEHICLE: ${SPAWN_POINT_EGO_VEHICLE:-None}
-      SPAWN_SENSORS_ONLY: ${SPAWN_SENSORS_ONLY:-False}
-      CONTROL_ID: ${CONTROL_ID:-control}
+      USE_SIM_TIME: ${USE_SIM_TIME:-true}
+      OBJECTS_DEFINITION_FILE: objects.json
+      OBJECTS_DIRECTORY: /docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config
+      BLUEPRINTS_DIRECTORY: /docker-ros/ws/install/carla_spawn_objects/share/carla_spawn_objects/config/blueprints
+      ROLE_NAME: ego_vehicle
+      SPAWN_POINT_EGO_VEHICLE: None
+      SPAWN_SENSORS_ONLY: False
+      CONTROL_ID: control
     command:
       - /bin/bash
       - -ic

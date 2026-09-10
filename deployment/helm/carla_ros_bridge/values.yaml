@@ -7,7 +7,7 @@ openadservice:
     NAME: carla_ros_bridge
     # --- other -----
     LOG_LEVEL: info
-    USE_SIM_TIME: True
+    USE_SIM_TIME: true
     HOST: carla-server
     PORT: 2000
     TIMEOUT: 5000

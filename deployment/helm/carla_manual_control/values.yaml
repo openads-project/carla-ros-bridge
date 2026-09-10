@@ -7,7 +7,7 @@ openadservice:
     NAME: carla_manual_control
     # --- other -----
     LOG_LEVEL: info
-    USE_SIM_TIME: false
+    USE_SIM_TIME: true
     ROLE_NAME: ego_vehicle
     WIRELESS_CONTROLLER: False
     WINDOW_WIDTH: 800

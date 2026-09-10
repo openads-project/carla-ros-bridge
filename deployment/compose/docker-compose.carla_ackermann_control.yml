@@ -12,10 +12,10 @@ services:
       VEHICLE_CONTROL_COMMAND_TOPIC: ${VEHICLE_CONTROL_COMMAND_TOPIC:-}
       # --- other -----
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      USE_SIM_TIME: ${USE_SIM_TIME:-false}
-      PARAMS: ${PARAMS:-/docker-ros/ws/install/carla_ackermann_control/share/carla_ackermann_control/settings.yaml}
-      ROLE_NAME: ${ROLE_NAME:-ego_vehicle}
-      CONTROL_LOOP_RATE: ${CONTROL_LOOP_RATE:-0.05}
+      USE_SIM_TIME: ${USE_SIM_TIME:-true}
+      PARAMS: /docker-ros/ws/install/carla_ackermann_control/share/carla_ackermann_control/settings.yaml
+      ROLE_NAME: ego_vehicle
+      CONTROL_LOOP_RATE: 0.05
     command:
       - /bin/bash
       - -ic
