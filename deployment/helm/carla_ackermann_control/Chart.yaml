@@ -1,0 +1,9 @@
+apiVersion: v2
+name: carla-ackermann-control
+version: 0.10.0-1.1.0-carla-ackermann-control
+appVersion: 0.10.0-1.1.0
+description: Bidirectional communication bridge between CARLA simulation and ROS ecosystems
+dependencies:
+  - repository: oci://ghcr.io/openads-project/openads-helm
+    name: openadservice
+    version: 1.1.0

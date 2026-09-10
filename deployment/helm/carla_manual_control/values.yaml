@@ -1,0 +1,23 @@
+openadservice:
+  name: carla-manual-control
+  image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.1.0
+  env:
+    # --- name ------
+    NAMESPACE: /
+    NAME: carla_manual_control
+    # --- other -----
+    LOG_LEVEL: info
+    USE_SIM_TIME: true
+    ROLE_NAME: ego_vehicle
+    WIRELESS_CONTROLLER: False
+    WINDOW_WIDTH: 800
+    WINDOW_HEIGHT: 600
+  args:
+  - /bin/bash
+  - -ic
+  - |
+    ros2 launch carla_manual_control carla_manual_control.launch.py \
+      role_name:=${ROLE_NAME} \
+      wireless_controller:=${WIRELESS_CONTROLLER} \
+      window_width:=${WINDOW_WIDTH} \
+      window_height:=${WINDOW_HEIGHT}

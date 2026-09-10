@@ -1,0 +1,29 @@
+openadservice:
+  name: carla-ackermann-control
+  image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.1.0
+  env:
+    # --- name ------
+    NAMESPACE: /
+    NAME: carla_ackermann_control
+    # --- inputs ----
+    ACKERMANN_COMMAND_TOPIC: ""
+    # --- outputs ---
+    VEHICLE_CONTROL_COMMAND_TOPIC: ""
+    # --- other -----
+    LOG_LEVEL: info
+    USE_SIM_TIME: true
+    PARAMS: /docker-ros/ws/install/carla_ackermann_control/share/carla_ackermann_control/settings.yaml
+    ROLE_NAME: ego_vehicle
+    CONTROL_LOOP_RATE: 0.05
+  args:
+  - /bin/bash
+  - -ic
+  - |
+    ros2 launch carla_ackermann_control carla_ackermann_control.launch.py \
+      params:=${PARAMS} \
+      role_name:=${ROLE_NAME} \
+      control_loop_rate:=${CONTROL_LOOP_RATE} \
+      ${ACKERMANN_COMMAND_TOPIC:+ackermann_command_topic:=${ACKERMANN_COMMAND_TOPIC}} \
+      ${VEHICLE_CONTROL_COMMAND_TOPIC:+vehicle_control_command_topic:=${VEHICLE_CONTROL_COMMAND_TOPIC}}
+  rosParamFileMountPath: /docker-ros/ws/install/carla_ackermann_control/share/carla_ackermann_control/settings.yaml
+  rosParamFileData: null
