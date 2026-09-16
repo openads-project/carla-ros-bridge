@@ -60,6 +60,16 @@ class CarlaSpawnObjects(CompatibleNode):
     GROUND_RELATIVE_KEYS = ('alt_above_ground', 'z_above_ground', 'alt_ground', 'z_ground')
     # attributes telling the bridge which terrain altitude to measure from
     GROUND_RESOLUTION_KEYS = ('ground_altitude', 'ground_reference_x', 'ground_reference_y')
+    # key naming the vehicle doors a configuration wants opened after spawning
+    DOOR_KEY = 'open_doors'
+    # accepted door spellings, mapped to the carla.VehicleDoor member names
+    DOOR_NAMES = {
+        'fl': 'FL', 'front_left': 'FL',
+        'fr': 'FR', 'front_right': 'FR',
+        'rl': 'RL', 'rear_left': 'RL',
+        'rr': 'RR', 'rear_right': 'RR',
+        'all': 'All',
+    }
 
     def __init__(self):
         super(CarlaSpawnObjects, self).__init__('carla_spawn_objects')
@@ -166,6 +176,32 @@ class CarlaSpawnObjects(CompatibleNode):
         if 'alt_ground' in spawn_point:
             return spawn_point['alt_ground']
         return spawn_point.get('z_ground')
+
+    @staticmethod
+    def parse_open_doors(object):
+        """
+        Get the vehicle doors an object wants opened after it is spawned
+        :param object: object input dict
+        :return: the doors as carla.VehicleDoor member names, without duplicates
+        :raises ValueError: if a door is not one of DOOR_NAMES
+        """
+        doors = object.get(CarlaSpawnObjects.DOOR_KEY)
+        if doors is None:
+            return []
+        if isinstance(doors, str):
+            doors = doors.split(',')
+
+        resolved = []
+        for door in doors:
+            name = CarlaSpawnObjects.DOOR_NAMES.get(str(door).strip().lower())
+            if name is None:
+                raise ValueError(
+                    "Invalid '{}' entry '{}'. Expected one of: {}.".format(
+                        CarlaSpawnObjects.DOOR_KEY, door,
+                        ", ".join(sorted(CarlaSpawnObjects.DOOR_NAMES))))
+            if name not in resolved:
+                resolved.append(name)
+        return resolved
 
     @staticmethod
     def parse_ground_altitude(value):
@@ -491,6 +527,15 @@ class CarlaSpawnObjects(CompatibleNode):
             spawn_object_request.attach_to = 0
             spawn_object_request.random_pose = False
 
+            try:
+                open_doors = self.parse_open_doors(vehicle)
+            except ValueError as e:
+                self.logerr("{}: {}".format(vehicle["id"], e))
+                return
+            if open_doors:
+                spawn_object_request.attributes.append(
+                    KeyValue(key=self.DOOR_KEY, value=",".join(open_doors)))
+
             spawn_point = None
 
             # check if there's a spawn_point corresponding to this vehicle
@@ -798,6 +843,11 @@ class CarlaSpawnObjects(CompatibleNode):
                             spawn_object_request.attributes.append(
                                 KeyValue(key=key, value=str(group[key])))
 
+                open_doors = self.parse_open_doors(group)
+                if open_doors:
+                    spawn_object_request.attributes.append(
+                        KeyValue(key=self.DOOR_KEY, value=",".join(open_doors)))
+
                 group_spawned = False
                 while not group_spawned and roscomp.ok():
 
@@ -852,6 +902,11 @@ class CarlaSpawnObjects(CompatibleNode):
 
             if "spawn_point" in object:
                 extended_object["spawn_point"] = object["spawn_point"]
+
+            # door state belongs to the individual object, not to the bp it
+            # shares with the others, so an object may set it or override the bp
+            if self.DOOR_KEY in object:
+                extended_object[self.DOOR_KEY] = object[self.DOOR_KEY]
 
             self.process_object(extended_object, parent)
 

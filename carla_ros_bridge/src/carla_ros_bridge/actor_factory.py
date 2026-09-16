@@ -64,6 +64,10 @@ class ActorFactory(object):
     GROUND_ATTRIBUTES = ("ground_relative_z", "ground_altitude",
                          "ground_reference_x", "ground_reference_y")
 
+    # spawn attribute listing the vehicle doors to open, as a comma-separated
+    # list of carla.VehicleDoor names.
+    DOOR_ATTRIBUTE = "open_doors"
+
     class TaskType(Enum):
         SPAWN_ACTOR = 0
         SPAWN_PSEUDO_ACTOR = 1
@@ -332,6 +336,30 @@ class ActorFactory(object):
         req.attributes.append(
             KeyValue(key="ground_altitude", value=str(ground_altitude)))
 
+    def _open_doors(self, carla_actor, door_names, actor_id):
+        """
+        open the doors an actor asked for, directly after it was spawned.
+        door state is not a blueprint attribute, so it can only be set on the
+        spawned actor. 
+
+        :param carla_actor: the newly spawned carla actor
+        :param door_names: carla.VehicleDoor names
+        :param actor_id: the id of the actor
+        """
+
+        opened = []
+        for name in door_names:
+            door = getattr(carla.VehicleDoor, name, None)
+            if door is None:
+                self.node.logwarn(
+                    "Ignoring door '{}' of '{}': this CARLA server does not know it.".format(
+                        name, actor_id))
+                continue
+            carla_actor.open_door(door)
+            opened.append(name)
+        if opened:
+            self.node.loginfo("Opened doors {} of '{}'".format(", ".join(opened), actor_id))
+
     def _spawn_carla_actor(self, req):
         """
         spawns an actor in carla
@@ -349,11 +377,16 @@ class ActorFactory(object):
         # consumed by _resolve_ground_altitude, which leaves a 'ground_altitude' behind
         # exactly for the requests that are to be placed against the terrain
         ground_altitude = None
+        open_doors = []
         for attribute in req.attributes:
             if attribute.key in self.GROUND_ATTRIBUTES:
                 if attribute.key == "ground_altitude":
                     ground_altitude = self._parse_ground_attribute(
                         attribute.value, "ground_altitude", req.id)
+                continue
+            if attribute.key == self.DOOR_ATTRIBUTE:
+                # a door is not a blueprint attribute, it is opened on the spawned actor
+                open_doors = [door for door in attribute.value.split(",") if door]
                 continue
             if attribute.key == "no_transform" and not blueprint.has_attribute("no_transform"):
                 # dropping it is only worth a warning when it was asking the server to
@@ -410,6 +443,8 @@ class ActorFactory(object):
             transform.location.y,
             transform.location.z))
         carla_actor = self.world.spawn_actor(blueprint, transform, attach_to)
+        if open_doors:
+            self._open_doors(carla_actor, open_doors, req.id)
         if self.node.parameters["native_interface"] and isinstance(carla_actor, carla.Sensor):
             if hasattr(carla_actor, "enable_for_ros"):
                 carla_actor.enable_for_ros()
