@@ -20,6 +20,8 @@ openadservice:
   - -ic
   - |
     ros2 launch carla_spawn_objects carla_example_ego_vehicle.launch.py \
+      log_level:="${LOG_LEVEL}" \
+      use_sim_time:="${USE_SIM_TIME}" \
       objects_definition_file:=${OBJECTS_DEFINITION_FILE} \
       objects_directory:=${OBJECTS_DIRECTORY} \
       blueprints_directory:=${BLUEPRINTS_DIRECTORY} \

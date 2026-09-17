@@ -9,6 +9,11 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     ld = launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
+            name='log_level',
+            default_value='info',
+            description='ROS logging level (debug, info, warn, error, fatal)'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='use_sim_time',
             default_value='True',
             description='use_sim_time'
@@ -41,6 +46,10 @@ def generate_launch_description():
             package='carla_spawn_objects',
             executable='carla_spawn_objects',
             name='carla_spawn_objects',
+            arguments=[
+                '--ros-args', '--log-level',
+                launch.substitutions.LaunchConfiguration('log_level')
+            ],
             output='screen',
             emulate_tty=True,
             parameters=[

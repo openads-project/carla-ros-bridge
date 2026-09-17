@@ -21,6 +21,8 @@ services:
       - -ic
       - |
         ros2 launch carla_ackermann_control carla_ackermann_control.launch.py \
+          log_level:="$${LOG_LEVEL}" \
+          use_sim_time:="$${USE_SIM_TIME}" \
           params:=$${PARAMS} \
           role_name:=$${ROLE_NAME} \
           control_loop_rate:=$${CONTROL_LOOP_RATE} \

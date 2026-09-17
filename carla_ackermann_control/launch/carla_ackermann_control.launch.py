@@ -28,6 +28,16 @@ def generate_launch_description():
 
     ld = launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
+            name='log_level',
+            default_value='info',
+            description='ROS logging level (debug, info, warn, error, fatal)'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='use_sim_time',
+            default_value='True',
+            description='Use simulation clock if True'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='role_name',
             default_value='ego_vehicle'
         ),
@@ -46,6 +56,10 @@ def generate_launch_description():
             package='carla_ackermann_control',
             executable='carla_ackermann_control_node',
             name='carla_ackermann_control',
+            arguments=[
+                '--ros-args', '--log-level',
+                launch.substitutions.LaunchConfiguration('log_level')
+            ],
             output='screen',
             remappings=[
                 (
@@ -62,6 +76,9 @@ def generate_launch_description():
             parameters=[
                 launch.substitutions.LaunchConfiguration('params'),
                 {
+                    'use_sim_time':
+                        launch.substitutions.LaunchConfiguration(
+                            'use_sim_time'),
                     'role_name': role_name,
                     'control_loop_rate': launch.substitutions.LaunchConfiguration('control_loop_rate')
                 }
