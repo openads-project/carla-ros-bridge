@@ -59,6 +59,8 @@ secure_random = random.SystemRandom()
 class ActorFactory(object):
 
     TIME_BETWEEN_UPDATES = 0.1
+    WAYPOINT_SPAWN_DISTANCE = 2.0
+    WAYPOINT_SPAWN_Z_OFFSET = 0.5
 
     # spawn attributes describing a ground-relative altitude
     GROUND_ATTRIBUTES = ("ground_relative_z", "ground_altitude",
@@ -75,6 +77,7 @@ class ActorFactory(object):
         self.tf_buffer = tf_buffer
         self.blueprint_lib = self.world.get_blueprint_library()
         self.spawn_points = self.world.get_map().get_spawn_points()
+        self._waypoint_spawn_points = None
         self.sync_mode = sync_mode
 
         self._active_actors = set()
@@ -369,10 +372,46 @@ class ActorFactory(object):
             blueprint.set_attribute(attribute.key, attribute.value)
         if req.random_pose is False:
             transform = trans.ros_pose_to_carla_transform(req.transform)
+        elif self.spawn_points:
+            transform = secure_random.choice(self.spawn_points)
         else:
-            # get a random pose
-            transform = secure_random.choice(
-                self.spawn_points) if self.spawn_points else carla.Transform()
+            if self._waypoint_spawn_points is None:
+                try:
+                    self._waypoint_spawn_points = []
+                    waypoints = self.world.get_map().generate_waypoints(
+                        self.WAYPOINT_SPAWN_DISTANCE)
+                    for waypoint in waypoints:
+                        if waypoint.lane_type != carla.LaneType.Driving:
+                            continue
+                        waypoint_transform = waypoint.transform
+                        # Waypoints lie on the road surface. Unlike map
+                        # spawn points, they need a little clearance.
+                        waypoint_transform.location.z = (
+                            waypoint_transform.location.z +
+                            self.WAYPOINT_SPAWN_Z_OFFSET)
+                        self._waypoint_spawn_points.append(waypoint_transform)
+                except RuntimeError as error:
+                    self.node.logwarn(
+                        "Could not generate waypoint spawn points: {}".format(
+                            error))
+                    self._waypoint_spawn_points = []
+
+            if self._waypoint_spawn_points:
+                transform = secure_random.choice(self._waypoint_spawn_points)
+                self.node.loginfo(
+                    "No map spawn points; using a generated driving waypoint "
+                    "at x={}, y={}, z={}.".format(
+                        transform.location.x,
+                        transform.location.y,
+                        transform.location.z))
+            else:
+                transform = carla.Transform(
+                    carla.Location(x=-1000.0, y=-1000.0, z=-1000.0),
+                    carla.Rotation(yaw=0.0))
+                self.node.logwarn(
+                    "No map spawn points or driving waypoints; using "
+                    "fallback x=-1000, y=-1000, z=-1000, yaw=0 before road "
+                    "altitude correction.")
 
         # The requested z is a height above ground, not an absolute altitude:
         # place the actor on the terrain. Only req.transform's CARLA copy is

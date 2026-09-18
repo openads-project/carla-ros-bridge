@@ -7,6 +7,16 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     ld = launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
+            name='log_level',
+            default_value='info',
+            description='ROS logging level (debug, info, warn, error, fatal)'
+        ),
+        launch.actions.DeclareLaunchArgument(
+            name='use_sim_time',
+            default_value='True',
+            description='Use simulation clock if True'
+        ),
+        launch.actions.DeclareLaunchArgument(
             name='objects_definition_file',
             default_value='objects.json',
             description='Object definition file(s), comma-separated for multiple files'
@@ -43,6 +53,10 @@ def generate_launch_description():
                     'carla_spawn_objects'), 'carla_spawn_objects.launch.py')
             ),
             launch_arguments={
+                'log_level': launch.substitutions.LaunchConfiguration(
+                    'log_level'),
+                'use_sim_time': launch.substitutions.LaunchConfiguration(
+                    'use_sim_time'),
                 'objects_definition_file': launch.substitutions.LaunchConfiguration('objects_definition_file'),
                 'objects_directory': launch.substitutions.LaunchConfiguration('objects_directory'),
                 'blueprints_directory': launch.substitutions.LaunchConfiguration('blueprints_directory'),
@@ -56,6 +70,10 @@ def generate_launch_description():
                     'carla_spawn_objects'), 'set_initial_pose.launch.py')
             ),
             launch_arguments={
+                'log_level': launch.substitutions.LaunchConfiguration(
+                    'log_level'),
+                'use_sim_time': launch.substitutions.LaunchConfiguration(
+                    'use_sim_time'),
                 'role_name': launch.substitutions.LaunchConfiguration('role_name'),
                 'control_id': launch.substitutions.LaunchConfiguration('control_id')
             }.items()

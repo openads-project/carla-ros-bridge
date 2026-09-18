@@ -17,6 +17,8 @@ openadservice:
   - -ic
   - |
     ros2 launch carla_manual_control carla_manual_control.launch.py \
+      log_level:="${LOG_LEVEL}" \
+      use_sim_time:="${USE_SIM_TIME}" \
       role_name:=${ROLE_NAME} \
       wireless_controller:=${WIRELESS_CONTROLLER} \
       window_width:=${WINDOW_WIDTH} \
