@@ -1,7 +1,7 @@
 services:
 
   carla-spawn-objects:
-    image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.1.0
+    image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.1.1
     environment:
       # --- name ------
       NAMESPACE: /
