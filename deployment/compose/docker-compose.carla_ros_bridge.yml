@@ -60,7 +60,7 @@ services:
           publish_compressed_images:=$${PUBLISH_COMPRESSED_IMAGES} \
           ignore_altitude:=$${IGNORE_ALTITUDE} \
           ignore_tilt:=$${IGNORE_TILT} \
-          $${GEOREFERENCE_SUBSTITUTION:+georeference_substitution:=$${GEOREFERENCE_SUBSTITUTION}} \
+          $${GEOREFERENCE_SUBSTITUTION:+georeference_substitution:="$${GEOREFERENCE_SUBSTITUTION}"} \
           grid_convergence:=$${GRID_CONVERGENCE} \
           publish_etsi_messages:=$${PUBLISH_ETSI_MESSAGES} \
           mapem_timer_period:=$${MAPEM_TIMER_PERIOD} \

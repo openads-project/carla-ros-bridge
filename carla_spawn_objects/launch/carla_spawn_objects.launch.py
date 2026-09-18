@@ -3,11 +3,17 @@ import sys
 
 import launch
 import launch_ros.actions
+from launch_ros.parameter_descriptions import ParameterValue
 from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
     ld = launch.LaunchDescription([
+        launch.actions.DeclareLaunchArgument(
+            name='log_level',
+            default_value='info',
+            description='ROS logging level (debug, info, warn, error, fatal)'
+        ),
         launch.actions.DeclareLaunchArgument(
             name='use_sim_time',
             default_value='True',
@@ -41,6 +47,10 @@ def generate_launch_description():
             package='carla_spawn_objects',
             executable='carla_spawn_objects',
             name='carla_spawn_objects',
+            arguments=[
+                '--ros-args', '--log-level',
+                launch.substitutions.LaunchConfiguration('log_level')
+            ],
             output='screen',
             emulate_tty=True,
             parameters=[
@@ -57,7 +67,9 @@ def generate_launch_description():
                     'blueprints_directory': launch.substitutions.LaunchConfiguration('blueprints_directory')
                 },
                 {
-                    'spawn_point_ego_vehicle': launch.substitutions.LaunchConfiguration('spawn_point_ego_vehicle')
+                    'spawn_point_ego_vehicle': ParameterValue(
+                        launch.substitutions.LaunchConfiguration('spawn_point_ego_vehicle'),
+                        value_type=str)
                 },
                 {
                     'spawn_sensors_only': launch.substitutions.LaunchConfiguration('spawn_sensors_only')
