@@ -12,7 +12,6 @@ handle a object sensor
 import carla
 import carla_common.transforms as trans
 import ctypes
-import re
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.vehicle import Vehicle
@@ -36,10 +35,6 @@ class ObjectSensor(PseudoActor):
         carla.CityObjectLabel.Bicycle: Object.CLASSIFICATION_BIKE,
         carla.CityObjectLabel.Pedestrians: Object.CLASSIFICATION_PEDESTRIAN
     }
-
-    # Strip off Unreal parked-vehicle bps, which are into several separately tagged
-    # static meshes ("BP_EuropeanHGV_Parked_C_10_SM_0", "..._SM_1")
-    ENVIRONMENT_OBJECT_MESH_SUFFIX = re.compile(r"_SM_\d+$")
 
     def __init__(self, uid, name, parent, node, actor_list, world):
         """
@@ -112,36 +107,6 @@ class ObjectSensor(PseudoActor):
 
         return obj
 
-    def get_static_vehicles(self):
-        """Gets every parked map vehicle once, as (environment_object, classification).
-
-        CARLA reports a parked vehicle as one static mesh per blueprint
-        component, each carrying its own semantic tag and bounding box, so
-        labelling all of them puts multiple box onto one real vehicle.
-        Here the largest volume box wins, others are discarded.
-        """
-        if getattr(self, "_static_vehicles", None) is not None:
-            return self._static_vehicles
-
-        largest_per_vehicle = {}
-        for object_label, classification in self.OBJECT_LABELS.items():
-            for environment_object in self.world.get_environment_objects(object_label):
-                # Only vehicles with a bounding box can be turned into an Object.
-                if not hasattr(environment_object, "bounding_box"):
-                    continue
-                vehicle = self.ENVIRONMENT_OBJECT_MESH_SUFFIX.sub("", environment_object.name)
-                extent = environment_object.bounding_box.extent
-                volume = extent.x * extent.y * extent.z
-                previous = largest_per_vehicle.get(vehicle)
-                if previous is None or volume > previous[0]:
-                    largest_per_vehicle[vehicle] = (volume, environment_object, classification)
-
-        self._static_vehicles = [
-            (environment_object, classification)
-            for _, environment_object, classification in largest_per_vehicle.values()
-        ]
-        return self._static_vehicles
-
     def _get_environment_object_transform(self, environment_object):
         box = environment_object.bounding_box
         return carla.Transform(box.location, box.rotation)
@@ -150,10 +115,14 @@ class ObjectSensor(PseudoActor):
         return environment_object.bounding_box.get_world_vertices(carla.Transform())
 
     def _get_static_vehicles(self, ros_objects):
-        # iterate over all static vehicles, one box per vehicle
-        for vehicle, object_value in self.get_static_vehicles():
-            vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
-            ros_objects.objects.append(vehicle_obj)
+        # iterate over all possible static vehicles
+        for object_key, object_value in self.OBJECT_LABELS.items():
+            static_vehicles = self.world.get_environment_objects(object_key)
+            for vehicle in static_vehicles:
+                # take only vehicles with bounding_box attribute set
+                if hasattr(vehicle, "bounding_box"):
+                    vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
+                    ros_objects.objects.append(vehicle_obj)
 
         return ros_objects
 

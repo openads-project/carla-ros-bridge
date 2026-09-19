@@ -429,25 +429,31 @@ class IdealObjectSensor(ObjectSensor):
                     if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
                         ros_objects.objects.append(actor.get_object_info())
 
-        # Iterate over all static vehicles, one box per vehicle
+        # Iterate over all static vehicles
         if(self.node.parameters['publish_static_vehicles']):
-            for vehicle, object_value in self.get_static_vehicles():
+            for object_key, object_value in self.OBJECT_LABELS.items():
 
-                # Get target location in carla_map
-                vehicle_transform = self._get_environment_object_transform(vehicle)
-                carla_location_target_in_carla_map = vehicle_transform.location
+                static_vehicles = self.world.get_environment_objects(object_key)
 
-                # Get corners from target BoundingBox
-                carla_corners_target_in_carla_map = \
-                    self._get_environment_object_world_vertices(vehicle)
+                for vehicle in static_vehicles:
+                    # Take only vehicles with bounding_box attribute set
+                    if hasattr(vehicle, "bounding_box"):
 
-                carla_location_target_in_carla_map, carla_corners_target_in_carla_map = \
-                    self._ground_relative(carla_location_target_in_carla_map,
-                                          carla_corners_target_in_carla_map)
+                        # Get target location in carla_map
+                        vehicle_transform = self._get_environment_object_transform(vehicle)
+                        carla_location_target_in_carla_map = vehicle_transform.location
 
-                # Check visibility of the target
-                if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
-                    vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
-                    ros_objects.objects.append(vehicle_obj)
+                        # Get corners from target BoundingBox
+                        carla_corners_target_in_carla_map = \
+                            self._get_environment_object_world_vertices(vehicle)
+
+                        carla_location_target_in_carla_map, carla_corners_target_in_carla_map = \
+                            self._ground_relative(carla_location_target_in_carla_map,
+                                                  carla_corners_target_in_carla_map)
+
+                        # Check visibility of the target
+                        if self.check_visibility(carla_location_sensor_in_carla_map, carla_location_target_in_carla_map, carla_corners_target_in_carla_map, ros_tf_carla_map_to_sensor):
+                            vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
+                            ros_objects.objects.append(vehicle_obj)
 
         self.object_publisher.publish(ros_objects)
