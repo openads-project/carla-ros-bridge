@@ -31,7 +31,7 @@ docker compose \
 ```
 
 The generated-style environment variable names map directly to launch
-arguments. Relevant examples are `HOST`, `PORT`, `TOWN`,
+arguments. Relevant examples are `CARLA_HOST`, `CARLA_PORT`, `TOWN`,
 `OBJECTS_DEFINITION_FILE`, `OBJECTS_DIRECTORY`, `BLUEPRINTS_DIRECTORY`,
 `SPAWN_POINT_EGO_VEHICLE`, `ROLE_NAME`, `CONTROL_LOOP_RATE`, `PARAMS`,
 `ACKERMANN_COMMAND_TOPIC`, and `VEHICLE_CONTROL_COMMAND_TOPIC`.
