@@ -12,7 +12,7 @@ The [CARLA manual control package](https://github.com/carla-simulator/ros-bridge
 
 To be able to use `carla_manual_control`, some specific sensors need to be attached to the ego vehicle (see [Carla Spawn Objects](carla_spawn_objects.md) for information on how to attach sensors to vehicles):
 
-- __to display an image__: a camera with role-name `rgb_view` and resolution 800x600.
+- __to display an image__: a camera with role-name `rgb_view` and a positive image resolution.
 - __to display the current position__: a GNSS sensor with role-name `gnss` and an odometry pseudo-sensor with role-name `odometry`.
 - __to get a notification on lane invasions__: a lane invasion sensor with role-name `lane_invasion`.
 - __to get a notification on collisons__: a collision sensor with role-name `collision`.
@@ -54,6 +54,12 @@ __3.__ Launch the `carla_manual_control` node:
 ```
 
 __4.__ To steer the vehicle manually, press 'B'. Press 'H' to see instructions.
+
+By default, `window_width` and `window_height` are `0`. The window adopts the
+camera image resolution when the first image arrives. Images larger than the
+desktop are scaled down while preserving their aspect ratio. Set both parameters
+to positive values to keep a fixed window size; the image is then fitted and
+centered without cropping.
 
 Alternatively, all of the above commands are combined into a separate, single launchfile and can be run at the same time by executing the following:
 

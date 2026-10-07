@@ -113,6 +113,21 @@ def load_openads_logo(size=48):
 fast_qos = QoSProfile(depth=10)
 fast_latched_qos = QoSProfile(depth=10, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 
+
+def fit_size(source_size, bounds, allow_upscale=True):
+    """Fit a size into bounds without changing its aspect ratio."""
+    source_width, source_height = source_size
+    bound_width, bound_height = bounds
+    if source_width <= 0 or source_height <= 0:
+        return bounds
+
+    scale = min(bound_width / source_width, bound_height / source_height)
+    if not allow_upscale:
+        scale = min(scale, 1.0)
+    return (max(1, min(bound_width, round(source_width * scale))),
+            max(1, min(bound_height, round(source_height * scale))))
+
+
 class ManualControl(CompatibleNode):
     """
     Handle the rendering
@@ -121,6 +136,12 @@ class ManualControl(CompatibleNode):
     def __init__(self, resolution, joystick):
         super(ManualControl, self).__init__("ManualControl")
         self._surface = None
+        self._render_source = None
+        self._render_surface = None
+        self._render_size = None
+        self._auto_window_size = resolution.get('auto', False)
+        self._maximum_window_size = resolution.get(
+            'maximum', (resolution['width'], resolution['height']))
         self.role_name = self.get_param("role_name", "ego_vehicle")
         self.wireless_controller = self.get_param("wireless_controller", False)
         self.joystick_available = True if joystick else False
@@ -266,10 +287,50 @@ class ManualControl(CompatibleNode):
         array = cv2.cvtColor(array, cv2.COLOR_BGR2RGB)
         self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
 
+    def _resize_display_to_image(self, display):
+        """Resize an automatic window to the native image size, capped by the desktop."""
+        source = self._surface
+        if not self._auto_window_size or source is None:
+            return display
+
+        requested_size = fit_size(
+            source.get_size(), self._maximum_window_size, allow_upscale=False)
+        if requested_size == display.get_size():
+            return display
+
+        display = pygame.display.set_mode(
+            requested_size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.hud.resize(*requested_size)
+        self._render_source = None
+        return display
+
+    def _fit_image_to_display(self, display):
+        """Return a cached, aspect-preserving surface and its centered position."""
+        source = self._surface
+        if source is None:
+            return None, (0, 0)
+
+        display_size = display.get_size()
+        if source is not self._render_source or display_size != self._render_size:
+            target_size = fit_size(source.get_size(), display_size)
+            if target_size == source.get_size():
+                self._render_surface = source
+            else:
+                self._render_surface = pygame.transform.smoothscale(source, target_size)
+            self._render_source = source
+            self._render_size = display_size
+
+        position = ((display_size[0] - self._render_surface.get_width()) // 2,
+                    (display_size[1] - self._render_surface.get_height()) // 2)
+        return self._render_surface, position
+
     def render(self, game_clock, display):
         """
         render the current image
         """
+        # set_mode() may replace the display surface when automatic sizing is
+        # active. Always use pygame's current surface on following frames.
+        display = pygame.display.get_surface() or display
         events = pygame.event.get()
         if self.controller.parse_events(game_clock, events):
             return True
@@ -277,8 +338,11 @@ class ManualControl(CompatibleNode):
             return True
         self.hud.tick(game_clock)
 
-        if self._surface is not None:
-            display.blit(self._surface, (0, 0))
+        display = self._resize_display_to_image(display)
+        display.fill((0, 0, 0))
+        image_surface, image_position = self._fit_image_to_display(display)
+        if image_surface is not None:
+            display.blit(image_surface, image_position)
         self.hud.render(display)
 
 # ==============================================================================
@@ -557,6 +621,12 @@ class HUD(object):
             "/carla/status",
             self.carla_status_updated,
             qos_profile=10)
+
+    def resize(self, width, height):
+        """Update HUD elements that depend on the display dimensions."""
+        self.dim = (width, height)
+        self._notifications.resize((width, 40), (0, height - 40))
+        self.help.resize(width, height)
 
     def tick(self, clock):
         """
@@ -920,6 +990,12 @@ class FadingText(object):
         self.seconds_left = 0
         self.surface = pygame.Surface(self.dim, pygame.SRCALPHA)
 
+    def resize(self, dim, pos):
+        """Resize and reposition the notification surface."""
+        self.dim = dim
+        self.pos = pos
+        self.surface = pygame.Surface(self.dim, pygame.SRCALPHA)
+
     def set_text(self, text, color=(255, 255, 255), seconds=2.0):
         """
         set the text
@@ -956,17 +1032,21 @@ class HelpText(object):
     """
 
     def __init__(self, width, height):
-        self.screen_dim = (width, height)
-        self.dim = (min(720, width - 32), min(500, height - 32))
-        self.pos = ((width - self.dim[0]) // 2, (height - self.dim[1]) // 2)
         self._font_title = HUD._make_font('inter,dejavusans,ubuntusans,arial', 22, True)
         self._font_heading = HUD._make_font('inter,dejavusans,ubuntusans,arial', 11, True)
         self._font_key = HUD._make_font('ubuntumono,dejavusansmono,monospace', 11, True)
         self._font_body = HUD._make_font('inter,dejavusans,ubuntusans,arial', 12)
         self._logo = load_openads_logo()
+        self._render = False
+        self.resize(width, height)
+
+    def resize(self, width, height):
+        """Rebuild the help overlay for a changed display size."""
+        self.screen_dim = (width, height)
+        self.dim = (min(720, max(1, width - 32)), min(500, max(1, height - 32)))
+        self.pos = ((width - self.dim[0]) // 2, (height - self.dim[1]) // 2)
         self.surface = pygame.Surface(self.dim, pygame.SRCALPHA)
         self._build_surface()
-        self._render = False
 
     def _build_surface(self):
         pygame.draw.rect(self.surface, (7, 14, 20, 235), self.surface.get_rect(), border_radius=18)
@@ -1071,11 +1151,10 @@ def main(args=None):
 
     roscomp.init("manual_control", args=args)
 
-    # resolution should be similar to spawned camera with role-name 'view'
+    # A non-positive dimension enables sizing from the first camera image.
     tmp_node = CompatibleNode("manual_control_param_helper")
-    window_width = tmp_node.get_param("window_width", 800)
-    window_height = tmp_node.get_param("window_height", 600)
-    resolution = {"width": window_width, "height": window_height}
+    window_width = tmp_node.get_param("window_width", 0)
+    window_height = tmp_node.get_param("window_height", 0)
     tmp_node.destroy_node()
 
     pygame.init()
@@ -1085,6 +1164,20 @@ def main(args=None):
     if icon:
         pygame.display.set_icon(icon)
     pygame.joystick.init()
+
+    auto_window_size = window_width <= 0 or window_height <= 0
+    desktop_info = pygame.display.Info()
+    desktop_size = (desktop_info.current_w or 1280, desktop_info.current_h or 720)
+    if auto_window_size:
+        initial_size = fit_size((800, 600), desktop_size, allow_upscale=False)
+    else:
+        initial_size = (window_width, window_height)
+    resolution = {
+        "width": initial_size[0],
+        "height": initial_size[1],
+        "auto": auto_window_size,
+        "maximum": desktop_size
+    }
 
     try:
         num_joysticks = pygame.joystick.get_count()
