@@ -113,6 +113,8 @@ Note: Sensors publish the tf data when the measurement is done. The child_frame_
 
 The sensor detects objects/targets (vehicles and walkers) in a specified field of view and range. The visibility of an object is checked using the corners of the object's `bounding_box`.
 
+When the sensor is attached to a vehicle or walker and [`ignore_altitude`](run_ros.md) is enabled, it dynamically translates CARLA's absolute target altitudes into the flattened frame inherited from its parent. The offset follows the parent actor as it moves over changing road elevation; no map-specific sensor height is required. Occlusion rays are translated back into CARLA's absolute frame before they are evaluated.
+
 The visibility of a target is evaluated using 4 filters:
 1. Filter: Rough filtering of targets based on the distance between the sensor and the target's center. The target is kept for the following filters if the center is within `range + target_center_range_margin`.
 2. Filter: Distance measurement from the sensor to all vertices of the target's `bounding_box`.
