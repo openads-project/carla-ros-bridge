@@ -45,6 +45,7 @@
 
 - Disable automated control commands while manual control is active.
 - Add Xbox wireless controller support to [manual control](./carla_manual_control/src/carla_manual_control/carla_manual_control.py).
+- Size the manual-control window from the camera image by default and fit images into explicitly configured window sizes without cropping.
 - Use [`AckermannDriveStamped`](./docs/carla_ackermann_control.md) instead of `AckermannDrive` for Ackermann control input.
 
 ## Misc
