@@ -37,6 +37,7 @@
 - Add optional compressed image publishing for cameras via [`publish_compressed_images`](./docs/run_ros.md).
 - Optionally include static map objects in object-list output.
 - Add an [Ideal Object Sensor](./docs/ros_sensors.md#ideal-object-sensor), which detects vehicles and walkers by range, field of view, bounding-box vertices, and optional occlusion checks.
+- Keep an attached Ideal Object Sensor's range, field-of-view, and occlusion checks consistent with a dynamically flattened parent transform when `ignore_altitude` is enabled.
 - Add ETSI MAPEM/SPATEM conversion for traffic-light and junction information in the [Traffic Lights Sensor](./docs/etsi_its_conversion.md).
 - Prevent similar sensor names and thus duplicated topics
 - Add `/carla/weather` publishing and `/carla/weather_control` handling for CARLA weather parameters.

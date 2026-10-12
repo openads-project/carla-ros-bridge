@@ -203,6 +203,26 @@ class IdealObjectSensor(ObjectSensor):
         return (self._lower(carla_location, self._ground_offset),
                 [self._lower(corner, self._ground_offset) for corner in carla_corners])
 
+    def _update_ground_offset_from_parent(self):
+        """
+        Update the ground offset inherited from a flattened parent actor.
+
+        CARLA continues to report absolute target altitudes when ``ignore_altitude``
+        flattens a vehicle or walker transform to z=0. An attached pseudo sensor inherits
+        that flattened frame, so it has to use the current altitude of the parent as its
+        ground offset. Updating the existing value also makes the correction follow a
+        moving parent over changing road elevation.
+        """
+        if not self.node.parameters['ignore_altitude']:
+            return
+
+        parent = self.parent
+        while parent is not None:
+            if isinstance(parent, (Vehicle, Walker)):
+                self._ground_offset = parent.carla_actor.get_location().z
+                return
+            parent = parent.parent
+
     @staticmethod
     def get_blueprint_name():
         """
@@ -384,6 +404,8 @@ class IdealObjectSensor(ObjectSensor):
         # Generate object array to publish sensor data
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
+
+        self._update_ground_offset_from_parent()
 
         # Get ROS transform from IdealObjectSensor to carla_map and vice versa
         sensor_frame = self.get_prefix()
