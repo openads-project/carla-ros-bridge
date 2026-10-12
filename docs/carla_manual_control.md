@@ -56,8 +56,8 @@ __3.__ Launch the `carla_manual_control` node:
 __4.__ To steer the vehicle manually, press 'B'. Press 'H' to see instructions.
 
 By default, `window_width` and `window_height` are `0`. The window adopts the
-camera image resolution when the first image arrives. Images larger than the
-desktop are scaled down while preserving their aspect ratio. Set both parameters
+camera image resolution when the first image arrives. Images larger than 90 % of
+the desktop are scaled down while preserving their aspect ratio. Set both parameters
 to positive values to keep a fixed window size; the image is then fitted and
 centered without cropping.
 

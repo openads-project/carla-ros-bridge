@@ -1168,15 +1168,17 @@ def main(args=None):
     auto_window_size = window_width <= 0 or window_height <= 0
     desktop_info = pygame.display.Info()
     desktop_size = (desktop_info.current_w or 1280, desktop_info.current_h or 720)
+    # Leave room for docks, panels and window decorations.
+    maximum_size = (int(desktop_size[0] * 0.9), int(desktop_size[1] * 0.9))
     if auto_window_size:
-        initial_size = fit_size((800, 600), desktop_size, allow_upscale=False)
+        initial_size = fit_size((800, 600), maximum_size, allow_upscale=False)
     else:
         initial_size = (window_width, window_height)
     resolution = {
         "width": initial_size[0],
         "height": initial_size[1],
         "auto": auto_window_size,
-        "maximum": desktop_size
+        "maximum": maximum_size
     }
 
     try:
