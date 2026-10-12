@@ -9,7 +9,7 @@ services:
       # --- other -----
       LOG_LEVEL: ${LOG_LEVEL:-info}
       USE_SIM_TIME: ${USE_SIM_TIME:-true}
-      HOST: carla-server
+      CARLA_HOST: carla-server
       PORT: 2000
       TIMEOUT: 5000
       PASSIVE: False
@@ -42,8 +42,8 @@ services:
         ros2 launch carla_ros_bridge carla_ros_bridge.launch.py \
           log_level:=$${LOG_LEVEL} \
           use_sim_time:=$${USE_SIM_TIME} \
-          host:=$${HOST} \
-          port:=$${PORT} \
+          host:=$${CARLA_HOST} \
+          port:=$${CARLA_PORT} \
           timeout:=$${TIMEOUT} \
           passive:=$${PASSIVE} \
           publish_clock:=$${PUBLISH_CLOCK} \
