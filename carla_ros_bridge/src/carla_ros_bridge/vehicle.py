@@ -24,6 +24,25 @@ class Vehicle(TrafficParticipant):
     Actor implementation details for vehicles
     """
 
+    # values of the legacy 'object_type' blueprint attribute
+    OBJECT_TYPE_CLASSIFICATION = {
+        'car': Object.CLASSIFICATION_CAR,
+        'bike': Object.CLASSIFICATION_BIKE,
+        'motorcycle': Object.CLASSIFICATION_MOTORCYCLE,
+        'truck': Object.CLASSIFICATION_TRUCK,
+        'other': Object.CLASSIFICATION_OTHER_VEHICLE,
+    }
+
+    # values of CARLA's 'base_type' blueprint attribute
+    BASE_TYPE_CLASSIFICATION = {
+        'car': Object.CLASSIFICATION_CAR,
+        'van': Object.CLASSIFICATION_CAR,
+        'truck': Object.CLASSIFICATION_TRUCK,
+        'bus': Object.CLASSIFICATION_OTHER_VEHICLE,
+        'motorcycle': Object.CLASSIFICATION_MOTORCYCLE,
+        'bicycle': Object.CLASSIFICATION_BIKE,
+    }
+
     def __init__(self, uid, name, parent, node, carla_actor):
         """
         Constructor
@@ -39,18 +58,13 @@ class Vehicle(TrafficParticipant):
         :param carla_actor: carla vehicle actor object
         :type carla_actor: carla.Vehicle
         """
-        self.classification = Object.CLASSIFICATION_CAR
-        if 'object_type' in carla_actor.attributes:
-            if carla_actor.attributes['object_type'] == 'car':
-                self.classification = Object.CLASSIFICATION_CAR
-            elif carla_actor.attributes['object_type'] == 'bike':
-                self.classification = Object.CLASSIFICATION_BIKE
-            elif carla_actor.attributes['object_type'] == 'motorcycle':
-                self.classification = Object.CLASSIFICATION_MOTORCYCLE
-            elif carla_actor.attributes['object_type'] == 'truck':
-                self.classification = Object.CLASSIFICATION_TRUCK
-            elif carla_actor.attributes['object_type'] == 'other':
-                self.classification = Object.CLASSIFICATION_OTHER_VEHICLE
+        # an explicit 'object_type' takes precedence; CARLA ships it empty, so
+        # fall back to 'base_type', which CARLA sets for every vehicle blueprint
+        object_type = carla_actor.attributes.get('object_type', '')
+        base_type = carla_actor.attributes.get('base_type', '')
+        self.classification = self.OBJECT_TYPE_CLASSIFICATION.get(
+            object_type,
+            self.BASE_TYPE_CLASSIFICATION.get(base_type, Object.CLASSIFICATION_CAR))
 
         super(Vehicle, self).__init__(uid=uid,
                                       name=name,
