@@ -35,6 +35,11 @@ def _create_available_scenarios_pub_action(context, *args, **kwargs):
     scenarios_dir = launch.substitutions.LaunchConfiguration(
         'scenarios_dir').perform(context)
     selected_map = _normalized_map_reference(os.environ.get('SCENARIO_MAP', ''))
+    invalid_scenarios = set()
+    invalid_scenarios_file = os.environ.get('INVALID_SCENARIOS_FILE', '')
+    if invalid_scenarios_file and os.path.isfile(invalid_scenarios_file):
+        with open(invalid_scenarios_file, encoding='utf-8') as invalid_file:
+            invalid_scenarios = {os.path.realpath(line.strip()) for line in invalid_file if line.strip()}
     scenario_files = []
 
     if os.path.exists(scenarios_dir):
@@ -44,6 +49,10 @@ def _create_available_scenarios_pub_action(context, *args, **kwargs):
             if '/catalog' in xosc_file:
                 continue
             if selected_map and _xosc_map_reference(xosc_file) != selected_map:
+                continue
+            if os.path.realpath(xosc_file) in invalid_scenarios:
+                launch.logging.get_logger('scenario_selection').warning(
+                    f'Hiding invalid scenario: {xosc_file}')
                 continue
             # Get relative path and scenario name
             scenario_path = os.path.relpath(xosc_file, scenarios_dir)
