@@ -458,6 +458,7 @@ def main(args=None):
     role_name = carla_bridge.get_param('ego_vehicle_role_name',
                                        ["hero", "ego_vehicle", "hero0", "hero1", "hero2", "hero3"])
     parameters['ego_vehicle'] = {'role_name': role_name}
+    parameters['object_sensor_publish_rate_hz'] = carla_bridge.get_param('object_sensor_publish_rate_hz', 0.0)
     parameters['publish_static_vehicles'] = carla_bridge.get_param('publish_static_vehicles', True)
     parameters['publish_compressed_images'] = carla_bridge.get_param('publish_compressed_images', True)
     parameters['ignore_altitude'] = carla_bridge.get_param('ignore_altitude', False)

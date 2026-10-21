@@ -12,6 +12,7 @@ handle a object sensor
 import carla
 import carla_common.transforms as trans
 import ctypes
+import math
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.vehicle import Vehicle
@@ -59,6 +60,12 @@ class ObjectSensor(PseudoActor):
         self.actor_list = actor_list
         self.world = world
         self.node = node
+        rate = float(node.parameters['object_sensor_publish_rate_hz'])
+        if not math.isfinite(rate) or rate < 0.0:
+            raise ValueError("object_sensor_publish_rate_hz must be finite and non-negative")
+        self._publish_period = 1.0 / rate if rate > 0.0 else 0.0
+        self._next_publish_timestamp = None
+        self._last_update_timestamp = None
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
@@ -133,6 +140,18 @@ class ObjectSensor(PseudoActor):
         - tf global frame
         :return:
         """
+        if self._publish_period > 0.0:
+            if self._last_update_timestamp is None or timestamp < self._last_update_timestamp:
+                self._next_publish_timestamp = timestamp
+            self._last_update_timestamp = timestamp
+            # allow for nanosecond-scale rounding in CARLA's simulation timestamps
+            if timestamp + 1e-6 < self._next_publish_timestamp:
+                return
+            # retain phase for non-integer tick ratios and skip missed deadlines without bursts
+            periods = max(1, math.floor(
+                (timestamp + 1e-6 - self._next_publish_timestamp) / self._publish_period) + 1)
+            self._next_publish_timestamp += periods * self._publish_period
+
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
         for actor_id in self.actor_list.keys():

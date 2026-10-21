@@ -21,6 +21,7 @@ def generate_launch_description():
         'register_all_sensors',
         'native_interface',
         'ego_vehicle_role_name',
+        'object_sensor_publish_rate_hz',
         'publish_static_vehicles',
         'publish_compressed_images',
         'ignore_altitude',
@@ -110,6 +111,11 @@ def generate_launch_description():
             name='ego_vehicle_role_name',
             default_value=['hero', 'ego_vehicle', 'hero0', 'hero1', 'hero2', 'hero3'],
             description='Role names to identify ego vehicles. '
+        ),
+        DeclareLaunchArgument(
+            name='object_sensor_publish_rate_hz',
+            default_value='0.0',
+            description='Object pseudo-sensor publication rate in simulation Hz; 0 publishes every tick'
         ),
         DeclareLaunchArgument(
             name='publish_static_vehicles',

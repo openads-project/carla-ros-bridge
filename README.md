@@ -40,6 +40,8 @@
 
 ## Features
 
+- Configure object pseudo-sensor publication independently of the simulation timestep with [`object_sensor_publish_rate_hz`](./docs/run_ros.md) (default: every tick).
+
 - Provide Sensor Data (Lidar, Semantic lidar, Cameras (depth, segmentation, rgb, dvs), GNSS, Radar, IMU)
 - Provide Object Data (Transforms (via [tf](http://wiki.ros.org/tf)), Traffic light status, Visualization markers, Collision, Lane invasion)
 - Control AD Agents (Steer/Throttle/Brake)
