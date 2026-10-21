@@ -83,7 +83,7 @@ The following launch arguments are available for `carla_ros_bridge.launch` and `
 | `register_all_sensors` | `True` | Register all sensors already present in the simulation. If `False`, only sensors spawned by the bridge are registered. |
 | `native_interface` | `True` | Enable CARLA native DDS interfaces. The bridge will not create bridge-side sensor publishers or control subscribers for native sensors. |
 | `ego_vehicle_role_name` | `['hero', 'ego_vehicle', 'hero0', 'hero1', 'hero2', 'hero3']` | Role names used to identify ego vehicles. Relevant ROS topics are created for matching vehicles. |
-| `object_sensor_publish_rate_hz` | `0.0` | Publication rate in simulation Hz for all global and ego-attached `sensor.pseudo.objects` sensors. `0.0` publishes every tick; positive values sample available simulation frames before constructing object lists. |
+| `object_sensor_publish_rate_hz` | `0.0` | Publication rate [Hz simtime] for `sensor.pseudo.objects` sensors. `0.0` publishes on every simulation tick. |
 | `publish_static_vehicles` | `True` | Include static vehicles in object list outputs. |
 | `publish_compressed_images` | `True` | Publish compressed image topics in addition to raw image topics. |
 | `ignore_altitude` | `False` | Disable altitude information in TF, odometry, GNSS, and object-list outputs where supported. |
@@ -97,8 +97,6 @@ The following launch arguments are available for `carla_ros_bridge.launch` and `
 | `waypoints_search_distance` | `1.0` | Waypoint search distance in meters. |
 | `lane_waypoints_count` | `10` | Number of waypoints included in ETSI MAPEM ingress and egress lanes. |
 | `log_level` | `info` | ROS logging level for the bridge node (`debug`, `info`, `warn`, `error`, or `fatal`). |
-
-For example, `fixed_delta_seconds:=0.01 object_sensor_publish_rate_hz:=20.0` publishes object lists every fifth tick while the simulation and other sensors continue at 100 Hz. With a 50 Hz simulation, the same setting alternates 40/60 ms publication intervals to average 20 Hz. The rate is limited by the simulation update frequency; original frame timestamps are preserved. Missed deadlines do not cause catch-up bursts, and backward simulation-time jumps reset the publication schedule. A 1 microsecond comparison tolerance accommodates CARLA timestamp rounding. The setting is read at sensor creation and does not affect `sensor.pseudo.ideal_objects`.
 
 The `carla_ros_bridge_with_example_ego_vehicle.launch` and `carla_ros_bridge_with_example_ego_vehicle.launch.py` launch files expose all bridge arguments above and add the following arguments for the spawned example ego vehicle:
 

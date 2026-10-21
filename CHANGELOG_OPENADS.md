@@ -8,12 +8,11 @@
 
 ## Timing Related
 
-- Add [`object_sensor_publish_rate_hz`](./docs/run_ros.md) to sample object pseudo-sensor output independently of the simulation timestep, skipping object-list construction on unused ticks.
-
 - Support real-time control by decoupling CARLA ticking from ROS callback processing in the bridge.
 - Add [`start_unix_time_stamp`](./docs/run_ros.md) to offset ROS simulation timestamps or start them from the current Unix time.
 - Allow disabling bridge-side `/clock` publishing when the CARLA native interface provides time synchronization.
 - Support [`use_sim_time`](./docs/run_ros.md) consistently across bridge, spawning, and control nodes.
+- Add [`object_sensor_publish_rate_hz`](./docs/run_ros.md) to sample object pseudo-sensor output independently of the simulation timestep, skipping object-list construction on unused ticks.
 
 ## Map Related
 

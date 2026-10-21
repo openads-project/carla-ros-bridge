@@ -140,6 +140,8 @@ class ObjectSensor(PseudoActor):
         - tf global frame
         :return:
         """
+
+        # determine whether to publish this tick or skip, if publication rate is set
         if self._publish_period > 0.0:
             if self._last_update_timestamp is None or timestamp < self._last_update_timestamp:
                 self._next_publish_timestamp = timestamp
