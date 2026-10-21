@@ -105,6 +105,8 @@ Note: Sensors publish the tf data when the measurement is done. The child_frame_
 
 ###### Object Sensor
 
+Set `sensor_tick` per sensor in the spawn configuration for `sensor.pseudo.objects` and `sensor.pseudo.ideal_objects`: simulation seconds between publications (`0.05` for 20 Hz), default `0.0` publishes every tick.
+
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>` | [derived_object_msgs/ObjectArray](https://docs.ros.org/en/melodic/api/derived_object_msgs/html/msg/ObjectArray.html) | Publishes all vehicles and walker. If attached to a parent, the parent is not contained. |

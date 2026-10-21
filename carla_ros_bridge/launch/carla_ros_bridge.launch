@@ -16,7 +16,6 @@
   <arg name='synchronous_mode_wait_for_vehicle_control_command' default='False'/>
   <!-- set the fixed timestep length -->
   <arg name='fixed_delta_seconds' default='0.05'/>
-  <arg name='object_sensor_publish_rate_hz' default='0.0'/>
   <arg name='town' default='Town01'/>
   <!-- enable/disable the registration of all sensors. If disabled, only sensors
   spawned by the bridge are registered -->
@@ -36,7 +35,6 @@
     <param name="synchronous_mode" value="$(arg synchronous_mode)"/>
     <param name="synchronous_mode_wait_for_vehicle_control_command" value="$(arg synchronous_mode_wait_for_vehicle_control_command)"/>
     <param name="fixed_delta_seconds" value="$(arg fixed_delta_seconds)"/>
-    <param name="object_sensor_publish_rate_hz" value="$(arg object_sensor_publish_rate_hz)"/>
     <param name="register_all_sensors" value="$(arg register_all_sensors)"/>
     <param name="town" value="$(arg town)"/>
     <param name="ego_vehicle_role_name" value="$(arg ego_vehicle_role_name)"/>

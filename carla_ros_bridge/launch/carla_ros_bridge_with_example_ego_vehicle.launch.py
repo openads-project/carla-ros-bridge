@@ -24,7 +24,6 @@ def generate_launch_description():
         ('register_all_sensors', 'True'),
         ('native_interface', 'True'),
         ('ego_vehicle_role_name', ['hero', 'ego_vehicle', 'hero0', 'hero1', 'hero2', 'hero3']),
-        ('object_sensor_publish_rate_hz', '0.0'),
         ('publish_static_vehicles', 'True'),
         ('publish_compressed_images', 'True'),
         ('ignore_altitude', 'False'),
