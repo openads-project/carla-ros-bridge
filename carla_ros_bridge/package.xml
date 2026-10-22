@@ -20,7 +20,7 @@
   <exec_depend>carla_spawn_objects</exec_depend>
   <exec_depend>carla_manual_control</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
-  <exec_depend>python-transforms3d-pip</exec_depend>
+  <exec_depend>python3-transforms3d</exec_depend>
   <exec_depend>ros_compatibility</exec_depend>
   <exec_depend>etsi_its_spatem_ts_msgs</exec_depend>
   <exec_depend>etsi_its_mapem_ts_msgs</exec_depend>

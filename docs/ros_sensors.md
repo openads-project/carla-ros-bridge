@@ -105,6 +105,10 @@ Note: Sensors publish the tf data when the measurement is done. The child_frame_
 
 ###### Object Sensor
 
+| Parameter | Unit | Type | <div style="text-align: center">Default Value</div> | <div style="text-align: center">Range of Applicability</div> | Description |
+|-----------|------|------|---------------|------------------------|-------------|
+| `sensor_tick` | Simulation seconds | `float` | <div style="text-align: right">0.0</div> | <div style="text-align: center">[0 , ∞)</div> | Interval between publications; `0.0` publishes every tick (`0.05` for 20 Hz). |
+
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/carla/[<PARENT ROLE NAME>]/<SENSOR ROLE NAME>` | [derived_object_msgs/ObjectArray](https://docs.ros.org/en/melodic/api/derived_object_msgs/html/msg/ObjectArray.html) | Publishes all vehicles and walker. If attached to a parent, the parent is not contained. |
@@ -125,6 +129,7 @@ The following parameters can be set. Distances and field-of-view angles are eval
 
 | Parameter | Unit | Type | <div style="text-align: center">Default Value</div> | <div style="text-align: center">Range of Applicability</div> | Description |
 |-----------|------|------|---------------|------------------------|-------------|
+| `sensor_tick` | Simulation seconds | `float` | <div style="text-align: right">0.0</div> | <div style="text-align: center">[0 , ∞)</div> | Interval between publications; `0.0` publishes every tick (`0.05` for 20 Hz). |
 | `range` | Meters | `float` | <div style="text-align: right">100</div> | <div style="text-align: center">[0 , ∞]</div> | Range of the sensor, measured from the sensor origin |
 | `left_fov` | Degrees | `float` | <div style="text-align: right">-180</div> | <div style="text-align: center">[-180 , 0]</div> | Sensor's left field of view in the sensor coordinate frame |
 | `right_fov` | Degrees | `float` | <div style="text-align: right">180</div> | <div style="text-align: center">[0 , 180]</div> | Sensor's right field of view in the sensor coordinate frame |
