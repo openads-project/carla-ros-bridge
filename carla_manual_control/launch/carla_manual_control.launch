@@ -1,10 +1,13 @@
 <!-- -->
 <launch>
   <arg name="role_name" default="ego_vehicle"/>
+  <arg name="window_width" default="0"/>
+  <arg name="window_height" default="0"/>
 
   <node pkg="carla_manual_control" type="carla_manual_control.py" name="carla_manual_control_$(arg role_name)" output="screen">
     <param name="role_name" value="$(arg role_name)"/>
+    <param name="window_width" value="$(arg window_width)"/>
+    <param name="window_height" value="$(arg window_height)"/>
   </node>
 
 </launch>
-

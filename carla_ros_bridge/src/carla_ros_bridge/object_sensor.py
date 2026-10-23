@@ -12,6 +12,7 @@ handle a object sensor
 import carla
 import carla_common.transforms as trans
 import ctypes
+import math
 
 from carla_ros_bridge.pseudo_actor import PseudoActor
 from carla_ros_bridge.vehicle import Vehicle
@@ -36,7 +37,7 @@ class ObjectSensor(PseudoActor):
         carla.CityObjectLabel.Pedestrians: Object.CLASSIFICATION_PEDESTRIAN
     }
 
-    def __init__(self, uid, name, parent, node, actor_list, world):
+    def __init__(self, uid, name, parent, node, actor_list, world, attributes=()):
         """
         Constructor
 
@@ -50,6 +51,7 @@ class ObjectSensor(PseudoActor):
         :type node: CompatibleNode
         :param actor_list: current list of actors
         :type actor_list: map(carla-actor-id -> python-actor-object)
+        :param attributes: per-sensor spawn attributes (diagnostic_msgs/KeyValue[])
         """
 
         super(ObjectSensor, self).__init__(uid=uid,
@@ -59,6 +61,12 @@ class ObjectSensor(PseudoActor):
         self.actor_list = actor_list
         self.world = world
         self.node = node
+        self._publish_period = float(next(
+            (attribute.value for attribute in attributes if attribute.key == 'sensor_tick'), 0.0))
+        if not math.isfinite(self._publish_period) or self._publish_period < 0.0:
+            raise ValueError("sensor_tick must be finite and non-negative")
+        self._next_publish_timestamp = None
+        self._last_update_timestamp = None
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
@@ -126,6 +134,23 @@ class ObjectSensor(PseudoActor):
 
         return ros_objects
 
+    def _should_publish(self, timestamp):
+        """Check and advance this sensor's simulation-time publication deadline."""
+        # determine whether to publish this tick or skip, if publication rate is set
+        if self._publish_period > 0.0:
+            if self._last_update_timestamp is None or timestamp < self._last_update_timestamp:
+                self._next_publish_timestamp = timestamp
+            self._last_update_timestamp = timestamp
+            # allow for rounding in CARLA's simulation timestamps
+            if timestamp + 1e-6 < self._next_publish_timestamp:
+                return False
+            # retain phase for non-integer tick ratios and skip missed deadlines without bursts
+            periods = max(1, math.floor(
+                (timestamp + 1e-6 - self._next_publish_timestamp) / self._publish_period) + 1)
+            self._next_publish_timestamp += periods * self._publish_period
+
+        return True
+
     def update(self, frame, timestamp):
         """
         Function (override) to update this object.
@@ -133,6 +158,10 @@ class ObjectSensor(PseudoActor):
         - tf global frame
         :return:
         """
+
+        if not self._should_publish(timestamp):
+            return
+
         ros_objects = ObjectArray()
         ros_objects.header = self.get_msg_header(frame_id="carla_map", timestamp=timestamp)
         for actor_id in self.actor_list.keys():

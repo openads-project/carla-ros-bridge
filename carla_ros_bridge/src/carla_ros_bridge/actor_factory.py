@@ -647,7 +647,8 @@ class ActorFactory(object):
                 parent=parent,
                 node=self.node,
                 actor_list=self.actors,
-                world=self.world
+                world=self.world,
+                attributes=attributes
             )
 
         elif type_id == IdealObjectSensor.get_blueprint_name():

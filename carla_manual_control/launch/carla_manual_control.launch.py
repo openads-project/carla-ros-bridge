@@ -27,11 +27,13 @@ def generate_launch_description():
         ),
         launch.actions.DeclareLaunchArgument(
             name='window_width',
-            default_value='800'
+            default_value='0',
+            description='Window width; 0 selects the camera image width'
         ),
         launch.actions.DeclareLaunchArgument(
             name='window_height',
-            default_value='600'
+            default_value='0',
+            description='Window height; 0 selects the camera image height'
         ),
         launch_ros.actions.Node(
             package='carla_manual_control',

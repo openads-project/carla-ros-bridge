@@ -12,6 +12,7 @@
 - Add [`start_unix_time_stamp`](./docs/run_ros.md) to offset ROS simulation timestamps or start them from the current Unix time.
 - Allow disabling bridge-side `/clock` publishing when the CARLA native interface provides time synchronization.
 - Support [`use_sim_time`](./docs/run_ros.md) consistently across bridge, spawning, and control nodes.
+- Support per-sensor [`sensor_tick`](./docs/ros_sensors.md#object-sensor) for object and ideal object pseudo-sensors, skipping object-list construction on unused ticks.
 
 ## Map Related
 
@@ -46,6 +47,7 @@
 
 - Disable automated control commands while manual control is active.
 - Add Xbox wireless controller support to [manual control](./carla_manual_control/src/carla_manual_control/carla_manual_control.py).
+- Size the manual-control window from the camera image by default (capped at 90 % of the desktop) and fit images into explicitly configured window sizes without cropping.
 - Use [`AckermannDriveStamped`](./docs/carla_ackermann_control.md) instead of `AckermannDrive` for Ackermann control input.
 
 ## Misc

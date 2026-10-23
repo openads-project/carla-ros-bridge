@@ -60,7 +60,8 @@ class IdealObjectSensor(ObjectSensor):
                                                       parent=parent,
                                                       node=node,
                                                       actor_list=actor_list, 
-                                                      world=world)
+                                                      world=world,
+                                                      attributes=attributes)
         self.node = node
 
         # A ground-relative spawn point makes the transform of this sensor report a height
@@ -400,6 +401,9 @@ class IdealObjectSensor(ObjectSensor):
 
         # Publish transform of IdealObjectSensor at timestamp
         self.publish_tf(timestamp)
+
+        if not self._should_publish(timestamp):
+            return
 
         # Generate object array to publish sensor data
         ros_objects = ObjectArray()
