@@ -1,7 +1,7 @@
 services:
 
   carla-ackermann-control:
-    image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.1.1
+    image: ghcr.io/openads-project/carla-ros-bridge:v0.10.0-1.2.0
     environment:
       # --- name ------
       NAMESPACE: /
