@@ -18,7 +18,7 @@ try:
 except ImportError:
     import Queue as queue
 import sys
-from threading import Thread, Lock, Event
+from threading import Thread, Lock, Event, Condition
 
 import carla
 
@@ -174,6 +174,12 @@ class CarlaRosBridge(CompatibleNode):
             self.timestamp_last_run = 0.0
 
             self.actor_factory.start()
+
+            # Callback only hands the snapshot of CARLA's world state over and this thread processes the latest one.
+            self._latest_snapshot = None
+            self._snapshot_available = Condition()
+            self.passive_update_thread = Thread(target=self._passive_update)
+            self.passive_update_thread.start()
 
             # register callback to update actors
             self.on_tick_id = self.carla_world.on_tick(self._carla_time_tick)
@@ -340,13 +346,35 @@ class CarlaRosBridge(CompatibleNode):
         Private callback registered at carla.World.on_tick()
         to trigger cyclic updates.
 
-        After successful locking the update mutex
-        (only perform trylock to respect bridge processing time)
-        the clock and the children are updated.
-        Finally the ROS messages collected to be published are sent out.
+        Only hands the snapshot over to the passive update thread, without blocking.
+        A snapshot that was not processed yet is replaced by the newer one.
 
-        :param carla_timestamp: the current carla time
-        :type carla_timestamp: carla.Timestamp
+        :param carla_snapshot: the current carla world snapshot
+        :type carla_snapshot: carla.WorldSnapshot
+        :return:
+        """
+        with self._snapshot_available:
+            self._latest_snapshot = carla_snapshot
+            self._snapshot_available.notify()
+
+    def _passive_update(self):
+        """
+        execution loop for passive and asynchronous mode
+        """
+        while not self.shutdown.is_set():
+            with self._snapshot_available:
+                while self._latest_snapshot is None and not self.shutdown.is_set():
+                    self._snapshot_available.wait()
+                carla_snapshot, self._latest_snapshot = self._latest_snapshot, None
+            if carla_snapshot is not None:
+                self._process_snapshot(carla_snapshot)
+
+    def _process_snapshot(self, carla_snapshot):
+        """
+        update the clock and all actors for a world snapshot
+
+        :param carla_snapshot: the carla world snapshot
+        :type carla_snapshot: carla.WorldSnapshot
         :return:
         """
         if not self.shutdown.is_set():
@@ -404,6 +432,9 @@ class CarlaRosBridge(CompatibleNode):
         if not self.sync_mode:
             if self.on_tick_id:
                 self.carla_world.remove_on_tick(self.on_tick_id)
+            with self._snapshot_available:
+                self._snapshot_available.notify()
+            self.passive_update_thread.join()
             self.actor_factory.thread.join()
         else:
             self.synchronous_mode_update_thread.join()

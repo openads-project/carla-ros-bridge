@@ -13,6 +13,7 @@
 - Allow disabling bridge-side `/clock` publishing when the CARLA native interface provides time synchronization.
 - Support [`use_sim_time`](./docs/run_ros.md) consistently across bridge, spawning, and control nodes.
 - Support per-sensor [`sensor_tick`](./docs/ros_sensors.md#object-sensor) for object and ideal object pseudo-sensors, skipping object-list construction on unused ticks.
+- Process world updates in [`passive`](./docs/run_ros.md) mode in a separate thread instead of CARLA's `on_tick` callback. A blocking call during the update no longer deadlocks the client that ticks a synchronous CARLA world; if the update falls behind, it skips to the latest frame.
 
 ## Map Related
 
@@ -36,7 +37,7 @@
 ## Sensor Related
 
 - Add optional compressed image publishing for cameras via [`publish_compressed_images`](./docs/run_ros.md).
-- Optionally include static map objects in object-list output.
+- Optionally include static map objects in object-list output. The object sensor queries them once instead of in every update.
 - Add an [Ideal Object Sensor](./docs/ros_sensors.md#ideal-object-sensor), which detects vehicles and walkers by range, field of view, bounding-box vertices, and optional occlusion checks.
 - Keep an attached Ideal Object Sensor's range, field-of-view, and occlusion checks consistent with a dynamically flattened parent transform when `ignore_altitude` is enabled.
 - Add ETSI MAPEM/SPATEM conversion for traffic-light and junction information in the [Traffic Lights Sensor](./docs/etsi_its_conversion.md).

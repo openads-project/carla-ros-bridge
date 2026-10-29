@@ -67,6 +67,7 @@ class ObjectSensor(PseudoActor):
             raise ValueError("sensor_tick must be finite and non-negative")
         self._next_publish_timestamp = None
         self._last_update_timestamp = None
+        self._static_vehicles = None
         self.object_publisher = node.new_publisher(ObjectArray,
                                                    self.get_topic_prefix(),
                                                    qos_profile=10)
@@ -123,14 +124,21 @@ class ObjectSensor(PseudoActor):
         return environment_object.bounding_box.get_world_vertices(carla.Transform())
 
     def _get_static_vehicles(self, ros_objects):
-        # iterate over all possible static vehicles
-        for object_key, object_value in self.OBJECT_LABELS.items():
-            static_vehicles = self.world.get_environment_objects(object_key)
-            for vehicle in static_vehicles:
-                # take only vehicles with bounding_box attribute set
-                if hasattr(vehicle, "bounding_box"):
-                    vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
-                    ros_objects.objects.append(vehicle_obj)
+        # static vehicles do not move, so they are queried only once: each query is a round trip
+        # that waits while the server computes a frame
+        if self._static_vehicles is None:
+            self._static_vehicles = []
+            # iterate over all possible static vehicles
+            for object_key, object_value in self.OBJECT_LABELS.items():
+                static_vehicles = self.world.get_environment_objects(object_key)
+                for vehicle in static_vehicles:
+                    # take only vehicles with bounding_box attribute set
+                    if hasattr(vehicle, "bounding_box"):
+                        self._static_vehicles.append((vehicle, object_value))
+
+        for vehicle, object_value in self._static_vehicles:
+            vehicle_obj = self._get_vehicle_from_environment_objects(vehicle, object_value)
+            ros_objects.objects.append(vehicle_obj)
 
         return ros_objects
 
