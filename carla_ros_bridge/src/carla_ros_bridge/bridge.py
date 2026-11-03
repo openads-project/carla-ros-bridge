@@ -367,7 +367,10 @@ class CarlaRosBridge(CompatibleNode):
                     self._snapshot_available.wait()
                 carla_snapshot, self._latest_snapshot = self._latest_snapshot, None
             if carla_snapshot is not None:
-                self._process_snapshot(carla_snapshot)
+                try:
+                    self._process_snapshot(carla_snapshot)
+                except Exception as e:  # keep the loop alive like CARLA's on_tick callback did
+                    self.logerr("Passive update failed for frame {}: {}".format(carla_snapshot.frame, e))
 
     def _process_snapshot(self, carla_snapshot):
         """
