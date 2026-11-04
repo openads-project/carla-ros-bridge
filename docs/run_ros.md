@@ -72,7 +72,7 @@ The following launch arguments are available for `carla_ros_bridge.launch` and `
 | `host` | `carla-server` | IP address or hostname of the CARLA server. |
 | `port` | `2000` | TCP port of the CARLA server. |
 | `timeout` | `5000` | Time to wait for a successful connection to the CARLA server. |
-| `passive` | `False` | Let another client tick the world. This is only valid in synchronous mode; another client must tick CARLA or the simulation will freeze. |
+| `passive` | `False` | Let another client tick the world. This is only valid in synchronous mode; another client must tick CARLA or the simulation will freeze. If the bridge falls behind, it skips frames. |
 | `publish_clock` | `True` | Publish ROS `/clock` messages. Disable this only if another component publishes the clock. |
 | `synchronous_mode` | `True` | Enable synchronous mode. If enabled, the ROS bridge waits for the expected sensor data before the next tick. |
 | `synchronous_mode_wait_for_vehicle_control_command` | `False` | In synchronous mode, pause the tick until a vehicle control command has been received. |
