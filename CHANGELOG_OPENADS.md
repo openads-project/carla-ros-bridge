@@ -8,6 +8,7 @@
 
 ## Timing Related
 
+- Pace synchronous ticks against a monotonic schedule, catching up after delays without skipping ticks.
 - Support real-time control by decoupling CARLA ticking from ROS callback processing in the bridge.
 - Add [`start_unix_time_stamp`](./docs/run_ros.md) to offset ROS simulation timestamps or start them from the current Unix time.
 - Allow disabling bridge-side `/clock` publishing when the CARLA native interface provides time synchronization.

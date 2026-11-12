@@ -288,6 +288,7 @@ class CarlaRosBridge(CompatibleNode):
         """
         execution loop for synchronous mode
         """
+        next_tick = time.perf_counter()
         while not self.shutdown.is_set() and roscomp.ok():
             cycle_start = time.perf_counter()
             self.process_run_state()
@@ -322,11 +323,11 @@ class CarlaRosBridge(CompatibleNode):
                                                                                 self._expected_ego_vehicle_control_command_ids))
                     self._all_vehicle_control_commands_received.clear()
 
-            # real-time factor throttling (accounting for in-cycle processing time)
+            # retain the schedule across cycles so delays are caught up without skipping ticks.
             if self.rt_factor > 0.0:
                 desired_cycle_time = world_snapshot.timestamp.delta_seconds / self.rt_factor
-                elapsed_cycle_time = time.perf_counter() - cycle_start
-                sleep_time = desired_cycle_time - elapsed_cycle_time
+                next_tick += desired_cycle_time
+                sleep_time = next_tick - time.perf_counter()
                 if sleep_time > 0:
                     time.sleep(sleep_time)
                     if time.time() - self.last_loginfo > 1:
