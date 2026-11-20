@@ -46,6 +46,7 @@
 - Add ETSI MAPEM/SPATEM conversion for traffic-light and junction information in the [Traffic Lights Sensor](./docs/etsi_its_conversion.md).
 - Prevent similar sensor names and thus duplicated topics
 - Add `/carla/weather` publishing and `/carla/weather_control` handling for CARLA weather parameters.
+- Classify vehicles in object lists by CARLA's `base_type` blueprint attribute (`car`/`van` → car, `truck`, `bus` → other vehicle, `motorcycle`, `bicycle` → bike) when the legacy `object_type` attribute is empty, as it is for all CARLA vehicles. Previously every vehicle was reported as a car.
 
 ## Scenario Related
 

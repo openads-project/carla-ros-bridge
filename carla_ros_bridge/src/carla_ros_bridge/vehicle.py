@@ -59,9 +59,10 @@ class Vehicle(TrafficParticipant):
         :type carla_actor: carla.Vehicle
         """
         # an explicit 'object_type' takes precedence; CARLA ships it empty, so
-        # fall back to 'base_type', which CARLA sets for every vehicle blueprint
-        object_type = carla_actor.attributes.get('object_type', '')
-        base_type = carla_actor.attributes.get('base_type', '')
+        # fall back to 'base_type', which CARLA sets for every vehicle blueprint;
+        # compared case-insensitively like CARLA's traffic manager does
+        object_type = carla_actor.attributes.get('object_type', '').lower()
+        base_type = carla_actor.attributes.get('base_type', '').lower()
         self.classification = self.OBJECT_TYPE_CLASSIFICATION.get(
             object_type,
             self.BASE_TYPE_CLASSIFICATION.get(base_type, Object.CLASSIFICATION_CAR))
