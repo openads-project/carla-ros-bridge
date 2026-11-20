@@ -1,6 +1,6 @@
 apiVersion: v2
 name: carla-ros-bridge
-version: 1.0.0-1.0.0-carla-ros-bridge
+version: 1.0.0-1.0.0
 appVersion: 1.0.0-1.0.0
 description: Bidirectional communication bridge between CARLA simulation and ROS ecosystems
 dependencies:

@@ -64,3 +64,4 @@
 
 - Disable CARLA hard version checks
 - Add [`docker-ros`](github.com/ika-rwth-aachen/docker-ros) CI pipeline support.
+- Publish each deployment to its own package, for example `helm/carla-manual-control:1.0.0-1.0.0` and `compose/carla-manual-control:v1.0.0-1.0.0`, without the deployment name in the version or tag, and add the daily `ghcr-cleanup` workflow of `openads-dev-environment`.
